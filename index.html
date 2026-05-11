@@ -23,6 +23,10 @@ html, body {
   justify-content: center;
   align-items: stretch;
   z-index: 1;
+  /* poster.png replaces inner HTML if file is available */
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
 #poster-inner {
@@ -104,6 +108,31 @@ html, body {
   mix-blend-mode: screen;
 }
 
+/* Film grain — overlay blend makes it visible in lit areas,
+   invisible in pure darkness, organic in the transition zone */
+#grain-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.18;
+}
+
+/* Permanent edge vignette — corners and sides pushed deeper into black */
+#vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 14;
+  pointer-events: none;
+  background: radial-gradient(ellipse 75% 72% at 50% 50%,
+    transparent 35%,
+    rgba(3,3,6,0.28) 62%,
+    rgba(3,3,6,0.60) 82%,
+    rgba(3,3,6,0.88) 100%
+  );
+}
+
 /* ── ORB ── */
 #orb {
   position: fixed;
@@ -122,6 +151,17 @@ html, body {
     0 0 0 1px rgba(255,255,255,0.03),
     0 8px 50px rgba(0,0,0,0.97),
     inset 0 1.5px 5px rgba(255,255,255,0.045);
+  /* orb.png replaces this if available */
+}
+
+/* Intro overlay — fades out on load like a projector warming up */
+#intro {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #06060a;
+  pointer-events: none;
+  transition: opacity 2.8s cubic-bezier(0.45, 0, 0.22, 1);
 }
 
 /* ── HINT ── */
@@ -144,6 +184,7 @@ html, body {
 </head>
 <body>
 
+<!-- LAYER 1: Poster typography -->
 <div id="poster">
   <div id="poster-inner">
     <div class="p-title">SPOT<br>LIGHT</div>
@@ -166,47 +207,135 @@ html, body {
   </div>
 </div>
 
+<!-- LAYER 2–3: Darkness + bloom -->
 <canvas id="mask-canvas"></canvas>
 <canvas id="bloom-canvas"></canvas>
+
+<!-- LAYER 4: Film grain -->
+<canvas id="grain-canvas"></canvas>
+
+<!-- LAYER 5: Edge vignette (CSS only) -->
+<div id="vignette"></div>
+
+<!-- LAYER 6: Orb controller -->
 <div id="orb"></div>
+
+<!-- Intro: projector warm-up -->
+<div id="intro"></div>
+
+<!-- Hint -->
 <div id="hint">Move cursor &ensp;&middot;&ensp; Scroll to adjust depth</div>
 
 <script>
 (function () {
   'use strict';
 
-  const mCvs  = document.getElementById('mask-canvas');
-  const bCvs  = document.getElementById('bloom-canvas');
-  const orbEl = document.getElementById('orb');
-  const hintEl= document.getElementById('hint');
-  const mCtx  = mCvs.getContext('2d');
-  const bCtx  = bCvs.getContext('2d');
+  // ── DOM ────────────────────────────────────────────────────
+  const mCvs    = document.getElementById('mask-canvas');
+  const bCvs    = document.getElementById('bloom-canvas');
+  const gCvs    = document.getElementById('grain-canvas');
+  const orbEl   = document.getElementById('orb');
+  const hintEl  = document.getElementById('hint');
+  const introEl = document.getElementById('intro');
+  const posterEl= document.getElementById('poster');
+  const innerEl = document.getElementById('poster-inner');
+
+  const mCtx = mCvs.getContext('2d');
+  const bCtx = bCvs.getContext('2d');
+  const gCtx = gCvs.getContext('2d');
 
   // ── Constants ──────────────────────────────────────────────
-  const EASE_POS   = 0.18;   // 0.16–0.22 per spec
+  const EASE_POS   = 0.18;
   const EASE_DEPTH = 0.055;
-  const ORB_MIN    = 44;     // diameter px, far (wide light)
-  const ORB_MAX    = 212;    // diameter px, close (tight light)
-  const SPOT_FAR   = 0.74;   // fraction of diag when far
-  const SPOT_NEAR  = 0.13;   // fraction of diag when close
+  const ORB_MIN    = 44;
+  const ORB_MAX    = 212;
+  const SPOT_FAR   = 0.74;
+  const SPOT_NEAR  = 0.13;
 
   // ── State ──────────────────────────────────────────────────
   let W = 0, H = 0, DIAG = 0;
   let tx, ty, tdep = 0.42;
   let dx, dy, ddep = 0.42;
   let hintFaded = false;
+  let frameCount = 0;
 
+  // ── Film grain (offscreen, 384×384 noise tile) ────────────
+  const GRAIN_SIZE = 384;
+  const grainOff   = document.createElement('canvas');
+  grainOff.width   = grainOff.height = GRAIN_SIZE;
+  const gOffCtx    = grainOff.getContext('2d');
+  const grainImg   = gOffCtx.createImageData(GRAIN_SIZE, GRAIN_SIZE);
+
+  function refreshGrain() {
+    const d = grainImg.data;
+    for (let i = 0; i < d.length; i += 4) {
+      // Slightly warm-tinted noise (R slightly higher)
+      const base = Math.random() * 255 | 0;
+      d[i]   = Math.min(255, base + 8);  // R
+      d[i+1] = base;                      // G
+      d[i+2] = Math.max(0, base - 6);    // B
+      d[i+3] = 28;                        // low alpha — overlaid at 0.18 opacity
+    }
+    gOffCtx.putImageData(grainImg, 0, 0);
+  }
+
+  function drawGrain() {
+    gCtx.clearRect(0, 0, W, H);
+    // Tile the noise over the full screen with a random pixel offset each frame
+    const ox = Math.random() * GRAIN_SIZE | 0;
+    const oy = Math.random() * GRAIN_SIZE | 0;
+    gCtx.drawImage(grainOff, -ox, -oy);
+    // Tile to fill remaining gaps
+    for (let px = -ox; px < W; px += GRAIN_SIZE) {
+      for (let py = -oy; py < H; py += GRAIN_SIZE) {
+        if (px === -ox && py === -oy) continue; // already drawn
+        gCtx.drawImage(grainOff, px, py);
+      }
+    }
+  }
+
+  // ── Asset loading (poster.png / orb.png) ──────────────────
+  // If the files exist, use them. HTML poster is always the fallback.
+  (function tryLoadAssets() {
+    const pImg = new Image();
+    pImg.onload = () => {
+      posterEl.style.backgroundImage = "url('poster.png')";
+      posterEl.style.backgroundColor = '#f2eeea';
+      innerEl.style.visibility = 'hidden'; // hide HTML poster, image takes over
+    };
+    pImg.src = 'poster.png';
+
+    const oImg = new Image();
+    oImg.onload = () => {
+      orbEl.style.background    = "url('orb.png') center / contain no-repeat";
+      orbEl.style.boxShadow     = '0 8px 50px rgba(0,0,0,0.97)';
+      orbEl.style.borderRadius  = '50%';
+    };
+    oImg.src = 'orb.png';
+  })();
+
+  // ── Intro: projector warm-up ───────────────────────────────
+  // Page starts fully dark. After a brief pause, the overlay fades
+  // away like an analog projector lamp reaching operating temperature.
+  setTimeout(() => {
+    introEl.style.opacity = '0';
+    // Remove from DOM after transition to free compositing cost
+    introEl.addEventListener('transitionend', () => introEl.remove(), { once: true });
+  }, 220);
+
+  // ── Dimensions ────────────────────────────────────────────
   function init() {
     W    = window.innerWidth;
     H    = window.innerHeight;
     DIAG = Math.hypot(W, H);
-    mCvs.width  = bCvs.width  = W;
-    mCvs.height = bCvs.height = H;
+    mCvs.width = bCvs.width = gCvs.width  = W;
+    mCvs.height= bCvs.height= gCvs.height = H;
     tx = dx = W * 0.5;
     ty = dy = H * 0.5;
+    refreshGrain();
   }
 
-  window.addEventListener('resize', init);
+  window.addEventListener('resize', () => { init(); refreshGrain(); });
 
   // ── Input ──────────────────────────────────────────────────
   document.addEventListener('mousemove', e => {
@@ -228,30 +357,25 @@ html, body {
 
   setTimeout(() => { hintEl.style.opacity = '0'; }, 4500);
 
-  // ── Lerp / easing ─────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────
   const lerp = (a, b, t) => a + (b - a) * t;
-
-  // Framerate-independent factor: easing value is "per 60fps frame"
   const easeFactor = (e, dt) => 1 - Math.pow(1 - e, dt * 60);
 
   // ── MASK CANVAS ───────────────────────────────────────────
-  // Renders near-black darkness with an organic soft hole
-  // punched via destination-out composite operation.
+  // Near-black darkness with an organic soft spotlight hole
+  // punched via destination-out composite.
   function drawMask(x, y, orbR, spotR, ts) {
     mCtx.clearRect(0, 0, W, H);
 
-    // Darkness fill
     mCtx.globalCompositeOperation = 'source-over';
     mCtx.fillStyle = 'rgba(5, 5, 7, 0.975)';
     mCtx.fillRect(0, 0, W, H);
 
-    // Switch to destination-out: drawing erases the darkness
-    // Alpha of drawn gradient = amount of darkness removed
     mCtx.globalCompositeOperation = 'destination-out';
 
-    const s  = ts * 0.001;
+    const s = ts * 0.001;
 
-    // Slow organic drift — simulates physical light instability
+    // Organic breathing + multi-axis drift
     const breathe = 1 + 0.027 * Math.sin(s * 0.84);
     const ox1 = Math.sin(s * 0.73) * 4.6 + Math.cos(s * 1.21) * 3.0;
     const oy1 = Math.cos(s * 0.59) * 5.8 + Math.sin(s * 1.09) * 2.7;
@@ -260,11 +384,10 @@ html, body {
     const ox3 = Math.cos(s * 0.52 + 0.8) * 3.5;
     const oy3 = Math.sin(s * 0.66 + 2.0) * 4.0;
 
-    // Primary spotlight cone
-    const sr1 = spotR * breathe;
-    const g1  = mCtx.createRadialGradient(
-      x + ox1 * 0.22, y + oy1 * 0.22,  orbR * 0.08,
-      x + ox1 * 0.07, y + oy1 * 0.07,  sr1
+    // Primary cone
+    const g1 = mCtx.createRadialGradient(
+      x + ox1 * 0.22, y + oy1 * 0.22, orbR * 0.08,
+      x + ox1 * 0.07, y + oy1 * 0.07, spotR * breathe
     );
     g1.addColorStop(0.00, 'rgba(0,0,0,1.00)');
     g1.addColorStop(0.40, 'rgba(0,0,0,0.90)');
@@ -275,11 +398,10 @@ html, body {
     mCtx.fillStyle = g1;
     mCtx.fillRect(0, 0, W, H);
 
-    // Secondary offset layer — edge irregularity
-    const sr2 = spotR * 0.78 * breathe;
-    const g2  = mCtx.createRadialGradient(
-      x + ox2 * 0.45, y + oy2 * 0.45,  orbR * 0.05,
-      x + ox2 * 0.16, y + oy2 * 0.16,  sr2
+    // Secondary layer — edge irregularity
+    const g2 = mCtx.createRadialGradient(
+      x + ox2 * 0.45, y + oy2 * 0.45, orbR * 0.05,
+      x + ox2 * 0.16, y + oy2 * 0.16, spotR * 0.78 * breathe
     );
     g2.addColorStop(0.00, 'rgba(0,0,0,0.48)');
     g2.addColorStop(0.44, 'rgba(0,0,0,0.26)');
@@ -288,11 +410,10 @@ html, body {
     mCtx.fillStyle = g2;
     mCtx.fillRect(0, 0, W, H);
 
-    // Tertiary subtle layer — further organic irregularity
-    const sr3 = spotR * 0.90 * (1 + 0.019 * Math.cos(s * 1.06));
-    const g3  = mCtx.createRadialGradient(
-      x + ox3 * 0.38, y + oy3 * 0.38,  orbR * 0.04,
-      x + ox3 * 0.13, y + oy3 * 0.13,  sr3
+    // Tertiary layer — further organic imperfection
+    const g3 = mCtx.createRadialGradient(
+      x + ox3 * 0.38, y + oy3 * 0.38, orbR * 0.04,
+      x + ox3 * 0.13, y + oy3 * 0.13, spotR * 0.90 * (1 + 0.019 * Math.cos(s * 1.06))
     );
     g3.addColorStop(0.00, 'rgba(0,0,0,0.28)');
     g3.addColorStop(0.52, 'rgba(0,0,0,0.13)');
@@ -301,8 +422,7 @@ html, body {
     mCtx.fillStyle = g3;
     mCtx.fillRect(0, 0, W, H);
 
-    // Restore composite, add restrained center shadow
-    // (prevents overly bright hot-spot at orb center)
+    // Restore and add restrained center shadow
     mCtx.globalCompositeOperation = 'source-over';
     const gc = mCtx.createRadialGradient(x, y, 0, x, y, orbR * 2.4);
     gc.addColorStop(0.0, 'rgba(5,5,7,0.18)');
@@ -313,10 +433,8 @@ html, body {
   }
 
   // ── BLOOM CANVAS ──────────────────────────────────────────
-  // Warm optical glow. All gradients positioned at the
-  // light/dark transition boundary, not in the lit zone.
-  // mix-blend-mode:screen on the canvas element means these
-  // gradients are visible against dark backgrounds.
+  // Warm cinematic bloom. All gradients at the dark/light
+  // transition boundary — visible via mix-blend-mode: screen.
   function drawBloom(x, y, orbR, spotR, ts) {
     bCtx.clearRect(0, 0, W, H);
 
@@ -324,7 +442,7 @@ html, body {
     const breathe = 1 + 0.022 * Math.sin(s * 0.84 + 0.4);
     const flicker = 0.80 + 0.20 * (0.5 + 0.5 * Math.sin(s * 1.28) * Math.cos(s * 0.84));
 
-    // ── Corona: peaks at the lit/dark transition boundary ──
+    // Corona: peaks at the lit/dark transition boundary
     const cIn  = spotR * 0.52 * breathe;
     const cOut = spotR * 1.08 * breathe;
     const corona = bCtx.createRadialGradient(x, y, cIn, x, y, cOut);
@@ -336,10 +454,11 @@ html, body {
     bCtx.fillStyle = corona;
     bCtx.fillRect(0, 0, W, H);
 
-    // ── Outer atmospheric halo — deep in the dark zone ──
-    const hIn  = spotR * 0.68 * breathe;
-    const hOut = spotR * 1.40 * breathe;
-    const halo = bCtx.createRadialGradient(x, y, hIn, x, y, hOut);
+    // Outer atmospheric halo — deep in the dark zone
+    const halo = bCtx.createRadialGradient(
+      x, y, spotR * 0.68 * breathe,
+      x, y, spotR * 1.40 * breathe
+    );
     halo.addColorStop(0.00, 'rgba(0,0,0,0)');
     halo.addColorStop(0.22, `rgba(255,246,218,${(0.26 * flicker).toFixed(3)})`);
     halo.addColorStop(0.50, `rgba(242,228,192,${(0.16 * flicker).toFixed(3)})`);
@@ -348,17 +467,14 @@ html, body {
     bCtx.fillStyle = halo;
     bCtx.fillRect(0, 0, W, H);
 
-    // ── Horizontal lens streak (anamorphic) ──
-    // Slightly above center — asymmetric, analog
+    // Horizontal lens streak — slightly above center, asymmetric
     const sOffY  = -spotR * 0.055;
     const sLen   = spotR * 0.96;
-    // streakHalf: controlled ratio — not near-zero
     const sHalf  = Math.max(orbR * 1.2, 22);
-    const sScale = sHalf / sLen;
 
     bCtx.save();
     bCtx.translate(x, y + sOffY);
-    bCtx.scale(1, sScale);
+    bCtx.scale(1, sHalf / sLen);
     bCtx.translate(-x, -(y + sOffY));
     const st1 = bCtx.createRadialGradient(
       x, y + sOffY, spotR * 0.50,
@@ -373,15 +489,14 @@ html, body {
     bCtx.fillRect(0, 0, W, H);
     bCtx.restore();
 
-    // ── Vertical ghost streak — offset right, faint ──
+    // Vertical ghost streak — offset right, faint
     const vOffX  = spotR * 0.07;
     const vLen   = spotR * 0.70;
     const vHalf  = Math.max(orbR * 0.55, 14);
-    const vScale = vHalf / vLen;
 
     bCtx.save();
     bCtx.translate(x + vOffX, y);
-    bCtx.scale(vScale, 1);
+    bCtx.scale(vHalf / vLen, 1);
     bCtx.translate(-(x + vOffX), -y);
     const st2 = bCtx.createRadialGradient(
       x + vOffX, y, spotR * 0.44,
@@ -395,11 +510,12 @@ html, body {
     bCtx.fillRect(0, 0, W, H);
     bCtx.restore();
 
-    // ── Edge optical flicker — slow noise at boundary ──
+    // Edge optical flicker — slow pulse at transition boundary
     const edgePulse = Math.abs(Math.sin(s * 0.44)) * Math.abs(Math.cos(s * 0.68));
-    const eIn  = spotR * 0.74;
-    const eOut = spotR * 0.98;
-    const edgeGlow = bCtx.createRadialGradient(x, y, eIn, x, y, eOut);
+    const edgeGlow  = bCtx.createRadialGradient(
+      x, y, spotR * 0.74,
+      x, y, spotR * 0.98
+    );
     edgeGlow.addColorStop(0.0, 'rgba(0,0,0,0)');
     edgeGlow.addColorStop(0.5, `rgba(255,248,228,${(0.14 * edgePulse).toFixed(3)})`);
     edgeGlow.addColorStop(1.0, 'rgba(0,0,0,0)');
@@ -413,6 +529,7 @@ html, body {
   function frame(ts) {
     const dt = Math.min((ts - lastTs) / 1000, 0.05);
     lastTs = ts;
+    frameCount++;
 
     const ep = easeFactor(EASE_POS,   dt);
     const ed = easeFactor(EASE_DEPTH, dt);
@@ -428,10 +545,13 @@ html, body {
     drawMask(dx, dy, orbR, spotR, ts);
     drawBloom(dx, dy, orbR, spotR, ts);
 
-    // GPU-only transform — no style.left/top
-    const ox = (dx - orbR).toFixed(2);
-    const oy = (dy - orbR).toFixed(2);
-    orbEl.style.transform = `translate3d(${ox}px,${oy}px,0)`;
+    // Film grain: refresh noise tile every 2 frames (~30fps refresh)
+    // for natural "rolling" film grain motion
+    if (frameCount % 2 === 0) refreshGrain();
+    drawGrain();
+
+    // Orb: GPU-only position (translate3d), no style.left/top
+    orbEl.style.transform = `translate3d(${(dx - orbR).toFixed(2)}px,${(dy - orbR).toFixed(2)}px,0)`;
     orbEl.style.width  = orbDiam.toFixed(1) + 'px';
     orbEl.style.height = orbDiam.toFixed(1) + 'px';
 
