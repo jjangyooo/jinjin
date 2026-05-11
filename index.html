@@ -5,383 +5,442 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SPOTLIGHT — Second Edition Exhibition</title>
 <style>
-  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-  html, body {
-    width: 100%; height: 100%;
-    overflow: hidden;
-    background: #000;
-    cursor: none;
-  }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #06060a;
+  cursor: none;
+}
 
-  /* ── POSTER LAYER ── */
-  #poster {
-    position: fixed;
-    inset: 0;
-    background: #f5f2ed;
-    display: flex;
-    align-items: stretch;
-    justify-content: center;
-    z-index: 1;
-  }
+/* ── POSTER ── */
+#poster {
+  position: fixed;
+  inset: 0;
+  background: #f2eeea;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  z-index: 1;
+}
 
-  #poster-inner {
-    width: min(100vw, calc(100vh * 0.707));
-    max-width: 900px;
-    padding: clamp(32px, 5vw, 72px) clamp(28px, 4vw, 64px) clamp(28px, 4vw, 56px);
-    display: flex;
-    flex-direction: column;
-    font-family: 'Georgia', 'Times New Roman', serif;
-    color: #0a0a0a;
-    position: relative;
-  }
+#poster-inner {
+  width: min(100vw, calc(100vh * 0.707));
+  max-width: 880px;
+  padding: clamp(28px, 4.8vw, 68px) clamp(24px, 3.8vw, 60px);
+  display: flex;
+  flex-direction: column;
+  color: #0c0c0c;
+  font-family: Georgia, 'Times New Roman', serif;
+}
 
-  .poster-title {
-    font-size: clamp(72px, 14vw, 200px);
-    font-weight: 900;
-    letter-spacing: -0.02em;
-    line-height: 0.88;
-    text-transform: uppercase;
-    font-family: 'Georgia', serif;
-    margin-bottom: 0.15em;
-  }
+.p-title {
+  font-size: clamp(64px, 12.8vw, 190px);
+  font-weight: 900;
+  letter-spacing: -0.026em;
+  line-height: 0.875;
+  text-transform: uppercase;
+  margin-bottom: 0.13em;
+}
 
-  .poster-subtitle {
-    font-size: clamp(11px, 1.4vw, 18px);
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: none;
-    font-family: 'Georgia', serif;
-    margin-bottom: clamp(24px, 4vw, 56px);
-    padding-left: 2px;
-  }
+.p-sub {
+  font-size: clamp(10px, 1.3vw, 16.5px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-bottom: clamp(20px, 3.6vw, 52px);
+}
 
-  .poster-body {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0 clamp(12px, 2vw, 28px);
-    flex: 1;
-    align-content: start;
-  }
+.p-body {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0 clamp(10px, 1.9vw, 26px);
+  flex: 1;
+  align-content: start;
+}
 
-  .poster-col {
-    display: flex;
-    flex-direction: column;
-  }
+.p-col p {
+  font-size: clamp(12px, 1.8vw, 23px);
+  font-weight: 700;
+  line-height: 1.115;
+  text-transform: uppercase;
+  letter-spacing: 0.012em;
+}
 
-  .poster-col p {
-    font-size: clamp(14px, 2vw, 26px);
-    font-weight: 700;
-    line-height: 1.12;
-    text-transform: uppercase;
-    letter-spacing: 0.01em;
-    font-family: 'Georgia', serif;
-  }
+.p-footer {
+  margin-top: auto;
+  padding-top: clamp(18px, 3.2vw, 48px);
+  border-top: 2px solid #0c0c0c;
+}
 
-  .poster-footer {
-    margin-top: auto;
-    padding-top: clamp(24px, 4vw, 52px);
-    border-top: 2.5px solid #0a0a0a;
-  }
+.p-venue {
+  font-size: clamp(11px, 1.6vw, 20px);
+  font-weight: 700;
+  letter-spacing: 0.038em;
+  margin-bottom: 0.06em;
+}
 
-  .poster-venue-line {
-    font-size: clamp(13px, 1.8vw, 22px);
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    margin-bottom: 0.1em;
-    font-family: 'Georgia', serif;
-  }
+.p-venue-lg {
+  font-size: clamp(34px, 7vw, 104px);
+  font-weight: 900;
+  letter-spacing: -0.026em;
+  line-height: 0.875;
+  text-transform: uppercase;
+}
 
-  .poster-venue-large {
-    font-size: clamp(42px, 8vw, 112px);
-    font-weight: 900;
-    letter-spacing: -0.02em;
-    line-height: 0.9;
-    text-transform: uppercase;
-    font-family: 'Georgia', serif;
-  }
+/* ── CANVASES ── */
+#mask-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
 
-  /* ── DARKNESS LAYER ── */
-  #darkness {
-    position: fixed;
-    inset: 0;
-    z-index: 10;
-    background: #060608;
-    pointer-events: none;
-    /* mask-image set dynamically */
-  }
+#bloom-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
 
-  /* ── BLOOM CANVAS ── */
-  #bloom-canvas {
-    position: fixed;
-    inset: 0;
-    z-index: 11;
-    pointer-events: none;
-    mix-blend-mode: screen;
-    opacity: 0.72;
-    filter: url(#analog-blur);
-  }
+/* ── ORB ── */
+#orb {
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 20;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+  background: radial-gradient(circle at 34% 31%,
+    #272727 0%,
+    #0e0e0e 36%,
+    #030303 72%,
+    #000 100%
+  );
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.03),
+    0 8px 50px rgba(0,0,0,0.97),
+    inset 0 1.5px 5px rgba(255,255,255,0.045);
+}
 
-  /* ── ORB ── */
-  #orb {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 20;
-    border-radius: 50%;
-    background: radial-gradient(circle at 38% 35%,
-      #2a2a2a 0%,
-      #111 30%,
-      #050505 65%,
-      #000 100%
-    );
-    box-shadow:
-      0 0 0 1px rgba(255,255,255,0.04),
-      0 4px 32px rgba(0,0,0,0.9),
-      inset 0 1px 3px rgba(255,255,255,0.06);
-    pointer-events: none;
-    will-change: transform, width, height;
-  }
-
-  /* ── HINT ── */
-  #hint {
-    position: fixed;
-    bottom: 28px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 30;
-    color: rgba(255,255,255,0.22);
-    font-family: 'Georgia', serif;
-    font-size: 11px;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    pointer-events: none;
-    transition: opacity 1.2s ease;
-  }
+/* ── HINT ── */
+#hint {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  color: rgba(255,255,255,0.15);
+  font-family: Georgia, serif;
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  pointer-events: none;
+  transition: opacity 1.8s ease;
+  white-space: nowrap;
+}
 </style>
 </head>
 <body>
 
-<!-- POSTER -->
 <div id="poster">
   <div id="poster-inner">
-    <div class="poster-title">SPOT<br>LIGHT</div>
-    <div class="poster-subtitle">Second Edition Exhibition</div>
-
-    <div class="poster-body">
-      <div class="poster-col">
+    <div class="p-title">SPOT<br>LIGHT</div>
+    <div class="p-sub">Second Edition Exhibition</div>
+    <div class="p-body">
+      <div class="p-col">
         <p>Digital Dark<br>Patterns<br>Silent<br>Influence<br>Obscured<br>Patterns<br>Intent<br>You<br>Think You<br>Choose Now<br>Attention</p>
       </div>
-      <div class="poster-col">
-        <p>Behavioral<br>Design Sub-<br>conscious<br>Perception<br>Attention<br>Cognition<br>Control<br>Framework<br>To Show<br>Is To Hide<br>Half Seen,<br>Fully Guided</p>
+      <div class="p-col">
+        <p>Behavioral<br>Design Sub&#8209;<br>conscious<br>Perception<br>Attention<br>Cognition<br>Control<br>Framework<br>To Show<br>Is To Hide<br>Half Seen,<br>Fully Guided</p>
       </div>
-      <div class="poster-col">
-        <p>Interface<br>Control<br>Responses<br>Are---<br>Prebuilt<br>Limited<br>Options<br>Your Input<br>Expected<br>Decision</p>
+      <div class="p-col">
+        <p>Interface<br>Control<br>Responses<br>Are&#8212;&#8212;<br>Prebuilt<br>Limited<br>Options<br>Your Input<br>Expected<br>Decision</p>
       </div>
     </div>
-
-    <div class="poster-footer">
-      <div class="poster-venue-line">Coma Nova — October 18, 2026</div>
-      <div class="poster-venue-large">Coma<br>Nova</div>
+    <div class="p-footer">
+      <div class="p-venue">Coma Nova &#8212; October 18, 2026</div>
+      <div class="p-venue-lg">Coma<br>Nova</div>
     </div>
   </div>
 </div>
 
-<!-- DARKNESS MASK -->
-<div id="darkness"></div>
-
-<!-- BLOOM -->
+<canvas id="mask-canvas"></canvas>
 <canvas id="bloom-canvas"></canvas>
-
-<!-- ORB -->
 <div id="orb"></div>
-
-<!-- HINT -->
-<div id="hint">Move cursor &nbsp;·&nbsp; Scroll to adjust depth</div>
+<div id="hint">Move cursor &ensp;&middot;&ensp; Scroll to adjust depth</div>
 
 <script>
-(function() {
+(function () {
+  'use strict';
 
-  const darkness = document.getElementById('darkness');
-  const orb      = document.getElementById('orb');
-  const canvas   = document.getElementById('bloom-canvas');
-  const hint     = document.getElementById('hint');
-  const ctx      = canvas.getContext('2d');
+  const mCvs  = document.getElementById('mask-canvas');
+  const bCvs  = document.getElementById('bloom-canvas');
+  const orbEl = document.getElementById('orb');
+  const hintEl= document.getElementById('hint');
+  const mCtx  = mCvs.getContext('2d');
+  const bCtx  = bCvs.getContext('2d');
+
+  // ── Constants ──────────────────────────────────────────────
+  const EASE_POS   = 0.18;   // 0.16–0.22 per spec
+  const EASE_DEPTH = 0.055;
+  const ORB_MIN    = 44;     // diameter px, far (wide light)
+  const ORB_MAX    = 212;    // diameter px, close (tight light)
+  const SPOT_FAR   = 0.74;   // fraction of diag when far
+  const SPOT_NEAR  = 0.13;   // fraction of diag when close
 
   // ── State ──────────────────────────────────────────────────
-  let W = window.innerWidth, H = window.innerHeight;
+  let W = 0, H = 0, DIAG = 0;
+  let tx, ty, tdep = 0.42;
+  let dx, dy, ddep = 0.42;
+  let hintFaded = false;
 
-  // target values (from input)
-  let targetX = W / 2, targetY = H / 2;
-  let targetDepth = 0.5; // 0 = far (wide), 1 = close (tight)
-
-  // display values (smoothed)
-  let dispX = W / 2, dispY = H / 2;
-  let dispDepth = 0.5;
-
-  // orb size range (px diameter)
-  const ORB_MIN = 48;
-  const ORB_MAX = 220;
-
-  // spotlight radius range as fraction of screen diagonal
-  const SPOT_FAR  = 0.72;  // depth=0: wide
-  const SPOT_NEAR = 0.14;  // depth=1: tight
-
-  setTimeout(() => { hint.style.opacity = '0'; }, 3200);
-  let hasInteracted = false;
-
-  // ── Resize ─────────────────────────────────────────────────
-  function resize() {
-    W = window.innerWidth; H = window.innerHeight;
-    canvas.width  = W;
-    canvas.height = H;
+  function init() {
+    W    = window.innerWidth;
+    H    = window.innerHeight;
+    DIAG = Math.hypot(W, H);
+    mCvs.width  = bCvs.width  = W;
+    mCvs.height = bCvs.height = H;
+    tx = dx = W * 0.5;
+    ty = dy = H * 0.5;
   }
-  resize();
-  window.addEventListener('resize', resize);
+
+  window.addEventListener('resize', init);
 
   // ── Input ──────────────────────────────────────────────────
   document.addEventListener('mousemove', e => {
-    targetX = e.clientX;
-    targetY = e.clientY;
-    if (!hasInteracted) { hasInteracted = true; hint.style.opacity = '0'; }
+    tx = e.clientX;
+    ty = e.clientY;
+    if (!hintFaded) { hintEl.style.opacity = '0'; hintFaded = true; }
   });
 
   document.addEventListener('wheel', e => {
-    // scroll down → closer (larger orb, tighter spot)
-    targetDepth = Math.min(1, Math.max(0, targetDepth + e.deltaY * 0.0008));
+    tdep = Math.min(1, Math.max(0, tdep + e.deltaY * 0.0007));
     e.preventDefault();
   }, { passive: false });
 
   document.addEventListener('touchmove', e => {
-    const t = e.touches[0];
-    targetX = t.clientX; targetY = t.clientY;
+    tx = e.touches[0].clientX;
+    ty = e.touches[0].clientY;
     e.preventDefault();
   }, { passive: false });
 
-  // ── Easing helpers ─────────────────────────────────────────
-  function lerp(a, b, t) { return a + (b - a) * t; }
+  setTimeout(() => { hintEl.style.opacity = '0'; }, 4500);
 
-  // ── SVG filter for analog diffusion ────────────────────────
-  // inject once
-  const svgNS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(svgNS, 'svg');
-  svg.setAttribute('style', 'position:fixed;width:0;height:0');
-  svg.innerHTML = `
-    <defs>
-      <filter id="analog-blur" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
-        <feTurbulence type="fractalNoise" baseFrequency="0.38 0.28" numOctaves="4" seed="7" result="noise"/>
-        <feDisplacementMap in="SourceGraphic" in2="noise" scale="18" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
-        <feGaussianBlur in="displaced" stdDeviation="5 7" result="blurred"/>
-        <feMerge><feMergeNode in="blurred"/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
-    </defs>`;
-  document.body.appendChild(svg);
+  // ── Lerp / easing ─────────────────────────────────────────
+  const lerp = (a, b, t) => a + (b - a) * t;
 
-  // ── Render loop ────────────────────────────────────────────
-  let lastTime = 0;
+  // Framerate-independent factor: easing value is "per 60fps frame"
+  const easeFactor = (e, dt) => 1 - Math.pow(1 - e, dt * 60);
+
+  // ── MASK CANVAS ───────────────────────────────────────────
+  // Renders near-black darkness with an organic soft hole
+  // punched via destination-out composite operation.
+  function drawMask(x, y, orbR, spotR, ts) {
+    mCtx.clearRect(0, 0, W, H);
+
+    // Darkness fill
+    mCtx.globalCompositeOperation = 'source-over';
+    mCtx.fillStyle = 'rgba(5, 5, 7, 0.975)';
+    mCtx.fillRect(0, 0, W, H);
+
+    // Switch to destination-out: drawing erases the darkness
+    // Alpha of drawn gradient = amount of darkness removed
+    mCtx.globalCompositeOperation = 'destination-out';
+
+    const s  = ts * 0.001;
+
+    // Slow organic drift — simulates physical light instability
+    const breathe = 1 + 0.027 * Math.sin(s * 0.84);
+    const ox1 = Math.sin(s * 0.73) * 4.6 + Math.cos(s * 1.21) * 3.0;
+    const oy1 = Math.cos(s * 0.59) * 5.8 + Math.sin(s * 1.09) * 2.7;
+    const ox2 = Math.sin(s * 0.96 + 1.7) * 5.2 + Math.cos(s * 0.65 + 0.5) * 2.5;
+    const oy2 = Math.cos(s * 0.77 + 1.0) * 4.0 + Math.sin(s * 1.18 + 2.1) * 3.3;
+    const ox3 = Math.cos(s * 0.52 + 0.8) * 3.5;
+    const oy3 = Math.sin(s * 0.66 + 2.0) * 4.0;
+
+    // Primary spotlight cone
+    const sr1 = spotR * breathe;
+    const g1  = mCtx.createRadialGradient(
+      x + ox1 * 0.22, y + oy1 * 0.22,  orbR * 0.08,
+      x + ox1 * 0.07, y + oy1 * 0.07,  sr1
+    );
+    g1.addColorStop(0.00, 'rgba(0,0,0,1.00)');
+    g1.addColorStop(0.40, 'rgba(0,0,0,0.90)');
+    g1.addColorStop(0.64, 'rgba(0,0,0,0.64)');
+    g1.addColorStop(0.80, 'rgba(0,0,0,0.32)');
+    g1.addColorStop(0.92, 'rgba(0,0,0,0.09)');
+    g1.addColorStop(1.00, 'rgba(0,0,0,0.00)');
+    mCtx.fillStyle = g1;
+    mCtx.fillRect(0, 0, W, H);
+
+    // Secondary offset layer — edge irregularity
+    const sr2 = spotR * 0.78 * breathe;
+    const g2  = mCtx.createRadialGradient(
+      x + ox2 * 0.45, y + oy2 * 0.45,  orbR * 0.05,
+      x + ox2 * 0.16, y + oy2 * 0.16,  sr2
+    );
+    g2.addColorStop(0.00, 'rgba(0,0,0,0.48)');
+    g2.addColorStop(0.44, 'rgba(0,0,0,0.26)');
+    g2.addColorStop(0.74, 'rgba(0,0,0,0.09)');
+    g2.addColorStop(1.00, 'rgba(0,0,0,0.00)');
+    mCtx.fillStyle = g2;
+    mCtx.fillRect(0, 0, W, H);
+
+    // Tertiary subtle layer — further organic irregularity
+    const sr3 = spotR * 0.90 * (1 + 0.019 * Math.cos(s * 1.06));
+    const g3  = mCtx.createRadialGradient(
+      x + ox3 * 0.38, y + oy3 * 0.38,  orbR * 0.04,
+      x + ox3 * 0.13, y + oy3 * 0.13,  sr3
+    );
+    g3.addColorStop(0.00, 'rgba(0,0,0,0.28)');
+    g3.addColorStop(0.52, 'rgba(0,0,0,0.13)');
+    g3.addColorStop(0.84, 'rgba(0,0,0,0.04)');
+    g3.addColorStop(1.00, 'rgba(0,0,0,0.00)');
+    mCtx.fillStyle = g3;
+    mCtx.fillRect(0, 0, W, H);
+
+    // Restore composite, add restrained center shadow
+    // (prevents overly bright hot-spot at orb center)
+    mCtx.globalCompositeOperation = 'source-over';
+    const gc = mCtx.createRadialGradient(x, y, 0, x, y, orbR * 2.4);
+    gc.addColorStop(0.0, 'rgba(5,5,7,0.18)');
+    gc.addColorStop(0.5, 'rgba(5,5,7,0.07)');
+    gc.addColorStop(1.0, 'rgba(5,5,7,0.00)');
+    mCtx.fillStyle = gc;
+    mCtx.fillRect(0, 0, W, H);
+  }
+
+  // ── BLOOM CANVAS ──────────────────────────────────────────
+  // Warm optical glow. All gradients positioned at the
+  // light/dark transition boundary, not in the lit zone.
+  // mix-blend-mode:screen on the canvas element means these
+  // gradients are visible against dark backgrounds.
+  function drawBloom(x, y, orbR, spotR, ts) {
+    bCtx.clearRect(0, 0, W, H);
+
+    const s       = ts * 0.001;
+    const breathe = 1 + 0.022 * Math.sin(s * 0.84 + 0.4);
+    const flicker = 0.80 + 0.20 * (0.5 + 0.5 * Math.sin(s * 1.28) * Math.cos(s * 0.84));
+
+    // ── Corona: peaks at the lit/dark transition boundary ──
+    const cIn  = spotR * 0.52 * breathe;
+    const cOut = spotR * 1.08 * breathe;
+    const corona = bCtx.createRadialGradient(x, y, cIn, x, y, cOut);
+    corona.addColorStop(0.00, 'rgba(0,0,0,0)');
+    corona.addColorStop(0.28, `rgba(255,244,216,${(0.44 * flicker).toFixed(3)})`);
+    corona.addColorStop(0.52, `rgba(248,234,198,${(0.30 * flicker).toFixed(3)})`);
+    corona.addColorStop(0.74, `rgba(234,220,182,${(0.15 * flicker).toFixed(3)})`);
+    corona.addColorStop(1.00, 'rgba(0,0,0,0)');
+    bCtx.fillStyle = corona;
+    bCtx.fillRect(0, 0, W, H);
+
+    // ── Outer atmospheric halo — deep in the dark zone ──
+    const hIn  = spotR * 0.68 * breathe;
+    const hOut = spotR * 1.40 * breathe;
+    const halo = bCtx.createRadialGradient(x, y, hIn, x, y, hOut);
+    halo.addColorStop(0.00, 'rgba(0,0,0,0)');
+    halo.addColorStop(0.22, `rgba(255,246,218,${(0.26 * flicker).toFixed(3)})`);
+    halo.addColorStop(0.50, `rgba(242,228,192,${(0.16 * flicker).toFixed(3)})`);
+    halo.addColorStop(0.78, `rgba(218,203,166,${(0.07 * flicker).toFixed(3)})`);
+    halo.addColorStop(1.00, 'rgba(0,0,0,0)');
+    bCtx.fillStyle = halo;
+    bCtx.fillRect(0, 0, W, H);
+
+    // ── Horizontal lens streak (anamorphic) ──
+    // Slightly above center — asymmetric, analog
+    const sOffY  = -spotR * 0.055;
+    const sLen   = spotR * 0.96;
+    // streakHalf: controlled ratio — not near-zero
+    const sHalf  = Math.max(orbR * 1.2, 22);
+    const sScale = sHalf / sLen;
+
+    bCtx.save();
+    bCtx.translate(x, y + sOffY);
+    bCtx.scale(1, sScale);
+    bCtx.translate(-x, -(y + sOffY));
+    const st1 = bCtx.createRadialGradient(
+      x, y + sOffY, spotR * 0.50,
+      x, y + sOffY, sLen
+    );
+    st1.addColorStop(0.00, 'rgba(0,0,0,0)');
+    st1.addColorStop(0.18, `rgba(255,252,236,${(0.38 * flicker).toFixed(3)})`);
+    st1.addColorStop(0.48, `rgba(248,240,218,${(0.20 * flicker).toFixed(3)})`);
+    st1.addColorStop(0.78, `rgba(230,218,188,${(0.08 * flicker).toFixed(3)})`);
+    st1.addColorStop(1.00, 'rgba(0,0,0,0)');
+    bCtx.fillStyle = st1;
+    bCtx.fillRect(0, 0, W, H);
+    bCtx.restore();
+
+    // ── Vertical ghost streak — offset right, faint ──
+    const vOffX  = spotR * 0.07;
+    const vLen   = spotR * 0.70;
+    const vHalf  = Math.max(orbR * 0.55, 14);
+    const vScale = vHalf / vLen;
+
+    bCtx.save();
+    bCtx.translate(x + vOffX, y);
+    bCtx.scale(vScale, 1);
+    bCtx.translate(-(x + vOffX), -y);
+    const st2 = bCtx.createRadialGradient(
+      x + vOffX, y, spotR * 0.44,
+      x + vOffX, y, vLen
+    );
+    st2.addColorStop(0.00, 'rgba(0,0,0,0)');
+    st2.addColorStop(0.24, `rgba(255,250,228,${(0.20 * flicker).toFixed(3)})`);
+    st2.addColorStop(0.58, `rgba(240,230,205,${(0.10 * flicker).toFixed(3)})`);
+    st2.addColorStop(1.00, 'rgba(0,0,0,0)');
+    bCtx.fillStyle = st2;
+    bCtx.fillRect(0, 0, W, H);
+    bCtx.restore();
+
+    // ── Edge optical flicker — slow noise at boundary ──
+    const edgePulse = Math.abs(Math.sin(s * 0.44)) * Math.abs(Math.cos(s * 0.68));
+    const eIn  = spotR * 0.74;
+    const eOut = spotR * 0.98;
+    const edgeGlow = bCtx.createRadialGradient(x, y, eIn, x, y, eOut);
+    edgeGlow.addColorStop(0.0, 'rgba(0,0,0,0)');
+    edgeGlow.addColorStop(0.5, `rgba(255,248,228,${(0.14 * edgePulse).toFixed(3)})`);
+    edgeGlow.addColorStop(1.0, 'rgba(0,0,0,0)');
+    bCtx.fillStyle = edgeGlow;
+    bCtx.fillRect(0, 0, W, H);
+  }
+
+  // ── MAIN LOOP ─────────────────────────────────────────────
+  let lastTs = 0;
 
   function frame(ts) {
-    const dt = Math.min((ts - lastTime) / 1000, 0.05);
-    lastTime = ts;
+    const dt = Math.min((ts - lastTs) / 1000, 0.05);
+    lastTs = ts;
 
-    // Faster position easing — cinematic lag, not sluggish
-    const posEase   = 1 - Math.pow(0.004, dt);
-    const depthEase = 1 - Math.pow(0.012, dt);
+    const ep = easeFactor(EASE_POS,   dt);
+    const ed = easeFactor(EASE_DEPTH, dt);
 
-    dispX     = lerp(dispX,     targetX,     posEase);
-    dispY     = lerp(dispY,     targetY,     posEase);
-    dispDepth = lerp(dispDepth, targetDepth, depthEase);
+    dx   = lerp(dx,   tx,   ep);
+    dy   = lerp(dy,   ty,   ep);
+    ddep = lerp(ddep, tdep, ed);
 
-    const diag = Math.sqrt(W * W + H * H);
+    const orbDiam = lerp(ORB_MIN, ORB_MAX, ddep);
+    const orbR    = orbDiam * 0.5;
+    const spotR   = DIAG * lerp(SPOT_FAR, SPOT_NEAR, ddep);
 
-    const orbDiam = lerp(ORB_MIN, ORB_MAX, dispDepth);
-    const orbR    = orbDiam / 2;
-    const spotR   = diag * lerp(SPOT_FAR, SPOT_NEAR, dispDepth);
+    drawMask(dx, dy, orbR, spotR, ts);
+    drawBloom(dx, dy, orbR, spotR, ts);
 
-    // ── Darkness mask ───────────────────────────────────────
-    const cx = dispX.toFixed(1), cy = dispY.toFixed(1);
-    const rEdge = (spotR * 1.1).toFixed(1);
-
-    // Gradient stop percentages (relative to rEdge)
-    const pCenter  = 0;
-    const pOrbEdge = (orbR * 1.05  / (spotR * 1.1) * 100).toFixed(2);
-    const pMid     = (spotR * 0.48 / (spotR * 1.1) * 100).toFixed(2);
-    const pFade    = (spotR * 0.80 / (spotR * 1.1) * 100).toFixed(2);
-
-    darkness.style.maskImage = `
-      radial-gradient(ellipse ${rEdge}px ${rEdge}px at ${cx}px ${cy}px,
-        transparent ${pCenter}%,
-        transparent ${pOrbEdge}%,
-        rgba(0,0,0,0.18) ${pMid}%,
-        rgba(0,0,0,0.72) ${pFade}%,
-        rgba(0,0,0,1) 100%
-      )
-    `;
-    darkness.style.webkitMaskImage = darkness.style.maskImage;
-
-    // ── Orb — GPU transform, no layout reflow ───────────────
-    orb.style.transform = `translate(calc(${dispX.toFixed(1)}px - 50%), calc(${dispY.toFixed(1)}px - 50%))`;
-    orb.style.width  = orbDiam.toFixed(1) + 'px';
-    orb.style.height = orbDiam.toFixed(1) + 'px';
-
-    // ── Canvas bloom — all gradients sit at the dark/light boundary ──
-    ctx.clearRect(0, 0, W, H);
-
-    // Corona ring: peaks right at the edge of the lit zone → visible on dark bg
-    const coronaInner = spotR * 0.22;
-    const coronaOuter = spotR * 0.92;
-    const corona = ctx.createRadialGradient(dispX, dispY, coronaInner, dispX, dispY, coronaOuter);
-    corona.addColorStop(0,    'rgba(0,0,0,0.00)');
-    corona.addColorStop(0.30, 'rgba(255,248,220,0.42)');
-    corona.addColorStop(0.55, 'rgba(255,242,200,0.28)');
-    corona.addColorStop(0.80, 'rgba(240,225,180,0.10)');
-    corona.addColorStop(1,    'rgba(0,0,0,0.00)');
-    ctx.fillStyle = corona;
-    ctx.fillRect(0, 0, W, H);
-
-    // Atmospheric outer halo — wide warm diffusion in the dark region
-    const halo = ctx.createRadialGradient(dispX, dispY, spotR * 0.40, dispX, dispY, spotR * 1.15);
-    halo.addColorStop(0,    'rgba(255,248,220,0.00)');
-    halo.addColorStop(0.25, 'rgba(255,245,210,0.22)');
-    halo.addColorStop(0.55, 'rgba(240,225,185,0.14)');
-    halo.addColorStop(0.80, 'rgba(210,195,155,0.05)');
-    halo.addColorStop(1,    'rgba(0,0,0,0.00)');
-    ctx.fillStyle = halo;
-    ctx.fillRect(0, 0, W, H);
-
-    // Anamorphic lens streak — horizontal bar through the orb center
-    // Fixed: scale y relative to the center point, correct aspect ratio
-    const streakLen  = spotR * 1.0;
-    const streakHalf = orbR * 1.4;  // half-height of streak in px
-    ctx.save();
-    ctx.translate(dispX, dispY);
-    ctx.scale(1, streakHalf / streakLen);  // controlled squeeze, not near-zero
-    ctx.translate(-dispX, -dispY);
-    const streak = ctx.createRadialGradient(dispX, dispY, orbR * 0.6, dispX, dispY, streakLen);
-    streak.addColorStop(0,    'rgba(0,0,0,0.00)');
-    streak.addColorStop(0.12, 'rgba(255,252,235,0.32)');
-    streak.addColorStop(0.40, 'rgba(255,248,220,0.14)');
-    streak.addColorStop(0.75, 'rgba(230,215,180,0.05)');
-    streak.addColorStop(1,    'rgba(0,0,0,0.00)');
-    ctx.fillStyle = streak;
-    ctx.fillRect(0, 0, W, H);
-    ctx.restore();
-
-    // Slow organic shimmer — film-like flicker at the corona boundary
-    const flicker = 0.08 + 0.04 * Math.sin(ts * 0.00127) * Math.cos(ts * 0.00083);
-    const shimmer = ctx.createRadialGradient(dispX, dispY, spotR * 0.35, dispX, dispY, spotR * 0.75);
-    shimmer.addColorStop(0,   'rgba(255,250,235,0.00)');
-    shimmer.addColorStop(0.4, `rgba(255,248,225,${flicker.toFixed(3)})`);
-    shimmer.addColorStop(1,   'rgba(0,0,0,0.00)');
-    ctx.fillStyle = shimmer;
-    ctx.fillRect(0, 0, W, H);
+    // GPU-only transform — no style.left/top
+    const ox = (dx - orbR).toFixed(2);
+    const oy = (dy - orbR).toFixed(2);
+    orbEl.style.transform = `translate3d(${ox}px,${oy}px,0)`;
+    orbEl.style.width  = orbDiam.toFixed(1) + 'px';
+    orbEl.style.height = orbDiam.toFixed(1) + 'px';
 
     requestAnimationFrame(frame);
   }
 
-  requestAnimationFrame(t => { lastTime = t; requestAnimationFrame(frame); });
-
-})();
+  init();
+  requestAnimationFrame(ts => { lastTs = ts; requestAnimationFrame(frame); });
+}());
 </script>
 </body>
 </html>
