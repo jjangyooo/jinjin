@@ -118,7 +118,8 @@
     z-index: 11;
     pointer-events: none;
     mix-blend-mode: screen;
-    opacity: 0.35;
+    opacity: 0.72;
+    filter: url(#analog-blur);
   }
 
   /* ── ORB ── */
@@ -225,7 +226,7 @@
   const SPOT_FAR  = 0.72;  // depth=0: wide
   const SPOT_NEAR = 0.14;  // depth=1: tight
 
-  let hintTimer = setTimeout(() => { hint.style.opacity = '0'; }, 3200);
+  setTimeout(() => { hint.style.opacity = '0'; }, 3200);
   let hasInteracted = false;
 
   // ── Resize ─────────────────────────────────────────────────
@@ -250,8 +251,6 @@
     e.preventDefault();
   }, { passive: false });
 
-  // touch
-  let lastTouch = null;
   document.addEventListener('touchmove', e => {
     const t = e.touches[0];
     targetX = t.clientX; targetY = t.clientY;
@@ -268,10 +267,10 @@
   svg.setAttribute('style', 'position:fixed;width:0;height:0');
   svg.innerHTML = `
     <defs>
-      <filter id="analog-blur" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
-        <feTurbulence type="fractalNoise" baseFrequency="0.65 0.55" numOctaves="3" seed="4" result="noise"/>
-        <feDisplacementMap in="SourceGraphic" in2="noise" scale="7" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
-        <feGaussianBlur in="displaced" stdDeviation="3.5 4.5" result="blurred"/>
+      <filter id="analog-blur" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.38 0.28" numOctaves="4" seed="7" result="noise"/>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="18" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+        <feGaussianBlur in="displaced" stdDeviation="5 7" result="blurred"/>
         <feMerge><feMergeNode in="blurred"/><feMergeNode in="SourceGraphic"/></feMerge>
       </filter>
     </defs>`;
@@ -309,20 +308,29 @@
     // with soft feathered falloff
 
     const cx = dispX.toFixed(1), cy = dispY.toFixed(1);
-    const r0 = (orbR * 0.6).toFixed(1);         // very center: softcore
-    const r1 = (orbR * 1.4).toFixed(1);         // edge of orb
-    const r2 = (spotR * 0.55).toFixed(1);       // mid-bloom
-    const r3 = (spotR * 0.88).toFixed(1);       // bloom fade
-    const r4 = (spotR * 1.12).toFixed(1);       // full dark
 
-    // mask-image: white = show darkness, black = reveal poster
-    // We want darkness to be transparent (black in mask) where the light is
+    // Light physics: orb IS the light source.
+    // - Inside orb: slightly dark (orb blocks direct view of bulb)
+    // - Orb edge outward: maximum brightness, then falls off to full dark
+    // Mask alpha: 0 = darkness hidden (poster revealed), 1 = darkness visible
+    const rInner   = (orbR * 0.55).toFixed(1);  // center: slight shadow behind orb
+    const rOrbEdge = (orbR * 1.1).toFixed(1);   // orb boundary: brightest ring
+    const rMid     = (spotR * 0.45).toFixed(1); // bloom mid-spread
+    const rFade    = (spotR * 0.82).toFixed(1); // atmospheric falloff
+    const rEdge    = (spotR * 1.08).toFixed(1); // full dark
+
+    const pInner   = (orbR * 0.55  / (spotR * 1.08) * 100).toFixed(1);
+    const pOrbEdge = (orbR * 1.1   / (spotR * 1.08) * 100).toFixed(1);
+    const pMid     = (spotR * 0.45 / (spotR * 1.08) * 100).toFixed(1);
+    const pFade    = (spotR * 0.82 / (spotR * 1.08) * 100).toFixed(1);
+
     darkness.style.maskImage = `
-      radial-gradient(ellipse ${r4}px ${r4}px at ${cx}px ${cy}px,
-        transparent 0%,
-        transparent ${(r1/r4*100).toFixed(1)}%,
-        rgba(0,0,0,0.08) ${(r2/r4*100).toFixed(1)}%,
-        rgba(0,0,0,0.55) ${(r3/r4*100).toFixed(1)}%,
+      radial-gradient(ellipse ${rEdge}px ${rEdge}px at ${cx}px ${cy}px,
+        rgba(0,0,0,0.28) 0%,
+        rgba(0,0,0,0.28) ${pInner}%,
+        transparent ${pOrbEdge}%,
+        rgba(0,0,0,0.05) ${pMid}%,
+        rgba(0,0,0,0.62) ${pFade}%,
         rgba(0,0,0,1) 100%
       )
     `;
@@ -337,32 +345,35 @@
     // ── Canvas bloom / analog light ──────────────────────────
     ctx.clearRect(0, 0, W, H);
 
-    // outer diffuse halo — warm analog
-    const halo = ctx.createRadialGradient(dispX, dispY, orbR * 0.5, dispX, dispY, spotR * 1.05);
-    halo.addColorStop(0,   'rgba(255,248,230,0.00)');
-    halo.addColorStop(0.18,'rgba(255,248,220,0.09)');
-    halo.addColorStop(0.42,'rgba(240,230,200,0.13)');
-    halo.addColorStop(0.68,'rgba(220,210,180,0.06)');
-    halo.addColorStop(1,   'rgba(0,0,0,0.00)');
+    // Outer atmospheric halo — warm, wide diffusion
+    const halo = ctx.createRadialGradient(dispX, dispY, orbR * 0.8, dispX, dispY, spotR * 1.1);
+    halo.addColorStop(0,    'rgba(255,248,220,0.00)');
+    halo.addColorStop(0.12, 'rgba(255,246,210,0.28)');
+    halo.addColorStop(0.38, 'rgba(240,228,190,0.22)');
+    halo.addColorStop(0.65, 'rgba(220,205,165,0.10)');
+    halo.addColorStop(0.88, 'rgba(180,165,130,0.03)');
+    halo.addColorStop(1,    'rgba(0,0,0,0.00)');
     ctx.fillStyle = halo;
     ctx.fillRect(0, 0, W, H);
 
-    // inner ring bloom — the light "leaking" around the orb
-    const ring = ctx.createRadialGradient(dispX, dispY, orbR * 0.7, dispX, dispY, orbR * 3.2);
+    // Bright ring bloom — hottest glow right at the orb edge
+    const ring = ctx.createRadialGradient(dispX, dispY, orbR * 0.85, dispX, dispY, orbR * 4.5);
     ring.addColorStop(0,    'rgba(255,255,255,0.00)');
-    ring.addColorStop(0.25, 'rgba(255,252,240,0.22)');
-    ring.addColorStop(0.55, 'rgba(255,248,220,0.14)');
-    ring.addColorStop(0.85, 'rgba(200,190,160,0.04)');
+    ring.addColorStop(0.08, 'rgba(255,255,245,0.55)');
+    ring.addColorStop(0.25, 'rgba(255,250,230,0.38)');
+    ring.addColorStop(0.55, 'rgba(245,235,205,0.18)');
+    ring.addColorStop(0.82, 'rgba(210,195,160,0.06)');
     ring.addColorStop(1,    'rgba(0,0,0,0.00)');
     ctx.fillStyle = ring;
     ctx.fillRect(0, 0, W, H);
 
-    // slight lens streak — horizontal soft glow
-    const streakW = spotR * 0.9;
-    const streakH = orbR * 0.4;
-    const streak = ctx.createRadialGradient(dispX, dispY, 0, dispX, dispY, streakW);
-    streak.addColorStop(0,   'rgba(255,250,235,0.00)');
-    streak.addColorStop(0.3, 'rgba(255,248,225,0.07)');
+    // Lens flare streak — slight horizontal anamorphic diffusion
+    const streakW = spotR * 1.1;
+    const streakH = orbR * 0.28;
+    const streak = ctx.createRadialGradient(dispX, dispY, orbR * 0.5, dispX, dispY, streakW);
+    streak.addColorStop(0,   'rgba(255,252,235,0.00)');
+    streak.addColorStop(0.18,'rgba(255,250,225,0.20)');
+    streak.addColorStop(0.5, 'rgba(240,230,200,0.10)');
     streak.addColorStop(1,   'rgba(0,0,0,0.00)');
     ctx.save();
     ctx.translate(dispX, dispY);
@@ -371,6 +382,15 @@
     ctx.fillStyle = streak;
     ctx.fillRect(0, 0, W, H);
     ctx.restore();
+
+    // Subtle grain/shimmer on the light core — flicker from film-like noise
+    const shimmer = 0.03 + 0.015 * Math.sin(ts * 0.0031) * Math.cos(ts * 0.0019);
+    const grain = ctx.createRadialGradient(dispX, dispY, 0, dispX, dispY, orbR * 2.2);
+    grain.addColorStop(0,   `rgba(255,250,235,${shimmer.toFixed(3)})`);
+    grain.addColorStop(0.5, `rgba(240,230,200,${(shimmer * 0.4).toFixed(3)})`);
+    grain.addColorStop(1,   'rgba(0,0,0,0.00)');
+    ctx.fillStyle = grain;
+    ctx.fillRect(0, 0, W, H);
 
     requestAnimationFrame(frame);
   }
