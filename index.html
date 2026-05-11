@@ -125,6 +125,8 @@
   /* ── ORB ── */
   #orb {
     position: fixed;
+    top: 0;
+    left: 0;
     z-index: 20;
     border-radius: 50%;
     background: radial-gradient(circle at 38% 35%,
@@ -138,7 +140,6 @@
       0 4px 32px rgba(0,0,0,0.9),
       inset 0 1px 3px rgba(255,255,255,0.06);
     pointer-events: none;
-    transform: translate(-50%, -50%);
     will-change: transform, width, height;
   }
 
@@ -283,9 +284,9 @@
     const dt = Math.min((ts - lastTime) / 1000, 0.05);
     lastTime = ts;
 
-    // smooth easing — positional lag
-    const posEase   = 1 - Math.pow(0.018, dt);
-    const depthEase = 1 - Math.pow(0.008, dt);
+    // Faster position easing — cinematic lag, not sluggish
+    const posEase   = 1 - Math.pow(0.004, dt);
+    const depthEase = 1 - Math.pow(0.012, dt);
 
     dispX     = lerp(dispX,     targetX,     posEase);
     dispY     = lerp(dispY,     targetY,     posEase);
@@ -293,103 +294,86 @@
 
     const diag = Math.sqrt(W * W + H * H);
 
-    // orb size
     const orbDiam = lerp(ORB_MIN, ORB_MAX, dispDepth);
     const orbR    = orbDiam / 2;
+    const spotR   = diag * lerp(SPOT_FAR, SPOT_NEAR, dispDepth);
 
-    // spotlight outer radius
-    const spotR = diag * lerp(SPOT_FAR, SPOT_NEAR, dispDepth);
-
-    // ── Darkness mask (CSS mask with layered radial-gradients) ──
-    // We build a mask that is:
-    //  - transparent (reveals poster) near center
-    //  - opaque (darkness) elsewhere
-    // The gradient goes: transparent at center → opaque at edge
-    // with soft feathered falloff
-
+    // ── Darkness mask ───────────────────────────────────────
     const cx = dispX.toFixed(1), cy = dispY.toFixed(1);
+    const rEdge = (spotR * 1.1).toFixed(1);
 
-    // Light physics: orb IS the light source.
-    // - Inside orb: slightly dark (orb blocks direct view of bulb)
-    // - Orb edge outward: maximum brightness, then falls off to full dark
-    // Mask alpha: 0 = darkness hidden (poster revealed), 1 = darkness visible
-    const rInner   = (orbR * 0.55).toFixed(1);  // center: slight shadow behind orb
-    const rOrbEdge = (orbR * 1.1).toFixed(1);   // orb boundary: brightest ring
-    const rMid     = (spotR * 0.45).toFixed(1); // bloom mid-spread
-    const rFade    = (spotR * 0.82).toFixed(1); // atmospheric falloff
-    const rEdge    = (spotR * 1.08).toFixed(1); // full dark
-
-    const pInner   = (orbR * 0.55  / (spotR * 1.08) * 100).toFixed(1);
-    const pOrbEdge = (orbR * 1.1   / (spotR * 1.08) * 100).toFixed(1);
-    const pMid     = (spotR * 0.45 / (spotR * 1.08) * 100).toFixed(1);
-    const pFade    = (spotR * 0.82 / (spotR * 1.08) * 100).toFixed(1);
+    // Gradient stop percentages (relative to rEdge)
+    const pCenter  = 0;
+    const pOrbEdge = (orbR * 1.05  / (spotR * 1.1) * 100).toFixed(2);
+    const pMid     = (spotR * 0.48 / (spotR * 1.1) * 100).toFixed(2);
+    const pFade    = (spotR * 0.80 / (spotR * 1.1) * 100).toFixed(2);
 
     darkness.style.maskImage = `
       radial-gradient(ellipse ${rEdge}px ${rEdge}px at ${cx}px ${cy}px,
-        rgba(0,0,0,0.28) 0%,
-        rgba(0,0,0,0.28) ${pInner}%,
+        transparent ${pCenter}%,
         transparent ${pOrbEdge}%,
-        rgba(0,0,0,0.05) ${pMid}%,
-        rgba(0,0,0,0.62) ${pFade}%,
+        rgba(0,0,0,0.18) ${pMid}%,
+        rgba(0,0,0,0.72) ${pFade}%,
         rgba(0,0,0,1) 100%
       )
     `;
     darkness.style.webkitMaskImage = darkness.style.maskImage;
 
-    // ── Orb position/size ───────────────────────────────────
-    orb.style.left   = dispX.toFixed(1) + 'px';
-    orb.style.top    = dispY.toFixed(1) + 'px';
+    // ── Orb — GPU transform, no layout reflow ───────────────
+    orb.style.transform = `translate(calc(${dispX.toFixed(1)}px - 50%), calc(${dispY.toFixed(1)}px - 50%))`;
     orb.style.width  = orbDiam.toFixed(1) + 'px';
     orb.style.height = orbDiam.toFixed(1) + 'px';
 
-    // ── Canvas bloom / analog light ──────────────────────────
+    // ── Canvas bloom — all gradients sit at the dark/light boundary ──
     ctx.clearRect(0, 0, W, H);
 
-    // Outer atmospheric halo — warm, wide diffusion
-    const halo = ctx.createRadialGradient(dispX, dispY, orbR * 0.8, dispX, dispY, spotR * 1.1);
+    // Corona ring: peaks right at the edge of the lit zone → visible on dark bg
+    const coronaInner = spotR * 0.22;
+    const coronaOuter = spotR * 0.92;
+    const corona = ctx.createRadialGradient(dispX, dispY, coronaInner, dispX, dispY, coronaOuter);
+    corona.addColorStop(0,    'rgba(0,0,0,0.00)');
+    corona.addColorStop(0.30, 'rgba(255,248,220,0.42)');
+    corona.addColorStop(0.55, 'rgba(255,242,200,0.28)');
+    corona.addColorStop(0.80, 'rgba(240,225,180,0.10)');
+    corona.addColorStop(1,    'rgba(0,0,0,0.00)');
+    ctx.fillStyle = corona;
+    ctx.fillRect(0, 0, W, H);
+
+    // Atmospheric outer halo — wide warm diffusion in the dark region
+    const halo = ctx.createRadialGradient(dispX, dispY, spotR * 0.40, dispX, dispY, spotR * 1.15);
     halo.addColorStop(0,    'rgba(255,248,220,0.00)');
-    halo.addColorStop(0.12, 'rgba(255,246,210,0.28)');
-    halo.addColorStop(0.38, 'rgba(240,228,190,0.22)');
-    halo.addColorStop(0.65, 'rgba(220,205,165,0.10)');
-    halo.addColorStop(0.88, 'rgba(180,165,130,0.03)');
+    halo.addColorStop(0.25, 'rgba(255,245,210,0.22)');
+    halo.addColorStop(0.55, 'rgba(240,225,185,0.14)');
+    halo.addColorStop(0.80, 'rgba(210,195,155,0.05)');
     halo.addColorStop(1,    'rgba(0,0,0,0.00)');
     ctx.fillStyle = halo;
     ctx.fillRect(0, 0, W, H);
 
-    // Bright ring bloom — hottest glow right at the orb edge
-    const ring = ctx.createRadialGradient(dispX, dispY, orbR * 0.85, dispX, dispY, orbR * 4.5);
-    ring.addColorStop(0,    'rgba(255,255,255,0.00)');
-    ring.addColorStop(0.08, 'rgba(255,255,245,0.55)');
-    ring.addColorStop(0.25, 'rgba(255,250,230,0.38)');
-    ring.addColorStop(0.55, 'rgba(245,235,205,0.18)');
-    ring.addColorStop(0.82, 'rgba(210,195,160,0.06)');
-    ring.addColorStop(1,    'rgba(0,0,0,0.00)');
-    ctx.fillStyle = ring;
-    ctx.fillRect(0, 0, W, H);
-
-    // Lens flare streak — slight horizontal anamorphic diffusion
-    const streakW = spotR * 1.1;
-    const streakH = orbR * 0.28;
-    const streak = ctx.createRadialGradient(dispX, dispY, orbR * 0.5, dispX, dispY, streakW);
-    streak.addColorStop(0,   'rgba(255,252,235,0.00)');
-    streak.addColorStop(0.18,'rgba(255,250,225,0.20)');
-    streak.addColorStop(0.5, 'rgba(240,230,200,0.10)');
-    streak.addColorStop(1,   'rgba(0,0,0,0.00)');
+    // Anamorphic lens streak — horizontal bar through the orb center
+    // Fixed: scale y relative to the center point, correct aspect ratio
+    const streakLen  = spotR * 1.0;
+    const streakHalf = orbR * 1.4;  // half-height of streak in px
     ctx.save();
     ctx.translate(dispX, dispY);
-    ctx.scale(1, streakH / streakW);
+    ctx.scale(1, streakHalf / streakLen);  // controlled squeeze, not near-zero
     ctx.translate(-dispX, -dispY);
+    const streak = ctx.createRadialGradient(dispX, dispY, orbR * 0.6, dispX, dispY, streakLen);
+    streak.addColorStop(0,    'rgba(0,0,0,0.00)');
+    streak.addColorStop(0.12, 'rgba(255,252,235,0.32)');
+    streak.addColorStop(0.40, 'rgba(255,248,220,0.14)');
+    streak.addColorStop(0.75, 'rgba(230,215,180,0.05)');
+    streak.addColorStop(1,    'rgba(0,0,0,0.00)');
     ctx.fillStyle = streak;
     ctx.fillRect(0, 0, W, H);
     ctx.restore();
 
-    // Subtle grain/shimmer on the light core — flicker from film-like noise
-    const shimmer = 0.03 + 0.015 * Math.sin(ts * 0.0031) * Math.cos(ts * 0.0019);
-    const grain = ctx.createRadialGradient(dispX, dispY, 0, dispX, dispY, orbR * 2.2);
-    grain.addColorStop(0,   `rgba(255,250,235,${shimmer.toFixed(3)})`);
-    grain.addColorStop(0.5, `rgba(240,230,200,${(shimmer * 0.4).toFixed(3)})`);
-    grain.addColorStop(1,   'rgba(0,0,0,0.00)');
-    ctx.fillStyle = grain;
+    // Slow organic shimmer — film-like flicker at the corona boundary
+    const flicker = 0.08 + 0.04 * Math.sin(ts * 0.00127) * Math.cos(ts * 0.00083);
+    const shimmer = ctx.createRadialGradient(dispX, dispY, spotR * 0.35, dispX, dispY, spotR * 0.75);
+    shimmer.addColorStop(0,   'rgba(255,250,235,0.00)');
+    shimmer.addColorStop(0.4, `rgba(255,248,225,${flicker.toFixed(3)})`);
+    shimmer.addColorStop(1,   'rgba(0,0,0,0.00)');
+    ctx.fillStyle = shimmer;
     ctx.fillRect(0, 0, W, H);
 
     requestAnimationFrame(frame);
