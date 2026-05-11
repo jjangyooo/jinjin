@@ -17,7 +17,6 @@ html, body {
   cursor: none;
 }
 
-/* ── POSTER LAYER ── */
 #poster {
   position: fixed;
   inset: 0;
@@ -96,7 +95,6 @@ html, body {
   text-transform: uppercase;
 }
 
-/* ── DARKNESS CANVAS ── */
 #mask-canvas {
   position: fixed;
   inset: 0;
@@ -104,7 +102,6 @@ html, body {
   pointer-events: none;
 }
 
-/* ── BLOOM CANVAS ── */
 #bloom-canvas {
   position: fixed;
   inset: 0;
@@ -113,7 +110,6 @@ html, body {
   mix-blend-mode: screen;
 }
 
-/* ── FILM GRAIN ── */
 #grain-canvas {
   position: fixed;
   inset: 0;
@@ -123,7 +119,6 @@ html, body {
   opacity: 0.22;
 }
 
-/* ── EDGE VIGNETTE ── */
 #vignette {
   position: fixed;
   inset: 0;
@@ -138,7 +133,6 @@ html, body {
   );
 }
 
-/* ── ORB ── */
 #orb {
   position: fixed;
   top: 0; left: 0;
@@ -158,7 +152,6 @@ html, body {
     inset 0 1px 4px rgba(255,255,255,0.042);
 }
 
-/* ── INTRO: projector warm-up ── */
 #intro {
   position: fixed;
   inset: 0;
@@ -168,7 +161,6 @@ html, body {
   transition: opacity 3.2s cubic-bezier(0.42, 0, 0.18, 1);
 }
 
-/* ── HINT ── */
 #hint {
   position: fixed;
   bottom: 22px;
@@ -235,25 +227,19 @@ html, body {
   const bCtx = bCvs.getContext('2d');
   const gCtx = gCvs.getContext('2d');
 
-  // ── Constants ──────────────────────────────────────────────
-  const EASE_POS   = 0.18;   // per spec: 0.16–0.22
-  const EASE_DEPTH = 0.10;   // depth responds faster now
-  const ORB_MIN    = 42;     // px diameter at max spread
-  const ORB_MAX    = 218;    // px diameter at max tight
-  const SPOT_FAR   = 0.70;   // screen diagonal fraction, far
-  const SPOT_NEAR  = 0.11;   // screen diagonal fraction, close
+  const EASE_POS   = 0.18;
+  const EASE_DEPTH = 0.10;
+  const ORB_MIN    = 42;
+  const ORB_MAX    = 218;
+  const SPOT_FAR   = 0.70;
+  const SPOT_NEAR  = 0.11;
 
-  // ── Dimensions ────────────────────────────────────────────
   let W = 0, H = 0, DIAG = 0;
-
-  // ── State ─────────────────────────────────────────────────
-  // Start at 0.62 → spotlight is dramatic but reveals enough to intrigue
   let tx, ty, tdep = 0.62;
   let dx, dy, ddep = 0.62;
   let hintFaded = false;
   let frameCount = 0;
 
-  // ── Grain (offscreen noise tile, 320×320) ─────────────────
   const GS     = 320;
   const grainC = document.createElement('canvas');
   grainC.width = grainC.height = GS;
@@ -264,9 +250,9 @@ html, body {
     const d = grainD.data;
     for (let i = 0; i < d.length; i += 4) {
       const v  = Math.random() * 255 | 0;
-      d[i]   = Math.min(255, v + 9);   // warm tint: R+9
+      d[i]   = Math.min(255, v + 9);
       d[i+1] = v;
-      d[i+2] = Math.max(0,  v - 7);   // B-7
+      d[i+2] = Math.max(0,  v - 7);
       d[i+3] = 30;
     }
     grainX.putImageData(grainD, 0, 0);
@@ -283,7 +269,6 @@ html, body {
     }
   }
 
-  // ── Asset loading ─────────────────────────────────────────
   function tryLoad(src, onSuccess) {
     const img = new Image();
     img.onload  = onSuccess;
@@ -304,15 +289,11 @@ html, body {
     orbEl.style.boxShadow    = '0 10px 56px rgba(0,0,0,0.98)';
   });
 
-  // ── Intro ─────────────────────────────────────────────────
-  // Page opens fully dark. Brief pause then fades like an analog
-  // projector lamp reaching operating temperature.
   setTimeout(() => {
     introEl.style.opacity = '0';
     introEl.addEventListener('transitionend', () => introEl.remove(), { once: true });
   }, 180);
 
-  // ── Resize ────────────────────────────────────────────────
   function resize() {
     W    = window.innerWidth;
     H    = window.innerHeight;
@@ -325,7 +306,6 @@ html, body {
 
   window.addEventListener('resize', resize);
 
-  // ── Input ─────────────────────────────────────────────────
   document.addEventListener('mousemove', e => {
     tx = e.clientX;
     ty = e.clientY;
@@ -345,25 +325,17 @@ html, body {
 
   setTimeout(() => { hintEl.style.opacity = '0'; }, 5000);
 
-  // ── Math helpers ──────────────────────────────────────────
   const lerp = (a, b, t) => a + (b - a) * t;
-  const fi   = (f, dt) => 1 - Math.pow(1 - f, dt * 60); // framerate-independent factor
+  const fi   = (f, dt) => 1 - Math.pow(1 - f, dt * 60);
 
-  // ── MASK: darkness + organic spotlight punch ───────────────
   function drawMask(x, y, orbR, spotR, ts) {
     mCtx.clearRect(0, 0, W, H);
-
-    // Near-black base
     mCtx.globalCompositeOperation = 'source-over';
     mCtx.fillStyle = 'rgba(5,5,8,0.985)';
     mCtx.fillRect(0, 0, W, H);
-
-    // Punch the spotlight hole
     mCtx.globalCompositeOperation = 'destination-out';
 
     const s = ts * 0.001;
-
-    // Breathing scale + 3-axis organic drift
     const breathe = 1 + 0.028 * Math.sin(s * 0.82);
     const ox1 = Math.sin(s * 0.71) * 4.8 + Math.cos(s * 1.19) * 3.1;
     const oy1 = Math.cos(s * 0.57) * 6.0 + Math.sin(s * 1.07) * 2.8;
@@ -372,14 +344,13 @@ html, body {
     const ox3 = Math.cos(s * 0.51 + 0.9) * 3.6;
     const oy3 = Math.sin(s * 0.65 + 2.0) * 4.1;
 
-    // Primary cone — sharp theatrical falloff
     const g1 = mCtx.createRadialGradient(
       x + ox1 * 0.20, y + oy1 * 0.20, orbR * 0.08,
       x + ox1 * 0.06, y + oy1 * 0.06, spotR * breathe
     );
     g1.addColorStop(0.00, 'rgba(0,0,0,1.00)');
-    g1.addColorStop(0.52, 'rgba(0,0,0,0.96)');  // stays bright in center
-    g1.addColorStop(0.72, 'rgba(0,0,0,0.76)');  // transition starts here
+    g1.addColorStop(0.52, 'rgba(0,0,0,0.96)');
+    g1.addColorStop(0.72, 'rgba(0,0,0,0.76)');
     g1.addColorStop(0.84, 'rgba(0,0,0,0.40)');
     g1.addColorStop(0.92, 'rgba(0,0,0,0.12)');
     g1.addColorStop(0.97, 'rgba(0,0,0,0.02)');
@@ -387,7 +358,6 @@ html, body {
     mCtx.fillStyle = g1;
     mCtx.fillRect(0, 0, W, H);
 
-    // Secondary layer — irregular edge
     const g2 = mCtx.createRadialGradient(
       x + ox2 * 0.42, y + oy2 * 0.42, orbR * 0.05,
       x + ox2 * 0.15, y + oy2 * 0.15, spotR * 0.80 * breathe
@@ -399,7 +369,6 @@ html, body {
     mCtx.fillStyle = g2;
     mCtx.fillRect(0, 0, W, H);
 
-    // Tertiary layer — further organic imperfection
     const g3 = mCtx.createRadialGradient(
       x + ox3 * 0.36, y + oy3 * 0.36, orbR * 0.04,
       x + ox3 * 0.12, y + oy3 * 0.12,
@@ -412,8 +381,6 @@ html, body {
     mCtx.fillStyle = g3;
     mCtx.fillRect(0, 0, W, H);
 
-    // Restore — apply soft center dimming
-    // (restrains the hotspot; makes center feel "projected" not screen-lit)
     mCtx.globalCompositeOperation = 'source-over';
     const gc = mCtx.createRadialGradient(x, y, 0, x, y, orbR * 2.8);
     gc.addColorStop(0.0, 'rgba(5,5,8,0.22)');
@@ -423,9 +390,6 @@ html, body {
     mCtx.fillRect(0, 0, W, H);
   }
 
-  // ── BLOOM: warm cinematic optical glow ────────────────────
-  // All gradients positioned at / beyond the dark-light boundary.
-  // mix-blend-mode:screen (on canvas CSS) makes them glow on darkness.
   function drawBloom(x, y, orbR, spotR, ts) {
     bCtx.clearRect(0, 0, W, H);
 
@@ -433,7 +397,6 @@ html, body {
     const breathe = 1 + 0.024 * Math.sin(s * 0.82 + 0.5);
     const flicker = 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(s * 1.31) * Math.cos(s * 0.86));
 
-    // Corona — peaks right at the transition boundary
     const cIn  = spotR * 0.60 * breathe;
     const cOut = spotR * 1.12 * breathe;
     const corona = bCtx.createRadialGradient(x, y, cIn, x, y, cOut);
@@ -445,7 +408,6 @@ html, body {
     bCtx.fillStyle = corona;
     bCtx.fillRect(0, 0, W, H);
 
-    // Wide outer halo — fully in the dark zone
     const halo = bCtx.createRadialGradient(
       x, y, spotR * 0.75 * breathe,
       x, y, spotR * 1.50 * breathe
@@ -458,20 +420,14 @@ html, body {
     bCtx.fillStyle = halo;
     bCtx.fillRect(0, 0, W, H);
 
-    // Horizontal lens streak — anamorphic, asymmetric
-    // Starts at the dark/light boundary, not at center
     const sOffY  = -spotR * 0.052;
     const sLen   = spotR * 0.98;
     const sHalf  = Math.max(orbR * 1.3, 24);
-
     bCtx.save();
     bCtx.translate(x, y + sOffY);
     bCtx.scale(1, sHalf / sLen);
     bCtx.translate(-x, -(y + sOffY));
-    const st1 = bCtx.createRadialGradient(
-      x, y + sOffY, spotR * 0.56,
-      x, y + sOffY, sLen
-    );
+    const st1 = bCtx.createRadialGradient(x, y + sOffY, spotR * 0.56, x, y + sOffY, sLen);
     st1.addColorStop(0.00, 'rgba(0,0,0,0)');
     st1.addColorStop(0.16, `rgba(255,253,238,${(0.42 * flicker).toFixed(3)})`);
     st1.addColorStop(0.44, `rgba(248,240,216,${(0.22 * flicker).toFixed(3)})`);
@@ -481,19 +437,14 @@ html, body {
     bCtx.fillRect(0, 0, W, H);
     bCtx.restore();
 
-    // Vertical ghost streak — faint, offset right
     const vOffX  = spotR * 0.074;
     const vLen   = spotR * 0.72;
     const vHalf  = Math.max(orbR * 0.58, 15);
-
     bCtx.save();
     bCtx.translate(x + vOffX, y);
     bCtx.scale(vHalf / vLen, 1);
     bCtx.translate(-(x + vOffX), -y);
-    const st2 = bCtx.createRadialGradient(
-      x + vOffX, y, spotR * 0.48,
-      x + vOffX, y, vLen
-    );
+    const st2 = bCtx.createRadialGradient(x + vOffX, y, spotR * 0.48, x + vOffX, y, vLen);
     st2.addColorStop(0.00, 'rgba(0,0,0,0)');
     st2.addColorStop(0.22, `rgba(255,250,226,${(0.22 * flicker).toFixed(3)})`);
     st2.addColorStop(0.56, `rgba(240,228,202,${(0.11 * flicker).toFixed(3)})`);
@@ -502,11 +453,8 @@ html, body {
     bCtx.fillRect(0, 0, W, H);
     bCtx.restore();
 
-    // Slow optical pulse — flicker at the very edge of the beam
     const pulse = Math.abs(Math.sin(s * 0.43)) * Math.abs(Math.cos(s * 0.67));
-    const edgeR1 = spotR * 0.78;
-    const edgeR2 = spotR * 1.02;
-    const edge   = bCtx.createRadialGradient(x, y, edgeR1, x, y, edgeR2);
+    const edge  = bCtx.createRadialGradient(x, y, spotR * 0.78, x, y, spotR * 1.02);
     edge.addColorStop(0.0, 'rgba(0,0,0,0)');
     edge.addColorStop(0.5, `rgba(255,248,226,${(0.18 * pulse).toFixed(3)})`);
     edge.addColorStop(1.0, 'rgba(0,0,0,0)');
@@ -514,7 +462,6 @@ html, body {
     bCtx.fillRect(0, 0, W, H);
   }
 
-  // ── MAIN LOOP ─────────────────────────────────────────────
   let lastTs = 0;
 
   function frame(ts) {
@@ -536,11 +483,9 @@ html, body {
     drawMask(dx, dy, orbR, spotR, ts);
     drawBloom(dx, dy, orbR, spotR, ts);
 
-    // Refresh grain every 2 frames → 30fps rolling film grain feel
     if (frameCount % 2 === 0) refreshGrain();
     drawGrain();
 
-    // Orb: GPU transform only — no layout thrash
     orbEl.style.transform = `translate3d(${(dx - orbR).toFixed(2)}px,${(dy - orbR).toFixed(2)}px,0)`;
     orbEl.style.width     = orbDiam.toFixed(1) + 'px';
     orbEl.style.height    = orbDiam.toFixed(1) + 'px';
