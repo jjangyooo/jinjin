@@ -137,7 +137,7 @@ function worldFwd() {
 // Each edge becomes a razor-thin rectangular plane whose thickness
 // extends along world Z. From directly front the plane collapses to a line;
 // rotating the camera reveals the hidden surface.
-const PLANE_THICKNESS = 16
+const PLANE_THICKNESS = 80
 
 function buildPlane(nA, nB) {
   const dx = nB.x - nA.x, dy = nB.y - nA.y, dz = nB.z - nA.z
@@ -240,7 +240,7 @@ function draw() {
   // Pass 1: filled face (barely-there white — signals surface without screaming)
   noStroke()
   for (const { proj, avgZ } of planeData) {
-    const faceAl = constrain(map(avgZ, -260, 260, 30, 7), 5, 34)
+    const faceAl = constrain(map(avgZ, -260, 260, 44, 12), 9, 48)
     fill(255, faceAl)
     beginShape()
     vertex(proj[0].sx, proj[0].sy)
@@ -262,7 +262,7 @@ function draw() {
     line(proj[1].sx, proj[1].sy, proj[2].sx, proj[2].sy)  // back face longitudinal
 
     // Cap edges — invisible head-on, reveal depth on rotation
-    stroke(255, Math.floor(edgeAl * 0.40))
+    stroke(255, Math.floor(edgeAl * 0.60))
     strokeWeight(0.5)
     line(proj[0].sx, proj[0].sy, proj[1].sx, proj[1].sy)  // A-end cap
     line(proj[3].sx, proj[3].sy, proj[2].sx, proj[2].sy)  // B-end cap
