@@ -7,7 +7,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; overflow: hidden; background: #fff; }
+    html, body { margin: 0; padding: 0; overflow: hidden; background: #000; }
     canvas { display: block; }
 
     .ui {
@@ -20,21 +20,21 @@
     .row { display: flex; gap: 6px; }
 
     button {
-      border: 1px solid #000; background: #fff;
+      border: 1px solid #fff; background: #000; color: #fff;
       padding: 7px 13px; cursor: pointer;
       font-size: 11px; letter-spacing: 0.07em;
       font-family: inherit; transition: background 0.1s, color 0.1s;
     }
-    button:hover { background: #f2f2f2; }
-    button.active { background: #000; color: #fff; }
+    button:hover { background: #1c1c1c; }
+    button.active { background: #fff; color: #000; }
 
     #hint {
-      font-size: 10px; color: #b0b0b0;
+      font-size: 10px; color: #4a4a4a;
       letter-spacing: 0.04em; line-height: 1.6;
     }
 
     #coords {
-      font-size: 10px; color: #888;
+      font-size: 10px; color: #666;
       letter-spacing: 0.03em; min-height: 14px;
       font-variant-numeric: tabular-nums;
     }
@@ -132,6 +132,44 @@ function worldFwd() {
   }
 }
 
+// ── Plane geometry ────────────────────────────────────────────────────────────
+
+// Each edge becomes a razor-thin rectangular plane whose thickness
+// extends along world Z. From directly front the plane collapses to a line;
+// rotating the camera reveals the hidden surface.
+const PLANE_THICKNESS = 16
+
+function buildPlane(nA, nB) {
+  const dx = nB.x - nA.x, dy = nB.y - nA.y, dz = nB.z - nA.z
+  const len = Math.sqrt(dx*dx + dy*dy + dz*dz)
+  if (len < 0.5) return null
+
+  const ex = dx/len, ey = dy/len, ez = dz/len
+
+  // Thickness direction: world Z orthogonalized against the edge direction.
+  // tx = (0,0,1) - dot((0,0,1),(ex,ey,ez)) * (ex,ey,ez) = (-ez*ex, -ez*ey, 1-ez²)
+  let tx = -ez * ex, ty = -ez * ey, tz = 1.0 - ez * ez
+  let tLen = Math.sqrt(tx*tx + ty*ty + tz*tz)
+
+  if (tLen < 0.05) {
+    // Edge nearly parallel to world Z — fall back to world Y
+    tx = -ey * ex; ty = 1.0 - ey * ey; tz = -ey * ez
+    tLen = Math.sqrt(tx*tx + ty*ty + tz*tz)
+    if (tLen < 0.001) return null
+  }
+
+  const h = (PLANE_THICKNESS / 2) / tLen
+  tx *= h; ty *= h; tz *= h
+
+  // 4 world-space corners: A± and B± along thickness axis
+  return [
+    { x: nA.x + tx, y: nA.y + ty, z: nA.z + tz },  // [0] A front
+    { x: nA.x - tx, y: nA.y - ty, z: nA.z - tz },  // [1] A back
+    { x: nB.x - tx, y: nB.y - ty, z: nB.z - tz },  // [2] B back
+    { x: nB.x + tx, y: nB.y + ty, z: nB.z + tz },  // [3] B front
+  ]
+}
+
 // ── p5.js setup ───────────────────────────────────────────────────────────────
 
 function setup() {
@@ -143,7 +181,7 @@ function setup() {
 // ── Draw ──────────────────────────────────────────────────────────────────────
 
 function draw() {
-  background(255)
+  background(0)
 
   // Camera lerp
   camRX += (tgtRX - camRX) * 0.09
@@ -179,29 +217,60 @@ function draw() {
   push()
   translate(ox, oy)
 
-  // ── Edges ──────────────────────────────────────────────
+  // ── Planes ─────────────────────────────────────────────────────────────────
   const EDGES = [['W','N'], ['N','S'], ['W','E']]
-  const byId = {}
-  for (const { n, p } of pn) byId[n.id] = p
+  const byNode = {}
+  for (const { n } of pn) byNode[n.id] = n
 
-  noFill()
+  // Build plane geometry and project all corners
+  const planeData = []
   for (const [aid, bid] of EDGES) {
-    const a = byId[aid], b = byId[bid]
-    if (!a || !b) continue
-    const avgZ = (a.z + b.z) * 0.5
-    const avgS = (a.s + b.s) * 0.5
-
-    const al = constrain(map(avgZ, -260, 260, 218, 48), 38, 225)
-    const wt = constrain(map(avgS, 0.38 * zoom, 1.62 * zoom, 0.5, 2.4), 0.35, 2.8)
-
-    stroke(0, 0, 0, al)
-    strokeWeight(wt)
-    line(a.sx, a.sy, b.sx, b.sy)
+    const nA = byNode[aid], nB = byNode[bid]
+    if (!nA || !nB) continue
+    const corners = buildPlane(nA, nB)
+    if (!corners) continue
+    const proj = corners.map(c => projPt(rotPt(c, camRX, camRY)))
+    const avgZ = (proj[0].z + proj[1].z + proj[2].z + proj[3].z) * 0.25
+    planeData.push({ proj, avgZ })
   }
 
-  // ── Nodes ───────────────────────────────────────────────
+  // Sort back-to-front (painter's algorithm)
+  planeData.sort((a, b) => b.avgZ - a.avgZ)
+
+  // Pass 1: filled face (barely-there white — signals surface without screaming)
+  noStroke()
+  for (const { proj, avgZ } of planeData) {
+    const faceAl = constrain(map(avgZ, -260, 260, 30, 7), 5, 34)
+    fill(255, faceAl)
+    beginShape()
+    vertex(proj[0].sx, proj[0].sy)
+    vertex(proj[1].sx, proj[1].sy)
+    vertex(proj[2].sx, proj[2].sy)
+    vertex(proj[3].sx, proj[3].sy)
+    endShape(CLOSE)
+  }
+
+  // Pass 2: wireframe edges
+  noFill()
+  for (const { proj, avgZ } of planeData) {
+    const edgeAl = constrain(map(avgZ, -260, 260, 205, 45), 38, 215)
+
+    // Long edges — the "original" symbol lines, one on each face of the plane
+    stroke(255, edgeAl)
+    strokeWeight(0.85)
+    line(proj[0].sx, proj[0].sy, proj[3].sx, proj[3].sy)  // front face longitudinal
+    line(proj[1].sx, proj[1].sy, proj[2].sx, proj[2].sy)  // back face longitudinal
+
+    // Cap edges — invisible head-on, reveal depth on rotation
+    stroke(255, Math.floor(edgeAl * 0.40))
+    strokeWeight(0.5)
+    line(proj[0].sx, proj[0].sy, proj[1].sx, proj[1].sy)  // A-end cap
+    line(proj[3].sx, proj[3].sy, proj[2].sx, proj[2].sy)  // B-end cap
+  }
+
+  // ── Nodes ───────────────────────────────────────────────────────────────────
   for (const { n, p } of pn) {
-    const al  = constrain(map(p.z, -260, 260, 255, 62), 50, 255)
+    const al  = constrain(map(p.z, -260, 260, 255, 70), 55, 255)
     const sz  = constrain(map(p.s, 0.38 * zoom, 1.62 * zoom, 4.5, 11.5), 4, 13)
     const isH = hoverNode === n
     const isS = selNode   === n
@@ -212,7 +281,7 @@ function draw() {
       const tDir = n.z > 0 ? 1 : -1
       const tAl  = constrain(al * 0.35, 15, 110)
       drawingContext.setLineDash([2.5, 2.5])
-      stroke(0, tAl)
+      stroke(255, tAl)
       strokeWeight(0.7)
       line(p.sx, p.sy + sz * 0.5 * tDir, p.sx, p.sy + (sz * 0.5 + tLen) * tDir)
       drawingContext.setLineDash([])
@@ -221,21 +290,20 @@ function draw() {
     // Selection / hover ring
     if (isH || isS) {
       noFill()
-      stroke(0, al)
+      stroke(255, al)
       strokeWeight(isS ? 1.5 : 1.0)
       ellipse(p.sx, p.sy, sz + 13, sz + 13)
     }
 
-    // Node fill
+    // Node dot
     noStroke()
-    fill(isSel(n) ? 0 : 0, al)
+    fill(255, al)
     ellipse(p.sx, p.sy, sz, sz)
 
     // Label
     if (showLabels) {
       const lal = constrain(al * 0.72, 32, 185)
 
-      // Offset label to fixed compass direction in screen space
       let lx = p.sx, ly = p.sy
       const gap = sz * 0.5 + 11
       if (n.id === 'N') ly -= gap
@@ -244,7 +312,7 @@ function draw() {
       if (n.id === 'W') lx -= gap
 
       noStroke()
-      fill(0, lal)
+      fill(255, lal)
       textSize(10)
       textAlign(CENTER, CENTER)
       text(n.id, lx, ly)
@@ -253,7 +321,7 @@ function draw() {
       if (Math.abs(n.z) > 12) {
         const zStr = (n.z > 0 ? '+' : '') + Math.round(n.z)
         textSize(8)
-        fill(110, constrain(lal * 0.65, 18, 130))
+        fill(180, constrain(lal * 0.65, 18, 130))
         const zy = (n.id === 'N') ? ly - 11 : ly + 11
         text(zStr, lx, zy)
       }
@@ -267,7 +335,7 @@ function draw() {
     const yStr = (selNode.y >= 0 ? '+' : '') + Math.round(selNode.y)
     const zStr = (selNode.z >= 0 ? '+' : '') + Math.round(selNode.z)
     noStroke()
-    fill(0, 155)
+    fill(255, 155)
     textSize(9)
     textAlign(LEFT, CENTER)
     const readout = zMode ? 'z ' + zStr : 'x ' + xStr + '  y ' + yStr
@@ -276,9 +344,6 @@ function draw() {
 
   pop()
 }
-
-// helper so fill() call is less confusing
-function isSel(n) { return selNode === n }
 
 // ── Mouse ─────────────────────────────────────────────────────────────────────
 
