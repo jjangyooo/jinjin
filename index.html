@@ -173,39 +173,31 @@ function draw() {
     }
   }
 
-  // Project nodes + origin
-  const O  = projPt(rotPt({ x:0, y:0, z:0 }, camRX, camRY))
+  // Project nodes
   const pn = nodes.map(n => ({ n, p: projectNode(n) }))
 
   push()
   translate(ox, oy)
 
   // ── Edges ──────────────────────────────────────────────
+  const EDGES = [['W','N'], ['N','S'], ['W','E']]
+  const byId = {}
+  for (const { n, p } of pn) byId[n.id] = p
+
   noFill()
-  for (const { n, p } of pn) {
-    const avgZ = (O.z + p.z) * 0.5
-    const avgS = (O.s + p.s) * 0.5
+  for (const [aid, bid] of EDGES) {
+    const a = byId[aid], b = byId[bid]
+    if (!a || !b) continue
+    const avgZ = (a.z + b.z) * 0.5
+    const avgS = (a.s + b.s) * 0.5
 
     const al = constrain(map(avgZ, -260, 260, 218, 48), 38, 225)
     const wt = constrain(map(avgS, 0.38 * zoom, 1.62 * zoom, 0.5, 2.4), 0.35, 2.8)
 
     stroke(0, 0, 0, al)
     strokeWeight(wt)
-    line(O.sx, O.sy, p.sx, p.sy)
+    line(a.sx, a.sy, b.sx, b.sy)
   }
-
-  // ── Origin dot ─────────────────────────────────────────
-  const oAl = constrain(map(O.z, -260, 260, 210, 55), 40, 220)
-  noStroke()
-  fill(0, oAl)
-  ellipse(O.sx, O.sy, 4.5, 4.5)
-
-  // Subtle axis cross at origin
-  stroke(200)
-  strokeWeight(0.5)
-  const cr = 7
-  line(O.sx - cr, O.sy, O.sx + cr, O.sy)
-  line(O.sx, O.sy - cr, O.sx, O.sy + cr)
 
   // ── Nodes ───────────────────────────────────────────────
   for (const { n, p } of pn) {
