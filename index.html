@@ -1,337 +1,411 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Compass Spatial System</title>
+  <title>Spatial Symbol Editor</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: #fff;
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    }
-
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; overflow: hidden; background: #fff; }
     canvas { display: block; }
 
     .ui {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      z-index: 10;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+      position: fixed; top: 20px; left: 20px; z-index: 10;
+      display: flex; flex-direction: column; gap: 8px;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      user-select: none;
     }
 
-    .modes {
-      display: flex;
-      gap: 6px;
-    }
+    .row { display: flex; gap: 6px; }
 
     button {
-      border: 1px solid #000;
-      background: #fff;
-      padding: 7px 12px;
-      cursor: pointer;
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      transition: background 0.15s, color 0.15s;
+      border: 1px solid #000; background: #fff;
+      padding: 7px 13px; cursor: pointer;
+      font-size: 11px; letter-spacing: 0.07em;
+      font-family: inherit; transition: background 0.1s, color 0.1s;
+    }
+    button:hover { background: #f2f2f2; }
+    button.active { background: #000; color: #fff; }
+
+    #hint {
+      font-size: 10px; color: #b0b0b0;
+      letter-spacing: 0.04em; line-height: 1.6;
     }
 
-    button.active {
-      background: #000;
-      color: #fff;
-    }
-
-    .hint {
-      font-size: 10px;
-      color: #aaa;
-      letter-spacing: 0.04em;
+    #coords {
+      font-size: 10px; color: #888;
+      letter-spacing: 0.03em; min-height: 14px;
+      font-variant-numeric: tabular-nums;
     }
   </style>
 </head>
 <body>
 
 <div class="ui">
-  <div class="modes">
-    <button id="b1" onclick="setMode(1)" class="active">1 IDLE</button>
-    <button id="b2" onclick="setMode(2)">2 DEPTH</button>
-    <button id="b3" onclick="setMode(3)">3 TWIST</button>
-    <button id="b4" onclick="setMode(4)">4 COLLAPSE</button>
-    <button id="ba" onclick="toggleAuto()">AUTO</button>
+  <div class="row">
+    <button onclick="resetNodes()">RESET</button>
+    <button id="btnL" onclick="toggleLabels()" class="active">LABELS</button>
   </div>
-  <div class="hint">drag · 1–4 · A = auto-rotate</div>
+  <div id="hint">drag node · shift+drag = z depth<br>scroll = zoom · drag bg = orbit</div>
+  <div id="coords"></div>
 </div>
 
 <script>
 
-// ── Mode & camera state ───────────────────────────────────
-let mode       = 1
-let autoRotate = false
+// ── Structure ─────────────────────────────────────────────────────────────────
 
-let camRX  = 0.30,  camRY  = -0.18
-let tgtRX  = 0.30,  tgtRY  = -0.18
-let inerX  = 0,     inerY  = 0
-
-let dragging = false
-let px = 0, py = 0
-
-// ── Structure ─────────────────────────────────────────────
-const R = 170
-const LABELS = ['N','NE','E','SE','S','SW','W','NW']
-
-const BASE_ANGLES = [
-  -Math.PI / 2,
-  -Math.PI / 4,
-   0,
-   Math.PI / 4,
-   Math.PI / 2,
-   Math.PI * 3 / 4,
-   Math.PI,
-   Math.PI * 5 / 4
+const DEFAULTS = [
+  { id:'N', x:   0, y:-158, z: 0 },
+  { id:'E', x: 172, y:   0, z: 0 },
+  { id:'S', x:   0, y: 108, z: 0 },
+  { id:'W', x:-194, y:   0, z: 0 },
 ]
 
-const EDGES = [
-  [0,2],[2,4],[4,6],[6,0],   // cardinal cross
-  [0,4],[2,6],               // main diagonals
-  [1,5],[3,7],               // intercardinal diagonals
-  [0,1],[1,2],[2,3],[3,4],   // perimeter
-  [4,5],[5,6],[6,7],[7,0]
-]
+let nodes = DEFAULTS.map(d => ({ ...d }))
 
-const FOV = 460
-
-// ── Node ──────────────────────────────────────────────────
-class Node {
-  constructor(idx) {
-    this.idx   = idx
-    this.label = LABELS[idx]
-    this.ang   = BASE_ANGLES[idx]
-
-    this.bx = Math.cos(this.ang) * R
-    this.by = Math.sin(this.ang) * R
-
-    this.px = this.bx
-    this.py = this.by
-    this.pz = 0
-
-    this.vx = 0
-    this.vy = 0
-    this.vz = 0
-  }
-
-  target(t) {
-    const ph = this.bx * 0.009 + this.by * 0.004
-    let tx = this.bx, ty = this.by, tz = 0
-
-    if (mode === 1) {
-      tz = Math.sin(t * 0.75 + ph) * 10
-    }
-
-    if (mode === 2) {
-      tz  = Math.sin(t * 0.85 + ph) * 140
-           + Math.cos(t * 0.5  + this.by * 0.008) * 60
-      tx += Math.sin(t * 0.25 + ph) * 8
-      ty += Math.cos(t * 0.3  + ph) * 8
-    }
-
-    if (mode === 3) {
-      const a = t * 0.42 + this.ang
-      tx = Math.cos(a) * R
-      ty = Math.sin(a) * R
-      tz = Math.sin(t * 0.65 + this.ang * 1.4) * 150
-    }
-
-    if (mode === 4) {
-      const sc = 0.2 + 1.15 * (0.5 + 0.5 * Math.sin(t * 0.55))
-      tx = this.bx * sc
-      ty = this.by * sc
-      tz = Math.sin(t * 1.7 + ph) * 190
-    }
-
-    return { x: tx, y: ty, z: tz }
-  }
-
-  update(t) {
-    const tg = this.target(t)
-    const sp = 0.072, dp = 0.80
-
-    this.vx = (this.vx + (tg.x - this.px) * sp) * dp
-    this.vy = (this.vy + (tg.y - this.py) * sp) * dp
-    this.vz = (this.vz + (tg.z - this.pz) * sp) * dp
-
-    this.px += this.vx
-    this.py += this.vy
-    this.pz += this.vz
-  }
+function resetNodes() {
+  nodes = DEFAULTS.map(d => ({ ...d }))
+  setCoords('')
 }
 
-// ── Camera rotation (Y then X) ────────────────────────────
-function rotateCamera(p, rx, ry) {
-  // Y-axis rotation
+// ── Camera ────────────────────────────────────────────────────────────────────
+
+let camRX = 0.25,  camRY = -0.14
+let tgtRX = 0.25,  tgtRY = -0.14
+let inerX = 0,     inerY = 0
+let zoom  = 1.0,   tgtZoom = 1.0
+const FOV = 460
+
+// ── Interaction state ─────────────────────────────────────────────────────────
+
+let selNode  = null
+let dragNode = false
+let dragCam  = false
+let zMode    = false
+let pmx = 0, pmy = 0
+let showLabels = true
+let hoverNode  = null
+
+// ── 3D math ───────────────────────────────────────────────────────────────────
+
+function rotPt(p, rx, ry) {
   const cy = Math.cos(ry), sy = Math.sin(ry)
-  let x1 = p.x * cy - p.z * sy
-  let z1 = p.x * sy + p.z * cy
-
-  // X-axis rotation
+  const x1 = p.x * cy - p.z * sy
+  const z1 = p.x * sy + p.z * cy
   const cx = Math.cos(rx), sx = Math.sin(rx)
-  let y1 = p.y * cx - z1 * sx
-  let z2 = p.y * sx + z1 * cx
-
+  const y1 = p.y * cx - z1 * sx
+  const z2 = p.y * sx + z1 * cx
   return { x: x1, y: y1, z: z2 }
 }
 
-// ── Perspective projection ────────────────────────────────
-function project(p) {
-  const s = FOV / (FOV + p.z + 60)
+function projPt(p) {
+  const s = (FOV / (FOV + p.z + 60)) * zoom
   return { sx: p.x * s, sy: p.y * s, z: p.z, s }
 }
 
-// ── Globals ───────────────────────────────────────────────
-const nodes = []
+function projectNode(n) {
+  return projPt(rotPt(n, camRX, camRY))
+}
+
+// Inverse-camera direction vectors for world-space dragging.
+// These map screen deltas to world-space movement.
+function worldRight() {
+  return {
+    x:  Math.cos(camRY),
+    y: -Math.sin(camRY) * Math.sin(camRX),
+    z: -Math.sin(camRY) * Math.cos(camRX)
+  }
+}
+function worldDown() {
+  return {
+    x: 0,
+    y:  Math.cos(camRX),
+    z: -Math.sin(camRX)
+  }
+}
+function worldFwd() {
+  return {
+    x:  Math.sin(camRY),
+    y:  Math.cos(camRY) * Math.sin(camRX),
+    z:  Math.cos(camRY) * Math.cos(camRX)
+  }
+}
+
+// ── p5.js setup ───────────────────────────────────────────────────────────────
 
 function setup() {
   createCanvas(windowWidth, windowHeight)
-  angleMode(RADIANS)
-  for (let i = 0; i < 8; i++) nodes.push(new Node(i))
+  document.querySelector('canvas')
+    .addEventListener('contextmenu', e => e.preventDefault())
 }
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
 
 function draw() {
   background(255)
 
-  const t = millis() * 0.001
+  // Camera lerp
+  camRX += (tgtRX - camRX) * 0.09
+  camRY += (tgtRY - camRY) * 0.09
+  zoom  += (tgtZoom - zoom) * 0.12
 
-  // Auto-rotate
-  if (autoRotate) {
-    tgtRY  += 0.0035
-    tgtRX   = 0.26 * Math.sin(t * 0.17)
-    inerX   = 0
-    inerY   = 0
-  }
-
-  // Inertia after drag release
-  if (!dragging && !autoRotate) {
+  // Inertia (only when not actively dragging)
+  if (!dragCam && !dragNode) {
     tgtRX += inerX
     tgtRY += inerY
-    inerX *= 0.90
-    inerY *= 0.90
+    inerX *= 0.84
+    inerY *= 0.84
+    tgtRX = Math.max(-1.3, Math.min(1.3, tgtRX))
   }
 
-  // Smooth camera lerp
-  camRX += (tgtRX - camRX) * 0.07
-  camRY += (tgtRY - camRY) * 0.07
+  const ox = width  / 2
+  const oy = height / 2
 
-  // Update node physics
-  for (const n of nodes) n.update(t)
+  // Hover detection
+  hoverNode = null
+  if (!dragNode) {
+    let best = 30
+    for (const n of nodes) {
+      const p = projectNode(n)
+      const d = dist(mouseX - ox, mouseY - oy, p.sx, p.sy)
+      if (d < best) { best = d; hoverNode = n }
+    }
+  }
 
-  // Project all nodes through camera
-  const pts = nodes.map(n => {
-    const r = rotateCamera({ x: n.px, y: n.py, z: n.pz }, camRX, camRY)
-    return project(r)
-  })
+  // Project nodes + origin
+  const O  = projPt(rotPt({ x:0, y:0, z:0 }, camRX, camRY))
+  const pn = nodes.map(n => ({ n, p: projectNode(n) }))
 
-  // Sort edges back-to-front for painter's algorithm
-  const sortedEdges = EDGES.slice().sort((ea, eb) => {
-    const za = (pts[ea[0]].z + pts[ea[1]].z) * 0.5
-    const zb = (pts[eb[0]].z + pts[eb[1]].z) * 0.5
-    return za - zb
-  })
+  push()
+  translate(ox, oy)
 
-  translate(width / 2, height / 2)
-
-  // Draw edges
+  // ── Edges ──────────────────────────────────────────────
   noFill()
-  for (const [ai, bi] of sortedEdges) {
-    const a = pts[ai], b = pts[bi]
+  for (const { n, p } of pn) {
+    const avgZ = (O.z + p.z) * 0.5
+    const avgS = (O.s + p.s) * 0.5
 
-    const avgZ  = (a.z + b.z) * 0.5
-    const avgS  = (a.s + b.s) * 0.5
-    const nearS = Math.max(a.s, b.s)
-
-    // Depth cues: weight and alpha
-    const w = constrain(map(avgS, 0.65, 1.35, 0.4, 2.4), 0.3, 2.8)
-    const al = constrain(map(avgZ, -260, 260, 58, 235), 50, 240)
+    const al = constrain(map(avgZ, -260, 260, 218, 48), 38, 225)
+    const wt = constrain(map(avgS, 0.38 * zoom, 1.62 * zoom, 0.5, 2.4), 0.35, 2.8)
 
     stroke(0, 0, 0, al)
-    strokeWeight(w)
-    line(a.sx, a.sy, b.sx, b.sy)
+    strokeWeight(wt)
+    line(O.sx, O.sy, p.sx, p.sy)
   }
 
-  // Draw nodes
-  for (let i = 0; i < 8; i++) {
-    const p  = pts[i]
-    const sz = constrain(map(p.s, 0.65, 1.35, 3.5, 9.5), 3, 11)
-    const al = constrain(map(p.z, -260, 260, 70, 255), 60, 255)
+  // ── Origin dot ─────────────────────────────────────────
+  const oAl = constrain(map(O.z, -260, 260, 210, 55), 40, 220)
+  noStroke()
+  fill(0, oAl)
+  ellipse(O.sx, O.sy, 4.5, 4.5)
 
+  // Subtle axis cross at origin
+  stroke(200)
+  strokeWeight(0.5)
+  const cr = 7
+  line(O.sx - cr, O.sy, O.sx + cr, O.sy)
+  line(O.sx, O.sy - cr, O.sx, O.sy + cr)
+
+  // ── Nodes ───────────────────────────────────────────────
+  for (const { n, p } of pn) {
+    const al  = constrain(map(p.z, -260, 260, 255, 62), 50, 255)
+    const sz  = constrain(map(p.s, 0.38 * zoom, 1.62 * zoom, 4.5, 11.5), 4, 13)
+    const isH = hoverNode === n
+    const isS = selNode   === n
+
+    // Z depth indicator — dashed vertical tick
+    if (Math.abs(n.z) > 6) {
+      const tLen = constrain(map(Math.abs(n.z), 0, 240, 0, 22), 0, 22)
+      const tDir = n.z > 0 ? 1 : -1
+      const tAl  = constrain(al * 0.35, 15, 110)
+      drawingContext.setLineDash([2.5, 2.5])
+      stroke(0, tAl)
+      strokeWeight(0.7)
+      line(p.sx, p.sy + sz * 0.5 * tDir, p.sx, p.sy + (sz * 0.5 + tLen) * tDir)
+      drawingContext.setLineDash([])
+    }
+
+    // Selection / hover ring
+    if (isH || isS) {
+      noFill()
+      stroke(0, al)
+      strokeWeight(isS ? 1.5 : 1.0)
+      ellipse(p.sx, p.sy, sz + 13, sz + 13)
+    }
+
+    // Node fill
     noStroke()
-    fill(0, 0, 0, al)
+    fill(isSel(n) ? 0 : 0, al)
     ellipse(p.sx, p.sy, sz, sz)
 
-    // Label — slightly offset above dot
-    fill(0, 0, 0, constrain(al * 0.72, 45, 200))
-    textSize(10)
-    textAlign(CENTER, CENTER)
-    text(nodes[i].label, p.sx, p.sy - sz * 0.5 - 9)
+    // Label
+    if (showLabels) {
+      const lal = constrain(al * 0.72, 32, 185)
+
+      // Offset label to fixed compass direction in screen space
+      let lx = p.sx, ly = p.sy
+      const gap = sz * 0.5 + 11
+      if (n.id === 'N') ly -= gap
+      if (n.id === 'S') ly += gap
+      if (n.id === 'E') lx += gap
+      if (n.id === 'W') lx -= gap
+
+      noStroke()
+      fill(0, lal)
+      textSize(10)
+      textAlign(CENTER, CENTER)
+      text(n.id, lx, ly)
+
+      // Z annotation
+      if (Math.abs(n.z) > 12) {
+        const zStr = (n.z > 0 ? '+' : '') + Math.round(n.z)
+        textSize(8)
+        fill(110, constrain(lal * 0.65, 18, 130))
+        const zy = (n.id === 'N') ? ly - 11 : ly + 11
+        text(zStr, lx, zy)
+      }
+    }
   }
+
+  // Active drag readout on node
+  if (dragNode && selNode) {
+    const p = projectNode(selNode)
+    const xStr = (selNode.x >= 0 ? '+' : '') + Math.round(selNode.x)
+    const yStr = (selNode.y >= 0 ? '+' : '') + Math.round(selNode.y)
+    const zStr = (selNode.z >= 0 ? '+' : '') + Math.round(selNode.z)
+    noStroke()
+    fill(0, 155)
+    textSize(9)
+    textAlign(LEFT, CENTER)
+    const readout = zMode ? 'z ' + zStr : 'x ' + xStr + '  y ' + yStr
+    text(readout, p.sx + 18, p.sy)
+  }
+
+  pop()
 }
 
-// ── Drag rotation ─────────────────────────────────────────
+// helper so fill() call is less confusing
+function isSel(n) { return selNode === n }
+
+// ── Mouse ─────────────────────────────────────────────────────────────────────
+
 function mousePressed() {
-  dragging = true
-  px = mouseX
-  py = mouseY
-  inerX = 0
-  inerY = 0
+  if (mouseButton === CENTER) return
+
+  const ox = width / 2, oy = height / 2
+
+  // Hit test nodes
+  let best = 30, hit = null
+  for (const n of nodes) {
+    const p = projectNode(n)
+    const d = dist(mouseX - ox, mouseY - oy, p.sx, p.sy)
+    if (d < best) { best = d; hit = n }
+  }
+
+  if (hit) {
+    selNode  = hit
+    dragNode = true
+    dragCam  = false
+    zMode    = (mouseButton === RIGHT) || keyIsDown(SHIFT)
+    inerX = 0; inerY = 0
+    setHint(zMode
+      ? 'z depth · ' + hit.id + '  (drag left/right)'
+      : hit.id + ' · shift+drag = z depth')
+  } else {
+    selNode  = null
+    dragNode = false
+    dragCam  = true
+    inerX = 0; inerY = 0
+  }
+
+  pmx = mouseX; pmy = mouseY
+  return false
 }
 
 function mouseDragged() {
-  if (!dragging) return
-  const dx = mouseX - px
-  const dy = mouseY - py
-  const speed = 0.007
+  const dx = mouseX - pmx
+  const dy = mouseY - pmy
 
-  inerY = dx * speed
-  inerX = dy * speed
+  if (dragNode && selNode) {
+    zMode = (mouseButton === RIGHT) || keyIsDown(SHIFT)
 
-  tgtRY += inerY
-  tgtRX += inerX
+    const sf = 1.0 / zoom   // world units per screen pixel
 
-  // Clamp vertical tilt
-  tgtRX = constrain(tgtRX, -1.1, 1.1)
+    if (zMode) {
+      // Move along camera forward axis
+      const f = worldFwd()
+      const d = dx * sf * 1.5
+      selNode.x += f.x * d
+      selNode.y += f.y * d
+      selNode.z += f.z * d
+    } else {
+      // Move in camera-facing XY plane
+      const r = worldRight()
+      const dn = worldDown()
+      const sx = dx * sf
+      const sy = dy * sf
+      selNode.x += r.x * sx + dn.x * sy
+      selNode.y += r.y * sx + dn.y * sy
+      selNode.z += r.z * sx + dn.z * sy
+    }
 
-  px = mouseX
-  py = mouseY
+    setCoords(
+      selNode.id +
+      '  x ' + fmt(selNode.x) +
+      '  y ' + fmt(selNode.y) +
+      '  z ' + fmt(selNode.z)
+    )
+  }
+
+  if (dragCam) {
+    const s = 0.006
+    inerY = dx * s
+    inerX = dy * s
+    tgtRY += inerY
+    tgtRX += inerX
+    tgtRX = Math.max(-1.3, Math.min(1.3, tgtRX))
+  }
+
+  pmx = mouseX; pmy = mouseY
 }
 
 function mouseReleased() {
-  dragging = false
+  dragNode = false
+  dragCam  = false
+  setHint('drag node · shift+drag = z depth\nscroll = zoom · drag bg = orbit')
 }
 
-// ── Keyboard controls ─────────────────────────────────────
+function mouseWheel(e) {
+  tgtZoom = constrain(tgtZoom * (e.delta > 0 ? 0.91 : 1.10), 0.25, 5.0)
+  return false
+}
+
+// ── Keyboard ──────────────────────────────────────────────────────────────────
+
 function keyPressed() {
-  if (key === '1') setMode(1)
-  else if (key === '2') setMode(2)
-  else if (key === '3') setMode(3)
-  else if (key === '4') setMode(4)
-  else if (key === 'a' || key === 'A') toggleAuto()
+  if (key === 'r' || key === 'R') resetNodes()
+  if (key === 'l' || key === 'L') toggleLabels()
+  if (keyCode === ESCAPE) { selNode = null }
 }
 
-// ── UI helpers ────────────────────────────────────────────
-function setMode(m) {
-  mode = m
-  for (let i = 1; i <= 4; i++) {
-    const b = document.getElementById('b' + i)
-    if (b) b.classList.toggle('active', i === m)
-  }
+// ── UI helpers ────────────────────────────────────────────────────────────────
+
+function toggleLabels() {
+  showLabels = !showLabels
+  document.getElementById('btnL').classList.toggle('active', showLabels)
 }
 
-function toggleAuto() {
-  autoRotate = !autoRotate
-  const b = document.getElementById('ba')
-  if (b) b.classList.toggle('active', autoRotate)
+function setHint(t) {
+  document.getElementById('hint').innerHTML = t.replace('\n', '<br>')
+}
+
+function setCoords(t) {
+  document.getElementById('coords').textContent = t
+}
+
+function fmt(v) {
+  return (v >= 0 ? '+' : '') + Math.round(v)
 }
 
 function windowResized() {
