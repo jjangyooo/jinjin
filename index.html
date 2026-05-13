@@ -237,10 +237,10 @@ function draw() {
   // Sort back-to-front (painter's algorithm)
   planeData.sort((a, b) => b.avgZ - a.avgZ)
 
-  // Pass 1: filled face (barely-there white — signals surface without screaming)
+  // Pass 1: filled face
   noStroke()
   for (const { proj, avgZ } of planeData) {
-    const faceAl = constrain(map(avgZ, -260, 260, 44, 12), 9, 48)
+    const faceAl = constrain(map(avgZ, -260, 260, 55, 18), 14, 60)
     fill(255, faceAl)
     beginShape()
     vertex(proj[0].sx, proj[0].sy)
@@ -253,17 +253,17 @@ function draw() {
   // Pass 2: wireframe edges
   noFill()
   for (const { proj, avgZ } of planeData) {
-    const edgeAl = constrain(map(avgZ, -260, 260, 205, 45), 38, 215)
+    const edgeAl = constrain(map(avgZ, -260, 260, 220, 80), 70, 220)
 
-    // Long edges — the "original" symbol lines, one on each face of the plane
+    // Long edges — one on each face of the plane
     stroke(255, edgeAl)
-    strokeWeight(0.85)
+    strokeWeight(1.2)
     line(proj[0].sx, proj[0].sy, proj[3].sx, proj[3].sy)  // front face longitudinal
     line(proj[1].sx, proj[1].sy, proj[2].sx, proj[2].sy)  // back face longitudinal
 
-    // Cap edges — invisible head-on, reveal depth on rotation
-    stroke(255, Math.floor(edgeAl * 0.60))
-    strokeWeight(0.5)
+    // Cap edges — reveal depth on camera rotation
+    stroke(255, Math.round(edgeAl * 0.55))
+    strokeWeight(0.6)
     line(proj[0].sx, proj[0].sy, proj[1].sx, proj[1].sy)  // A-end cap
     line(proj[3].sx, proj[3].sy, proj[2].sx, proj[2].sy)  // B-end cap
   }
