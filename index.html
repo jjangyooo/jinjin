@@ -13,10 +13,10 @@ canvas { display: block; }
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  color: rgba(200, 210, 225, 0.22);
+  color: rgba(200, 212, 228, 0.20);
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 10px;
-  letter-spacing: 0.30em;
+  letter-spacing: 0.32em;
   text-transform: uppercase;
   pointer-events: none;
   white-space: nowrap;
@@ -50,22 +50,23 @@ document.body.appendChild(renderer.domElement);
 // ── Scene ─────────────────────────────────────────────────────────────────────
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x07070e);
-scene.fog = new THREE.FogExp2(0x07070e, 0.022);
+scene.fog = new THREE.FogExp2(0x07070e, 0.020);
 
 // ── Camera ────────────────────────────────────────────────────────────────────
+// Slightly off-axis so the 3D depth is immediately perceptible on load
 const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.01, 200);
-camera.position.set(0, 0.8, 14);
+camera.position.set(1.8, 1.2, 13.5);
 camera.lookAt(0, 0, 0);
 
 // ── Orbit controls ────────────────────────────────────────────────────────────
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.minDistance   = 4;
-controls.maxDistance   = 40;
+controls.enableDamping   = true;
+controls.dampingFactor   = 0.055;
+controls.minDistance     = 4;
+controls.maxDistance     = 42;
 controls.target.set(0, 0, 0);
 controls.autoRotate      = true;
-controls.autoRotateSpeed = 1.0;
+controls.autoRotateSpeed = 0.9;
 
 controls.addEventListener('start', () => {
   controls.autoRotate = false;
@@ -73,25 +74,30 @@ controls.addEventListener('start', () => {
 });
 
 // ── Lighting ──────────────────────────────────────────────────────────────────
-scene.add(new THREE.AmbientLight(0x0c0c1e, 5));
+scene.add(new THREE.AmbientLight(0x0c0d1f, 5));
 
-const key = new THREE.DirectionalLight(0xfff5e8, 3.2);
+const key = new THREE.DirectionalLight(0xfff5e8, 3.4);
 key.position.set(5, 9, 7);
 scene.add(key);
 
-const fill = new THREE.DirectionalLight(0x2233bb, 1.2);
+const fill = new THREE.DirectionalLight(0x1a2baa, 1.1);
 fill.position.set(-7, -3, -5);
 scene.add(fill);
 
-const rim = new THREE.DirectionalLight(0x6677aa, 0.9);
+const rim = new THREE.DirectionalLight(0x5566aa, 1.0);
 rim.position.set(1, -8, -4);
 scene.add(rim);
 
+// Warm point light at the welded center — adds drama to the junction
+const centerPt = new THREE.PointLight(0xffeedd, 2.8, 7.0, 2.0);
+centerPt.position.set(0, 0, 0);
+scene.add(centerPt);
+
 // ── Geometry parameters ───────────────────────────────────────────────────────
-const SEG_L  = 24;   // segments along ribbon length
-const SEG_W  = 12;   // segments across ribbon width (more = smoother wide plane)
-const HALF_W = 1.75; // ribbon half-width → 3.5 total (wide architectural plane)
-const TWIST  = 0.20; // radians of twist over full ribbon length
+const SEG_L  = 26;    // length segments
+const SEG_W  = 14;    // width segments (higher = smoother wide plane)
+const HALF_W = 1.80;  // ribbon half-width → 3.6 total (wide architectural plane)
+const TWIST  = 0.22;  // radians of twist over full ribbon length
 
 // Shared temp vectors (safe in single-threaded JS)
 const _ld = new THREE.Vector3();
@@ -101,19 +107,19 @@ const Z_AX = new THREE.Vector3(0, 0, 1);
 const Y_AX = new THREE.Vector3(0, 1, 0);
 
 // ── Asymmetric 4-direction node positions ─────────────────────────────────────
-// Pinwheel Z topology: N/W toward viewer, S/E away — creates impossible-geometry depth
+// Pinwheel Z topology: N/W toward viewer (+Z), S/E away (−Z)
+// This creates the "impossible geometry" contradiction when orbited
 const nodePos = {
-  N: new THREE.Vector3( 0.0,  4.0,  1.3),
-  S: new THREE.Vector3( 0.0, -4.0, -1.3),
-  E: new THREE.Vector3( 4.0,  0.0, -1.1),
-  W: new THREE.Vector3(-4.0,  0.0,  1.1),
+  N: new THREE.Vector3( 0.0,  4.1,  1.30),
+  S: new THREE.Vector3( 0.0, -4.1, -1.30),
+  E: new THREE.Vector3( 4.1,  0.0, -1.10),
+  W: new THREE.Vector3(-4.1,  0.0,  1.10),
 };
 
 // ── Ribbon BufferGeometry factory ─────────────────────────────────────────────
-// Returns a geometry with static UVs and indices; positions updated separately.
 function makeRibbonGeo() {
   const nv  = (SEG_L + 1) * (SEG_W + 1);
-  const pos = new Float32Array(nv * 3);  // zeroed, will be filled by updateRibbon
+  const pos = new Float32Array(nv * 3);
   const uvs = new Float32Array(nv * 2);
 
   for (let i = 0; i <= SEG_L; i++) {
@@ -143,24 +149,21 @@ function makeRibbonGeo() {
 }
 
 // ── Ribbon vertex update ───────────────────────────────────────────────────────
-// Fills position buffer from center (0,0,0) to endpoint ep.
-// Width direction is derived as cross(lenDir, Z), giving a stable orientation
-// that appears flat from the front (+Z) camera view.
-// Rodrigues rotation adds a subtle architectural twist along the ribbon.
+// Computes positions from center (0,0,0) to endpoint ep.
+// Width = cross(lenDir, Z) → stable, appears flat from front (+Z) camera.
+// Rodrigues twist rotates the width vector along the ribbon length.
+// All i=0 vertices converge near origin, welding all ribbons at center.
 function updateRibbon(geo, ep) {
   const pa  = geo.attributes.position.array;
   const len = ep.length();
   if (len < 1e-3) return;
 
-  _ld.copy(ep).divideScalar(len);  // unit ribbon direction
+  _ld.copy(ep).divideScalar(len);
 
-  // Width axis = cross(lenDir, Z), falls back to cross(lenDir, Y) near Z-parallel
   _wa.crossVectors(_ld, Z_AX);
   if (_wa.lengthSq() < 1e-4) _wa.crossVectors(_ld, Y_AX);
   _wa.normalize();
-
-  // k×w for Rodrigues (kDotW = 0 because w ⊥ ld)
-  _kw.crossVectors(_ld, _wa);
+  _kw.crossVectors(_ld, _wa);  // for Rodrigues, kDotW = 0 since w ⊥ k
 
   for (let i = 0; i <= SEG_L; i++) {
     const t  = i / SEG_L;
@@ -168,7 +171,6 @@ function updateRibbon(geo, ep) {
     const cy = ep.y * t;
     const cz = ep.z * t;
 
-    // Rotate width vector around ribbon direction by TWIST * t radians
     const cosA = Math.cos(TWIST * t);
     const sinA = Math.sin(TWIST * t);
     const wx = _wa.x * cosA + _kw.x * sinA;
@@ -176,8 +178,8 @@ function updateRibbon(geo, ep) {
     const wz = _wa.z * cosA + _kw.z * sinA;
 
     for (let j = 0; j <= SEG_W; j++) {
-      const s  = (j / SEG_W - 0.5) * 2;       // −1 to +1 across width
-      const hw = HALF_W * (1 - 0.10 * t * t);  // slight taper at tip only
+      const s  = (j / SEG_W - 0.5) * 2;        // −1 to +1 across width
+      const hw = HALF_W * (1 - 0.08 * t * t);   // very gentle taper at tip
       const id = (i * (SEG_W + 1) + j) * 3;
       pa[id]     = cx + wx * s * hw;
       pa[id + 1] = cy + wy * s * hw;
@@ -190,42 +192,86 @@ function updateRibbon(geo, ep) {
 }
 
 // ── Surface materials ─────────────────────────────────────────────────────────
-// N/S ribbons: warm stone/ivory   E/W ribbons: cool silver/steel
 const matNS = new THREE.MeshStandardMaterial({
-  color: 0xddd5c4, roughness: 0.20, metalness: 0.62, side: THREE.DoubleSide,
+  color: 0xddd5c3, roughness: 0.19, metalness: 0.64, side: THREE.DoubleSide,
 });
 const matEW = new THREE.MeshStandardMaterial({
-  color: 0xc4cdd8, roughness: 0.17, metalness: 0.68, side: THREE.DoubleSide,
+  color: 0xc3ccd8, roughness: 0.16, metalness: 0.70, side: THREE.DoubleSide,
 });
 
-// ── Ribbon meshes ─────────────────────────────────────────────────────────────
+// Wireframe overlay — shares the ribbon geometry reference so it auto-updates
+// Draws the structural grid lines, reinforcing the "architectural plane" reading
+const wireMat = new THREE.MeshBasicMaterial({
+  color: 0x2a3550,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.12,
+  depthWrite: false,
+});
+
+// ── Ribbon meshes + wireframe overlays ───────────────────────────────────────
 const ribbons = {};
 const DIRS    = ['N', 'S', 'E', 'W'];
 
 for (const dir of DIRS) {
   const geo  = makeRibbonGeo();
   updateRibbon(geo, nodePos[dir]);
-  const mesh = new THREE.Mesh(geo, (dir === 'N' || dir === 'S') ? matNS : matEW);
+
+  const mat  = (dir === 'N' || dir === 'S') ? matNS : matEW;
+  const mesh = new THREE.Mesh(geo, mat);
   scene.add(mesh);
   ribbons[dir] = mesh;
+
+  // Wireframe shares same geometry — no extra update needed on drag
+  scene.add(new THREE.Mesh(geo, wireMat));
 }
 
-// ── Center welding marker ─────────────────────────────────────────────────────
-// Small octahedron at origin visually anchors the shared center weld point.
+// ── Center weld marker ────────────────────────────────────────────────────────
 scene.add(new THREE.Mesh(
-  new THREE.OctahedronGeometry(0.20, 2),
+  new THREE.OctahedronGeometry(0.22, 2),
   new THREE.MeshStandardMaterial({
-    color: 0xffffff, emissive: 0x556688, roughness: 0.04, metalness: 1.0,
+    color: 0xffffff, emissive: 0x667799, roughness: 0.03, metalness: 1.0,
   })
 ));
 
+// ── Direction label sprites ───────────────────────────────────────────────────
+// Canvas-texture sprites for N / E / S / W, positioned at each node
+function makeLabel(text) {
+  const cvs = document.createElement('canvas');
+  cvs.width = 96; cvs.height = 96;
+  const cx = cvs.getContext('2d');
+  cx.font = 'bold 52px "Helvetica Neue", Helvetica, sans-serif';
+  cx.fillStyle = 'rgba(220, 228, 242, 0.72)';
+  cx.textAlign    = 'center';
+  cx.textBaseline = 'middle';
+  cx.fillText(text, 48, 50);
+  const tex = new THREE.CanvasTexture(cvs);
+  const spr = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })
+  );
+  spr.scale.set(0.55, 0.55, 1);
+  return spr;
+}
+
+// Label offset: push the label outward along the primary arm direction
+const LABEL_OUT = { N: [0, 0.62, 0], S: [0, -0.62, 0], E: [0.62, 0, 0], W: [-0.62, 0, 0] };
+const labels = {};
+
+for (const dir of DIRS) {
+  const lbl = makeLabel(dir);
+  const [ox, oy, oz] = LABEL_OUT[dir];
+  lbl.position.copy(nodePos[dir]).add(new THREE.Vector3(ox, oy, oz));
+  scene.add(lbl);
+  labels[dir] = lbl;
+}
+
 // ── Node handle spheres ───────────────────────────────────────────────────────
-const sphereGeo = new THREE.SphereGeometry(0.23, 32, 24);
+const sphereGeo = new THREE.SphereGeometry(0.24, 32, 24);
 const nodes     = {};
 
 for (const dir of DIRS) {
   const mat = new THREE.MeshStandardMaterial({
-    color: 0xffffff, emissive: new THREE.Color(0x0f1e2e),
+    color: 0xffffff, emissive: new THREE.Color(0x0f1e30),
     roughness: 0.07, metalness: 0.95,
   });
   const m = new THREE.Mesh(sphereGeo, mat);
@@ -235,20 +281,24 @@ for (const dir of DIRS) {
   nodes[dir] = m;
 }
 
-// ── Drag / hover interaction ──────────────────────────────────────────────────
-const rc       = new THREE.Raycaster();
-const m2       = new THREE.Vector2();
+// ── Drag / hover ──────────────────────────────────────────────────────────────
+const rc        = new THREE.Raycaster();
+const m2        = new THREE.Vector2();
 const dragPlane = new THREE.Plane();
-const iPt      = new THREE.Vector3();
-const camDir   = new THREE.Vector3();
+const iPt       = new THREE.Vector3();
+const camDir    = new THREE.Vector3();
+const _lo       = new THREE.Vector3();
 
 let activeDir  = null;
 let hoveredDir = null;
 
 const nodeList = () => Object.values(nodes);
 
-function setEm(dir, hex) {
-  nodes[dir].material.emissive.setHex(hex);
+function setEm(dir, hex) { nodes[dir].material.emissive.setHex(hex); }
+
+function updateLabelPos(dir, pos) {
+  const [ox, oy, oz] = LABEL_OUT[dir];
+  labels[dir].position.copy(pos).add(_lo.set(ox, oy, oz));
 }
 
 renderer.domElement.addEventListener('pointermove', e => {
@@ -259,22 +309,20 @@ renderer.domElement.addEventListener('pointermove', e => {
   rc.setFromCamera(m2, camera);
 
   if (activeDir) {
-    // Drag: project mouse onto camera-facing plane at the dragged node
     if (rc.ray.intersectPlane(dragPlane, iPt)) {
-      // Prevent node collapsing into center
       if (iPt.length() < 1.5) iPt.normalize().multiplyScalar(1.5);
       nodePos[activeDir].copy(iPt);
       nodes[activeDir].position.copy(iPt);
+      updateLabelPos(activeDir, iPt);
       updateRibbon(ribbons[activeDir].geometry, iPt);
     }
     return;
   }
 
-  // Hover detection
   const hits   = rc.intersectObjects(nodeList());
   const nowDir = hits.length ? hits[0].object.userData.dir : null;
   if (nowDir !== hoveredDir) {
-    if (hoveredDir) setEm(hoveredDir, 0x0f1e2e);
+    if (hoveredDir) setEm(hoveredDir, 0x0f1e30);
     hoveredDir = nowDir;
     if (hoveredDir) setEm(hoveredDir, 0x4488cc);
     renderer.domElement.style.cursor = hoveredDir ? 'grab' : '';
@@ -292,28 +340,26 @@ renderer.domElement.addEventListener('pointerdown', e => {
 
   activeDir = hits[0].object.userData.dir;
   setEm(activeDir, 0x66aaff);
-  controls.enabled = false;
+  controls.enabled    = false;
   controls.autoRotate = false;
   renderer.domElement.style.cursor = 'grabbing';
 
-  // Drag plane: perpendicular to camera direction, passing through the node
   camera.getWorldDirection(camDir);
   dragPlane.setFromNormalAndCoplanarPoint(camDir, nodePos[activeDir]);
-
   renderer.domElement.setPointerCapture(e.pointerId);
   e.preventDefault();
 });
 
 renderer.domElement.addEventListener('pointerup', () => {
   if (activeDir) {
-    setEm(activeDir, hoveredDir === activeDir ? 0x4488cc : 0x0f1e2e);
+    setEm(activeDir, hoveredDir === activeDir ? 0x4488cc : 0x0f1e30);
     activeDir = null;
   }
   controls.enabled = true;
   renderer.domElement.style.cursor = hoveredDir ? 'grab' : '';
 });
 
-// ── Window resize ─────────────────────────────────────────────────────────────
+// ── Resize ────────────────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
