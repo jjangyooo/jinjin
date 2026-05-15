@@ -4,106 +4,147 @@ import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STRUCTURE DEFINITION
-// Two cubes sharing an impossible junction — the overlapping zone creates
-// spatial ambiguity. Camera angle determines which cube reads as "in front".
+//  DIRECTIONAL COLLAPSE
+//
+//  A spatial orientation system (think: compass cube, navigation frame)
+//  that is losing its directional certainty.
+//
+//  Structure: two concentric cubes.
+//    Outer cube  (nodes 0–7):  the stable reference frame.
+//                               Its 6 faces = the 6 cardinal directions.
+//    Inner cube  (nodes 8–15): the same frame, but twisted 22° around Y.
+//                               Represents actual orientation that has drifted.
+//    Connectors  (16 edges):   the visible relationship between reference
+//                               and reality — twisted diagonal struts.
+//
+//  When nodes are dragged, the orientation framework itself deforms.
+//  "North" can become diagonal. "Up" can fold inward.
+//  Structural connectivity is always preserved; directional logic is not.
 // ─────────────────────────────────────────────────────────────────────────────
 
+const TWIST_DEG = 22
+const TWIST     = TWIST_DEG * Math.PI / 180
+const COS       = Math.cos(TWIST)
+const SIN       = Math.sin(TWIST)
+
+function rotY(x, y, z) {
+  return [x * COS - z * SIN, y, x * SIN + z * COS]
+}
+
+const OW = 2.0   // outer cube half-width
+const IW = 1.1   // inner cube half-width (before rotation)
+
+// Pre-compute initial node positions at module load
 const INIT = [
-  // Cube A — anchored at origin
-  [-1.6, -1.6, -1.6],  // 0  BBL
-  [ 1.6, -1.6, -1.6],  // 1  BBR
-  [ 1.6,  1.6, -1.6],  // 2  BTR
-  [-1.6,  1.6, -1.6],  // 3  BTL
-  [-1.6, -1.6,  1.6],  // 4  FBL
-  [ 1.6, -1.6,  1.6],  // 5  FBR
-  [ 1.6,  1.6,  1.6],  // 6  FTR
-  [-1.6,  1.6,  1.6],  // 7  FTL
+  // ── Outer cube (nodes 0–7) ── stable reference frame
+  [-OW, -OW, -OW],  // 0  back  bottom  left
+  [ OW, -OW, -OW],  // 1  back  bottom  right
+  [ OW,  OW, -OW],  // 2  back  top     right
+  [-OW,  OW, -OW],  // 3  back  top     left
+  [-OW, -OW,  OW],  // 4  front bottom  left
+  [ OW, -OW,  OW],  // 5  front bottom  right
+  [ OW,  OW,  OW],  // 6  front top     right
+  [-OW,  OW,  OW],  // 7  front top     left
 
-  // Cube B — offset diagonally, creates impossible junction with A
-  [ 0.0, -1.6,  0.0],  // 8  BBL-B
-  [ 3.2, -1.6,  0.0],  // 9  BBR-B
-  [ 3.2,  1.6,  0.0],  // 10 BTR-B
-  [ 0.0,  1.6,  0.0],  // 11 BTL-B
-  [ 0.0, -1.6,  3.2],  // 12 FBL-B
-  [ 3.2, -1.6,  3.2],  // 13 FBR-B
-  [ 3.2,  1.6,  3.2],  // 14 FTR-B
-  [ 0.0,  1.6,  3.2],  // 15 FTL-B
-
-  // Vertical spire — extends up from the junction to add 4th axis
-  [ 0.0,  4.0,  0.0],  // 16 apex-back
-  [ 3.2,  4.0,  0.0],  // 17 apex-right-back
-  [ 3.2,  4.0,  3.2],  // 18 apex-right-front
-  [ 0.0,  4.0,  3.2],  // 19 apex-front
+  // ── Inner cube (nodes 8–15) ── twisted 22° around Y, directional drift
+  ...([
+    [-IW, -IW, -IW],  // → 8
+    [ IW, -IW, -IW],  // → 9
+    [ IW,  IW, -IW],  // → 10
+    [-IW,  IW, -IW],  // → 11
+    [-IW, -IW,  IW],  // → 12
+    [ IW, -IW,  IW],  // → 13
+    [ IW,  IW,  IW],  // → 14
+    [-IW,  IW,  IW],  // → 15
+  ].map(([x, y, z]) => rotY(x, y, z))),
 ]
 
-// Faces — each is an array of 4 node IDs forming a quad (CCW winding)
+// ─── Faces (quads, 4 node IDs each) ─────────────────────────────────────────
+// Rendered as ghostly translucent planes — the spatial surfaces.
 const FACES = [
-  // Cube A — show 3 faces (isometric visible faces)
-  [4, 5, 6, 7],    // A front
-  [7, 6, 2, 3],    // A top
-  [5, 1, 2, 6],    // A right
+  // Outer cube — all 6 faces (very subtle, the reference frame)
+  [4, 5, 6, 7],    // outer front
+  [1, 0, 3, 2],    // outer back
+  [0, 4, 7, 3],    // outer left
+  [5, 1, 2, 6],    // outer right
+  [0, 1, 5, 4],    // outer bottom
+  [3, 7, 6, 2],    // outer top
 
-  // Cube B — show 3 corresponding faces
-  [12, 13, 14, 15], // B front
-  [15, 14, 10, 11], // B top
-  [13,  9, 10, 14], // B right
+  // Inner cube — all 6 faces (slightly brighter — the "real" frame)
+  [12, 13, 14, 15], // inner front
+  [ 9,  8, 11, 10], // inner back
+  [ 8, 12, 15, 11], // inner left
+  [13,  9, 10, 14], // inner right
+  [ 8,  9, 13, 12], // inner bottom
+  [11, 15, 14, 10], // inner top
 
-  // Junction / bridge faces (the "impossible" zone)
-  [5, 12, 15, 6],   // bridge front  — connects A.FBR→B.FBL and A.FTR→B.FTL
-  [6, 15, 11, 2],   // bridge top    — connects A.FTR→B.FTL and A.BTR→B.BTL
-  [5,  1, 9, 13],   // bridge bottom-right
-
-  // Spire faces
-  [11, 10, 17, 16], // spire back
-  [10, 14, 18, 17], // spire right
-  [14, 15, 19, 18], // spire front
-  [15, 11, 16, 19], // spire left
+  // Connecting trapezoids — the zone where reference meets drift
+  // These are non-planar quads: they fold because inner is rotated.
+  // This fold IS the impossibility.
+  [0, 1,  9,  8],  // back  bottom  connector
+  [4, 5, 13, 12],  // front bottom  connector
+  [0, 4, 12,  8],  // left  bottom  connector
+  [1, 5, 13,  9],  // right bottom  connector
+  [3, 2, 10, 11],  // back  top     connector
+  [7, 6, 14, 15],  // front top     connector
+  [3, 7, 15, 11],  // left  top     connector
+  [2, 6, 14, 10],  // right top     connector
 ]
 
-// Edges — pairs of node IDs
+// Face opacity by zone (inner, outer, connecting get slightly different treatment)
+const FACE_ALPHA = (i) => {
+  if (i < 6)  return 0.055  // outer — barely there, stable reference
+  if (i < 12) return 0.090  // inner — slightly more visible, drifted frame
+  return 0.110               // connectors — the tension zone
+}
+
+// ─── Edges (pairs of node IDs) ───────────────────────────────────────────────
+// Each edge renders as a camera-facing plane strip (not a line).
 const EDGES = [
-  // Cube A — all 12 edges
-  [0, 1], [1, 2], [2, 3], [3, 0],   // back face
-  [4, 5], [5, 6], [6, 7], [7, 4],   // front face
-  [0, 4], [1, 5], [2, 6], [3, 7],   // depth edges
+  // Outer cube — 12 edges
+  [0,1],[1,2],[2,3],[3,0],
+  [4,5],[5,6],[6,7],[7,4],
+  [0,4],[1,5],[2,6],[3,7],
 
-  // Cube B — all 12 edges
-  [8,  9], [9, 10], [10, 11], [11,  8],
-  [12, 13], [13, 14], [14, 15], [15, 12],
-  [8, 12], [9, 13], [10, 14], [11, 15],
+  // Inner cube — 12 edges
+  [8,9],[9,10],[10,11],[11,8],
+  [12,13],[13,14],[14,15],[15,12],
+  [8,12],[9,13],[10,14],[11,15],
 
-  // Junction bridge edges
-  [5, 12], [6, 15], [2, 11], [1, 9],
-
-  // Spire edges
-  [11, 16], [10, 17], [14, 18], [15, 19],
-  [16, 17], [17, 18], [18, 19], [19, 16],
+  // Connectors — 8 twisted diagonal struts.
+  // These are not orthogonal because inner cube is rotated.
+  // They are the visible proof of directional collapse.
+  [0,8],[1,9],[2,10],[3,11],
+  [4,12],[5,13],[6,14],[7,15],
 ]
 
-const EDGE_HW    = 0.030   // half-width of each edge strip
-const FACE_ALPHA = 0.10    // face opacity — ghostly planes
-const EDGE_ALPHA = 0.92    // edge opacity — solid-ish white
+const EDGE_HW = 0.026  // edge strip half-width
+const EDGE_ALPHA = (i) => {
+  if (i < 12) return 0.70   // outer cube edges — slightly dimmer
+  if (i < 24) return 0.85   // inner cube edges — the shifted frame
+  return 0.95                // connecting diagonal struts — most visible
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FACE PLANE — thin quad surface between 4 nodes
+//  FACE PLANE
+//  A thin quad surface defined by 4 nodes. Updates every frame.
 // ─────────────────────────────────────────────────────────────────────────────
-function FacePlane({ nodeIds, getPos }) {
-  const geoRef = useRef()
+function FacePlane({ nodeIds, getPos, opacity }) {
+  const gRef = useRef()
 
   useFrame(() => {
-    if (!geoRef.current) return
-    const attr = geoRef.current.attributes.position
-    nodeIds.forEach((id, i) => {
-      const p = getPos(id)
+    if (!gRef.current) return
+    const attr = gRef.current.attributes.position
+    for (let i = 0; i < 4; i++) {
+      const p = getPos(nodeIds[i])
       attr.setXYZ(i, p[0], p[1], p[2])
-    })
+    }
     attr.needsUpdate = true
   })
 
   return (
     <mesh renderOrder={0}>
-      <bufferGeometry ref={geoRef}>
+      <bufferGeometry ref={gRef}>
         <bufferAttribute
           attach="attributes-position"
           count={4}
@@ -112,7 +153,7 @@ function FacePlane({ nodeIds, getPos }) {
         />
         <bufferAttribute
           attach="index"
-          array={new Uint16Array([0, 1, 2, 0, 2, 3])}
+          array={new Uint16Array([0, 1, 2,  0, 2, 3])}
           itemSize={1}
         />
       </bufferGeometry>
@@ -120,7 +161,7 @@ function FacePlane({ nodeIds, getPos }) {
         color="#ffffff"
         side={THREE.DoubleSide}
         transparent
-        opacity={FACE_ALPHA}
+        opacity={opacity}
         depthWrite={false}
       />
     </mesh>
@@ -128,59 +169,63 @@ function FacePlane({ nodeIds, getPos }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EDGE STRIP — camera-facing plane strip between 2 nodes
-// From straight on: looks like a line
-// From rotated angle: reveals surface area
+//  EDGE STRIP
+//  Camera-facing plane strip between two nodes.
+//  Straight-on: looks like a line.
+//  Rotated: reveals surface area — the "planar ribbon" effect.
 // ─────────────────────────────────────────────────────────────────────────────
-function EdgeStrip({ nodeA, nodeB, getPos }) {
-  const geoRef = useRef()
+function EdgeStrip({ nA, nB, getPos, opacity }) {
+  const gRef = useRef()
   const { camera } = useThree()
 
-  const _a   = useRef(new THREE.Vector3())
-  const _b   = useRef(new THREE.Vector3())
-  const _dir = useRef(new THREE.Vector3())
-  const _mid = useRef(new THREE.Vector3())
-  const _cam = useRef(new THREE.Vector3())
-  const _nor = useRef(new THREE.Vector3())
-  const _up  = useRef(new THREE.Vector3())
+  // Reuse Vector3 instances to avoid GC pressure at 60fps
+  const va  = useRef(new THREE.Vector3())
+  const vb  = useRef(new THREE.Vector3())
+  const dir = useRef(new THREE.Vector3())
+  const mid = useRef(new THREE.Vector3())
+  const cam = useRef(new THREE.Vector3())
+  const nor = useRef(new THREE.Vector3())
+  const up  = useRef(new THREE.Vector3())
 
   useFrame(() => {
-    if (!geoRef.current) return
-    const pa = getPos(nodeA)
-    const pb = getPos(nodeB)
-    _a.current.set(pa[0], pa[1], pa[2])
-    _b.current.set(pb[0], pb[1], pb[2])
+    if (!gRef.current) return
 
-    _dir.current.subVectors(_b.current, _a.current)
-    const len = _dir.current.length()
-    if (len < 0.001) return
-    _dir.current.divideScalar(len)
+    const pa = getPos(nA)
+    const pb = getPos(nB)
+    va.current.set(pa[0], pa[1], pa[2])
+    vb.current.set(pb[0], pb[1], pb[2])
 
-    _mid.current.addVectors(_a.current, _b.current).multiplyScalar(0.5)
-    _cam.current.subVectors(camera.position, _mid.current).normalize()
+    dir.current.subVectors(vb.current, va.current)
+    if (dir.current.length() < 0.001) return
+    dir.current.normalize()
 
-    _nor.current.crossVectors(_dir.current, _cam.current)
-    if (_nor.current.length() < 0.001) _nor.current.set(0, 1, 0)
-    _nor.current.normalize()
+    mid.current.addVectors(va.current, vb.current).multiplyScalar(0.5)
+    cam.current.subVectors(camera.position, mid.current).normalize()
 
-    _up.current.crossVectors(_nor.current, _dir.current).normalize()
+    // plane normal = cross(edgeDir, toCam)
+    nor.current.crossVectors(dir.current, cam.current)
+    if (nor.current.length() < 0.001) nor.current.set(0, 1, 0)
+    nor.current.normalize()
 
-    const W = EDGE_HW
-    const ux = _up.current.x * W
-    const uy = _up.current.y * W
-    const uz = _up.current.z * W
+    // plane "up" = cross(normal, edgeDir) — this is the strip width direction
+    up.current.crossVectors(nor.current, dir.current).normalize()
 
-    const p = geoRef.current.attributes.position
-    p.setXYZ(0, pa[0] + ux, pa[1] + uy, pa[2] + uz)
-    p.setXYZ(1, pa[0] - ux, pa[1] - uy, pa[2] - uz)
-    p.setXYZ(2, pb[0] + ux, pb[1] + uy, pb[2] + uz)
-    p.setXYZ(3, pb[0] - ux, pb[1] - uy, pb[2] - uz)
-    p.needsUpdate = true
+    const W  = EDGE_HW
+    const ux = up.current.x * W
+    const uy = up.current.y * W
+    const uz = up.current.z * W
+
+    const pos = gRef.current.attributes.position
+    pos.setXYZ(0, pa[0] + ux, pa[1] + uy, pa[2] + uz)
+    pos.setXYZ(1, pa[0] - ux, pa[1] - uy, pa[2] - uz)
+    pos.setXYZ(2, pb[0] + ux, pb[1] + uy, pb[2] + uz)
+    pos.setXYZ(3, pb[0] - ux, pb[1] - uy, pb[2] - uz)
+    pos.needsUpdate = true
   })
 
   return (
     <mesh renderOrder={1}>
-      <bufferGeometry ref={geoRef}>
+      <bufferGeometry ref={gRef}>
         <bufferAttribute
           attach="attributes-position"
           count={4}
@@ -189,7 +234,7 @@ function EdgeStrip({ nodeA, nodeB, getPos }) {
         />
         <bufferAttribute
           attach="index"
-          array={new Uint16Array([0, 1, 2, 1, 3, 2])}
+          array={new Uint16Array([0, 1, 2,  1, 3, 2])}
           itemSize={1}
         />
       </bufferGeometry>
@@ -197,24 +242,25 @@ function EdgeStrip({ nodeA, nodeB, getPos }) {
         color="#ffffff"
         side={THREE.DoubleSide}
         transparent
-        opacity={EDGE_ALPHA}
+        opacity={opacity}
       />
     </mesh>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NODE HANDLE — minimal draggable control point
-// Small and gray — structure is the visual, not the nodes
+//  NODE HANDLE
+//  Minimal draggable control point. The structure is the visual, not the node.
 // ─────────────────────────────────────────────────────────────────────────────
 function NodeHandle({ id, getPos, onDrag, onSelect, isSelected }) {
   const { camera, gl, raycaster } = useThree()
-  const meshRef   = useRef()
-  const dragging  = useRef(false)
-  const plane     = useRef(new THREE.Plane())
-  const offset    = useRef(new THREE.Vector3())
-  const hitPt     = useRef(new THREE.Vector3())
+  const meshRef  = useRef()
+  const dragging = useRef(false)
+  const plane    = useRef(new THREE.Plane())
+  const offset   = useRef(new THREE.Vector3())
+  const hitPt    = useRef(new THREE.Vector3())
 
+  // Keep mesh position synced to node position every frame
   useFrame(() => {
     if (!meshRef.current) return
     const p = getPos(id)
@@ -225,13 +271,13 @@ function NodeHandle({ id, getPos, onDrag, onSelect, isSelected }) {
     e.stopPropagation()
     dragging.current = true
     onSelect(id)
-    const pos = getPos(id)
-    const nv = new THREE.Vector3(pos[0], pos[1], pos[2])
-    const cd = new THREE.Vector3()
-    camera.getWorldDirection(cd)
-    plane.current.setFromNormalAndCoplanarPoint(cd, nv)
+    const p = getPos(id)
+    const nodeVec = new THREE.Vector3(p[0], p[1], p[2])
+    const camDir  = new THREE.Vector3()
+    camera.getWorldDirection(camDir)
+    plane.current.setFromNormalAndCoplanarPoint(camDir, nodeVec)
     raycaster.ray.intersectPlane(plane.current, hitPt.current)
-    offset.current.subVectors(nv, hitPt.current)
+    offset.current.subVectors(nodeVec, hitPt.current)
     gl.domElement.style.cursor = 'grabbing'
   }, [id, camera, gl, getPos, onSelect, raycaster])
 
@@ -262,23 +308,24 @@ function NodeHandle({ id, getPos, onDrag, onSelect, isSelected }) {
       onPointerEnter={() => { if (!dragging.current) gl.domElement.style.cursor = 'grab' }}
       onPointerLeave={() => { if (!dragging.current) gl.domElement.style.cursor = 'default' }}
     >
-      <sphereGeometry args={[isSelected ? 0.10 : 0.055, 12, 12]} />
+      <sphereGeometry args={[isSelected ? 0.10 : 0.052, 14, 14]} />
       <meshBasicMaterial
-        color={isSelected ? '#ffffff' : '#444444'}
+        color={isSelected ? '#ffffff' : '#2e2e2e'}
         transparent
-        opacity={isSelected ? 1.0 : 0.6}
+        opacity={isSelected ? 1.0 : 0.60}
       />
     </mesh>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SCENE — wires everything together
+//  SCENE
 // ─────────────────────────────────────────────────────────────────────────────
-function Scene({ posRef, nodeCount, onDrag }) {
+function Scene({ posRef, onDrag }) {
   const controlsRef = useRef()
   const [selected, setSelected] = useState(-1)
 
+  // getPos reads from the ref — always current, zero re-renders
   const getPos = useCallback(id => posRef.current[id], [posRef])
 
   const handleSelect = useCallback(id => {
@@ -286,6 +333,7 @@ function Scene({ posRef, nodeCount, onDrag }) {
     if (controlsRef.current) controlsRef.current.enabled = false
   }, [])
 
+  // Re-enable orbit controls on pointer up (anywhere on page)
   useEffect(() => {
     const release = () => {
       setSelected(-1)
@@ -301,23 +349,34 @@ function Scene({ posRef, nodeCount, onDrag }) {
         ref={controlsRef}
         enableDamping
         dampingFactor={0.07}
-        rotateSpeed={0.55}
-        zoomSpeed={0.8}
-        target={[0.8, 0.2, 0.8]}
+        rotateSpeed={0.50}
+        zoomSpeed={0.75}
+        target={[0, 0, 0]}
       />
 
-      {/* Ghost face planes — the spatial surfaces */}
+      {/* Ghost face planes — spatial surfaces */}
       {FACES.map((face, i) => (
-        <FacePlane key={`f${i}`} nodeIds={face} getPos={getPos} />
+        <FacePlane
+          key={`f${i}`}
+          nodeIds={face}
+          getPos={getPos}
+          opacity={FACE_ALPHA(i)}
+        />
       ))}
 
       {/* Edge plane strips */}
       {EDGES.map(([a, b], i) => (
-        <EdgeStrip key={`e${i}`} nodeA={a} nodeB={b} getPos={getPos} />
+        <EdgeStrip
+          key={`e${i}`}
+          nA={a}
+          nB={b}
+          getPos={getPos}
+          opacity={EDGE_ALPHA(i)}
+        />
       ))}
 
       {/* Node handles — barely visible control points */}
-      {Array.from({ length: nodeCount }, (_, id) => (
+      {INIT.map((_, id) => (
         <NodeHandle
           key={`n${id}`}
           id={id}
@@ -332,10 +391,11 @@ function Scene({ posRef, nodeCount, onDrag }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ROOT
+//  ROOT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function NodeEditor() {
-  // Use ref for positions so drag updates bypass React reconciliation (smooth 60fps)
+  // Positions in a ref: drag updates bypass React reconciliation entirely.
+  // All geometry updates happen inside useFrame at 60fps.
   const posRef = useRef(INIT.map(p => [...p]))
 
   const handleDrag = useCallback((id, newPos) => {
@@ -345,28 +405,29 @@ export default function NodeEditor() {
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000' }}>
       <Canvas
-        camera={{ position: [6.5, 5.0, 8.5], fov: 42 }}
+        camera={{ position: [5.8, 4.2, 7.4], fov: 44 }}
         gl={{ antialias: true, alpha: false }}
         dpr={[1, 2]}
       >
         <color attach="background" args={['#000000']} />
-        <Scene
-          posRef={posRef}
-          nodeCount={INIT.length}
-          onDrag={handleDrag}
-        />
+        <Scene posRef={posRef} onDrag={handleDrag} />
       </Canvas>
 
       <div style={{
-        position: 'fixed', bottom: 24, left: 24,
-        color: 'rgba(255,255,255,0.14)',
-        fontFamily: 'monospace', fontSize: 10.5,
-        letterSpacing: '0.15em', textTransform: 'uppercase',
-        pointerEvents: 'none', lineHeight: 2.0,
+        position: 'fixed',
+        bottom: 24,
+        left: 24,
+        color: 'rgba(255,255,255,0.11)',
+        fontFamily: 'monospace',
+        fontSize: 10,
+        letterSpacing: '0.18em',
+        textTransform: 'uppercase',
+        pointerEvents: 'none',
+        lineHeight: 2.1,
         userSelect: 'none',
       }}>
-        <div>Drag nodes · Orbit · Scroll zoom</div>
-        <div style={{ opacity: 0.4 }}>Impossible Cube Editor</div>
+        <div>Drag nodes · Orbit · Scroll</div>
+        <div style={{ opacity: 0.38 }}>Directional Collapse</div>
       </div>
     </div>
   )
