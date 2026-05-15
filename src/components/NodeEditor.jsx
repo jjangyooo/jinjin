@@ -1,93 +1,186 @@
-import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useRef, useState, useCallback, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 
-// ── Initial graph: partial impossible cube + twisted spatial graph ──────────
-const INITIAL_NODES = [
-  // Cube face A (front-ish)
-  { id: 0, pos: [-1.2,  1.2,  1.2] },
-  { id: 1, pos: [ 1.2,  1.2,  1.2] },
-  { id: 2, pos: [ 1.2, -1.2,  1.2] },
-  { id: 3, pos: [-1.2, -1.2,  1.2] },
-  // Cube face B (back-ish, offset twist)
-  { id: 4, pos: [-1.0,  1.0, -1.2] },
-  { id: 5, pos: [ 1.4,  1.0, -1.2] },
-  { id: 6, pos: [ 1.0, -1.4, -1.2] },
-  { id: 7, pos: [-1.4, -1.0, -1.2] },
-  // Cross connectors (the "impossible" connections)
-  { id: 8, pos: [  0,   1.8,  0  ] },
-  { id: 9, pos: [  0,  -1.8,  0  ] },
-  { id:10, pos: [ 1.8,  0,    0  ] },
-  { id:11, pos: [-1.8,  0,    0  ] },
+// ─────────────────────────────────────────────────────────────────────────────
+// STRUCTURE DEFINITION
+// Two cubes sharing an impossible junction — the overlapping zone creates
+// spatial ambiguity. Camera angle determines which cube reads as "in front".
+// ─────────────────────────────────────────────────────────────────────────────
+
+const INIT = [
+  // Cube A — anchored at origin
+  [-1.6, -1.6, -1.6],  // 0  BBL
+  [ 1.6, -1.6, -1.6],  // 1  BBR
+  [ 1.6,  1.6, -1.6],  // 2  BTR
+  [-1.6,  1.6, -1.6],  // 3  BTL
+  [-1.6, -1.6,  1.6],  // 4  FBL
+  [ 1.6, -1.6,  1.6],  // 5  FBR
+  [ 1.6,  1.6,  1.6],  // 6  FTR
+  [-1.6,  1.6,  1.6],  // 7  FTL
+
+  // Cube B — offset diagonally, creates impossible junction with A
+  [ 0.0, -1.6,  0.0],  // 8  BBL-B
+  [ 3.2, -1.6,  0.0],  // 9  BBR-B
+  [ 3.2,  1.6,  0.0],  // 10 BTR-B
+  [ 0.0,  1.6,  0.0],  // 11 BTL-B
+  [ 0.0, -1.6,  3.2],  // 12 FBL-B
+  [ 3.2, -1.6,  3.2],  // 13 FBR-B
+  [ 3.2,  1.6,  3.2],  // 14 FTR-B
+  [ 0.0,  1.6,  3.2],  // 15 FTL-B
+
+  // Vertical spire — extends up from the junction to add 4th axis
+  [ 0.0,  4.0,  0.0],  // 16 apex-back
+  [ 3.2,  4.0,  0.0],  // 17 apex-right-back
+  [ 3.2,  4.0,  3.2],  // 18 apex-right-front
+  [ 0.0,  4.0,  3.2],  // 19 apex-front
 ]
 
-const INITIAL_EDGES = [
-  // Front face
-  [0,1],[1,2],[2,3],[3,0],
-  // Back face
-  [4,5],[5,6],[6,7],[7,4],
-  // Cross bridges (partial, impossible-feeling)
-  [0,4],[1,5],[2,6],[3,7],
-  // Spatial connectors through center
-  [0,8],[1,8],[4,8],[5,8],
-  [2,9],[3,9],[6,9],[7,9],
-  [1,10],[2,10],[5,10],[6,10],
-  [0,11],[3,11],[4,11],[7,11],
+// Faces — each is an array of 4 node IDs forming a quad (CCW winding)
+const FACES = [
+  // Cube A — show 3 faces (isometric visible faces)
+  [4, 5, 6, 7],    // A front
+  [7, 6, 2, 3],    // A top
+  [5, 1, 2, 6],    // A right
+
+  // Cube B — show 3 corresponding faces
+  [12, 13, 14, 15], // B front
+  [15, 14, 10, 11], // B top
+  [13,  9, 10, 14], // B right
+
+  // Junction / bridge faces (the "impossible" zone)
+  [5, 12, 15, 6],   // bridge front  — connects A.FBR→B.FBL and A.FTR→B.FTL
+  [6, 15, 11, 2],   // bridge top    — connects A.FTR→B.FTL and A.BTR→B.BTL
+  [5,  1, 9, 13],   // bridge bottom-right
+
+  // Spire faces
+  [11, 10, 17, 16], // spire back
+  [10, 14, 18, 17], // spire right
+  [14, 15, 19, 18], // spire front
+  [15, 11, 16, 19], // spire left
 ]
 
-// ── Plane Edge: renders a thin PlaneGeometry strip between two points ────────
-function PlaneEdge({ startPos, endPos, camera }) {
-  const meshRef = useRef()
-  const geomRef = useRef()
+// Edges — pairs of node IDs
+const EDGES = [
+  // Cube A — all 12 edges
+  [0, 1], [1, 2], [2, 3], [3, 0],   // back face
+  [4, 5], [5, 6], [6, 7], [7, 4],   // front face
+  [0, 4], [1, 5], [2, 6], [3, 7],   // depth edges
+
+  // Cube B — all 12 edges
+  [8,  9], [9, 10], [10, 11], [11,  8],
+  [12, 13], [13, 14], [14, 15], [15, 12],
+  [8, 12], [9, 13], [10, 14], [11, 15],
+
+  // Junction bridge edges
+  [5, 12], [6, 15], [2, 11], [1, 9],
+
+  // Spire edges
+  [11, 16], [10, 17], [14, 18], [15, 19],
+  [16, 17], [17, 18], [18, 19], [19, 16],
+]
+
+const EDGE_HW    = 0.030   // half-width of each edge strip
+const FACE_ALPHA = 0.10    // face opacity — ghostly planes
+const EDGE_ALPHA = 0.92    // edge opacity — solid-ish white
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FACE PLANE — thin quad surface between 4 nodes
+// ─────────────────────────────────────────────────────────────────────────────
+function FacePlane({ nodeIds, getPos }) {
+  const geoRef = useRef()
 
   useFrame(() => {
-    if (!meshRef.current || !geomRef.current) return
-
-    const start = new THREE.Vector3(...startPos)
-    const end   = new THREE.Vector3(...endPos)
-
-    const dir    = new THREE.Vector3().subVectors(end, start)
-    const length = dir.length()
-    if (length < 0.001) return
-
-    const dirN = dir.clone().normalize()
-
-    // Camera-relative "up" that makes the plane face the viewer
-    const camPos   = camera.position.clone()
-    const midPoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5)
-    const toCam    = new THREE.Vector3().subVectors(camPos, midPoint).normalize()
-
-    // Plane normal = cross(edgeDir, toCam) — gives face-to-camera orientation
-    let planeNorm = new THREE.Vector3().crossVectors(dirN, toCam).normalize()
-    if (planeNorm.length() < 0.001) {
-      planeNorm.set(0, 1, 0)
-    }
-
-    // Plane up vector = cross(planeNorm, edgeDir)
-    const planeUp = new THREE.Vector3().crossVectors(planeNorm, dirN).normalize()
-
-    // Rebuild geometry vertices
-    const HALF_W = 0.025  // extremely thin width
-    const pos = geomRef.current.attributes.position
-
-    // v0 = start + planeUp * HALF_W
-    const v0 = new THREE.Vector3().addVectors(start, planeUp.clone().multiplyScalar( HALF_W))
-    const v1 = new THREE.Vector3().addVectors(start, planeUp.clone().multiplyScalar(-HALF_W))
-    const v2 = new THREE.Vector3().addVectors(end,   planeUp.clone().multiplyScalar( HALF_W))
-    const v3 = new THREE.Vector3().addVectors(end,   planeUp.clone().multiplyScalar(-HALF_W))
-
-    pos.setXYZ(0, v0.x, v0.y, v0.z)
-    pos.setXYZ(1, v1.x, v1.y, v1.z)
-    pos.setXYZ(2, v2.x, v2.y, v2.z)
-    pos.setXYZ(3, v3.x, v3.y, v3.z)
-    pos.needsUpdate = true
-    geomRef.current.computeVertexNormals()
+    if (!geoRef.current) return
+    const attr = geoRef.current.attributes.position
+    nodeIds.forEach((id, i) => {
+      const p = getPos(id)
+      attr.setXYZ(i, p[0], p[1], p[2])
+    })
+    attr.needsUpdate = true
   })
 
   return (
-    <mesh ref={meshRef}>
-      <bufferGeometry ref={geomRef}>
+    <mesh renderOrder={0}>
+      <bufferGeometry ref={geoRef}>
+        <bufferAttribute
+          attach="attributes-position"
+          count={4}
+          array={new Float32Array(12)}
+          itemSize={3}
+        />
+        <bufferAttribute
+          attach="index"
+          array={new Uint16Array([0, 1, 2, 0, 2, 3])}
+          itemSize={1}
+        />
+      </bufferGeometry>
+      <meshBasicMaterial
+        color="#ffffff"
+        side={THREE.DoubleSide}
+        transparent
+        opacity={FACE_ALPHA}
+        depthWrite={false}
+      />
+    </mesh>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EDGE STRIP — camera-facing plane strip between 2 nodes
+// From straight on: looks like a line
+// From rotated angle: reveals surface area
+// ─────────────────────────────────────────────────────────────────────────────
+function EdgeStrip({ nodeA, nodeB, getPos }) {
+  const geoRef = useRef()
+  const { camera } = useThree()
+
+  const _a   = useRef(new THREE.Vector3())
+  const _b   = useRef(new THREE.Vector3())
+  const _dir = useRef(new THREE.Vector3())
+  const _mid = useRef(new THREE.Vector3())
+  const _cam = useRef(new THREE.Vector3())
+  const _nor = useRef(new THREE.Vector3())
+  const _up  = useRef(new THREE.Vector3())
+
+  useFrame(() => {
+    if (!geoRef.current) return
+    const pa = getPos(nodeA)
+    const pb = getPos(nodeB)
+    _a.current.set(pa[0], pa[1], pa[2])
+    _b.current.set(pb[0], pb[1], pb[2])
+
+    _dir.current.subVectors(_b.current, _a.current)
+    const len = _dir.current.length()
+    if (len < 0.001) return
+    _dir.current.divideScalar(len)
+
+    _mid.current.addVectors(_a.current, _b.current).multiplyScalar(0.5)
+    _cam.current.subVectors(camera.position, _mid.current).normalize()
+
+    _nor.current.crossVectors(_dir.current, _cam.current)
+    if (_nor.current.length() < 0.001) _nor.current.set(0, 1, 0)
+    _nor.current.normalize()
+
+    _up.current.crossVectors(_nor.current, _dir.current).normalize()
+
+    const W = EDGE_HW
+    const ux = _up.current.x * W
+    const uy = _up.current.y * W
+    const uz = _up.current.z * W
+
+    const p = geoRef.current.attributes.position
+    p.setXYZ(0, pa[0] + ux, pa[1] + uy, pa[2] + uz)
+    p.setXYZ(1, pa[0] - ux, pa[1] - uy, pa[2] - uz)
+    p.setXYZ(2, pb[0] + ux, pb[1] + uy, pb[2] + uz)
+    p.setXYZ(3, pb[0] - ux, pb[1] - uy, pb[2] - uz)
+    p.needsUpdate = true
+  })
+
+  return (
+    <mesh renderOrder={1}>
+      <bufferGeometry ref={geoRef}>
         <bufferAttribute
           attach="attributes-position"
           count={4}
@@ -104,188 +197,177 @@ function PlaneEdge({ startPos, endPos, camera }) {
         color="#ffffff"
         side={THREE.DoubleSide}
         transparent
-        opacity={0.92}
+        opacity={EDGE_ALPHA}
       />
     </mesh>
   )
 }
 
-// ── Node sphere: draggable point ─────────────────────────────────────────────
-function DraggableNode({ node, onDrag, isSelected, onSelect }) {
-  const meshRef = useRef()
-  const { camera, gl, raycaster, scene } = useThree()
-  const dragPlane = useRef(new THREE.Plane())
-  const isDragging = useRef(false)
-  const offset = useRef(new THREE.Vector3())
+// ─────────────────────────────────────────────────────────────────────────────
+// NODE HANDLE — minimal draggable control point
+// Small and gray — structure is the visual, not the nodes
+// ─────────────────────────────────────────────────────────────────────────────
+function NodeHandle({ id, getPos, onDrag, onSelect, isSelected }) {
+  const { camera, gl, raycaster } = useThree()
+  const meshRef   = useRef()
+  const dragging  = useRef(false)
+  const plane     = useRef(new THREE.Plane())
+  const offset    = useRef(new THREE.Vector3())
+  const hitPt     = useRef(new THREE.Vector3())
 
-  const handlePointerDown = useCallback((e) => {
+  useFrame(() => {
+    if (!meshRef.current) return
+    const p = getPos(id)
+    meshRef.current.position.set(p[0], p[1], p[2])
+  })
+
+  const onDown = useCallback(e => {
     e.stopPropagation()
-    isDragging.current = true
-    onSelect(node.id)
-
-    // Build a drag plane perpendicular to camera at node position
-    const nodePos = new THREE.Vector3(...node.pos)
-    const camDir  = new THREE.Vector3()
-    camera.getWorldDirection(camDir)
-    dragPlane.current.setFromNormalAndCoplanarPoint(camDir, nodePos)
-
-    // Compute offset from intersection to node center
-    const intersection = new THREE.Vector3()
-    raycaster.ray.intersectPlane(dragPlane.current, intersection)
-    offset.current.subVectors(nodePos, intersection)
-
+    dragging.current = true
+    onSelect(id)
+    const pos = getPos(id)
+    const nv = new THREE.Vector3(pos[0], pos[1], pos[2])
+    const cd = new THREE.Vector3()
+    camera.getWorldDirection(cd)
+    plane.current.setFromNormalAndCoplanarPoint(cd, nv)
+    raycaster.ray.intersectPlane(plane.current, hitPt.current)
+    offset.current.subVectors(nv, hitPt.current)
     gl.domElement.style.cursor = 'grabbing'
-  }, [camera, gl, node, onSelect, raycaster])
+  }, [id, camera, gl, getPos, onSelect, raycaster])
 
-  const handlePointerUp = useCallback((e) => {
+  const onMove = useCallback(e => {
+    if (!dragging.current) return
     e.stopPropagation()
-    isDragging.current = false
+    if (raycaster.ray.intersectPlane(plane.current, hitPt.current)) {
+      const np = hitPt.current.clone().add(offset.current)
+      onDrag(id, [np.x, np.y, np.z])
+    }
+  }, [id, onDrag, raycaster])
+
+  const onUp = useCallback(e => {
+    e.stopPropagation()
+    dragging.current = false
     gl.domElement.style.cursor = 'grab'
   }, [gl])
 
-  const handlePointerMove = useCallback((e) => {
-    if (!isDragging.current) return
-    e.stopPropagation()
-    const intersection = new THREE.Vector3()
-    if (raycaster.ray.intersectPlane(dragPlane.current, intersection)) {
-      const newPos = intersection.add(offset.current)
-      onDrag(node.id, [newPos.x, newPos.y, newPos.z])
-    }
-  }, [node.id, onDrag, raycaster])
-
-  const handlePointerEnter = useCallback(() => {
-    if (!isDragging.current) gl.domElement.style.cursor = 'grab'
-  }, [gl])
-
-  const handlePointerLeave = useCallback(() => {
-    if (!isDragging.current) gl.domElement.style.cursor = 'default'
-  }, [gl])
+  const initPos = getPos(id)
 
   return (
     <mesh
       ref={meshRef}
-      position={node.pos}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerMove={handlePointerMove}
-      onPointerEnter={handlePointerEnter}
-      onPointerLeave={handlePointerLeave}
+      position={initPos}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerEnter={() => { if (!dragging.current) gl.domElement.style.cursor = 'grab' }}
+      onPointerLeave={() => { if (!dragging.current) gl.domElement.style.cursor = 'default' }}
     >
-      <sphereGeometry args={[isSelected ? 0.10 : 0.07, 16, 16]} />
+      <sphereGeometry args={[isSelected ? 0.10 : 0.055, 12, 12]} />
       <meshBasicMaterial
-        color={isSelected ? '#ffffff' : '#888888'}
+        color={isSelected ? '#ffffff' : '#444444'}
         transparent
-        opacity={isSelected ? 1.0 : 0.7}
+        opacity={isSelected ? 1.0 : 0.6}
       />
     </mesh>
   )
 }
 
-// ── Scene: orchestrates all nodes + edges ────────────────────────────────────
-function Scene({ nodes, edges, onDrag }) {
-  const { camera } = useThree()
-  const [selectedNode, setSelectedNode] = useState(null)
+// ─────────────────────────────────────────────────────────────────────────────
+// SCENE — wires everything together
+// ─────────────────────────────────────────────────────────────────────────────
+function Scene({ posRef, nodeCount, onDrag }) {
   const controlsRef = useRef()
+  const [selected, setSelected] = useState(-1)
 
-  // Disable orbit while dragging a node
-  const handleSelect = useCallback((id) => {
-    setSelectedNode(id)
+  const getPos = useCallback(id => posRef.current[id], [posRef])
+
+  const handleSelect = useCallback(id => {
+    setSelected(id)
     if (controlsRef.current) controlsRef.current.enabled = false
   }, [])
 
   useEffect(() => {
-    const onUp = () => {
-      setSelectedNode(null)
+    const release = () => {
+      setSelected(-1)
       if (controlsRef.current) controlsRef.current.enabled = true
     }
-    window.addEventListener('pointerup', onUp)
-    return () => window.removeEventListener('pointerup', onUp)
+    window.addEventListener('pointerup', release)
+    return () => window.removeEventListener('pointerup', release)
   }, [])
 
   return (
     <>
       <OrbitControls
         ref={controlsRef}
-        enablePan={true}
-        enableZoom={true}
-        dampingFactor={0.08}
         enableDamping
-        rotateSpeed={0.6}
+        dampingFactor={0.07}
+        rotateSpeed={0.55}
+        zoomSpeed={0.8}
+        target={[0.8, 0.2, 0.8]}
       />
 
-      {/* Edges as plane strips */}
-      {edges.map(([a, b], i) => {
-        const nA = nodes.find(n => n.id === a)
-        const nB = nodes.find(n => n.id === b)
-        if (!nA || !nB) return null
-        return (
-          <PlaneEdge
-            key={i}
-            startPos={nA.pos}
-            endPos={nB.pos}
-            camera={camera}
-          />
-        )
-      })}
+      {/* Ghost face planes — the spatial surfaces */}
+      {FACES.map((face, i) => (
+        <FacePlane key={`f${i}`} nodeIds={face} getPos={getPos} />
+      ))}
 
-      {/* Nodes */}
-      {nodes.map(node => (
-        <DraggableNode
-          key={node.id}
-          node={node}
+      {/* Edge plane strips */}
+      {EDGES.map(([a, b], i) => (
+        <EdgeStrip key={`e${i}`} nodeA={a} nodeB={b} getPos={getPos} />
+      ))}
+
+      {/* Node handles — barely visible control points */}
+      {Array.from({ length: nodeCount }, (_, id) => (
+        <NodeHandle
+          key={`n${id}`}
+          id={id}
+          getPos={getPos}
           onDrag={onDrag}
-          isSelected={selectedNode === node.id}
           onSelect={handleSelect}
+          isSelected={selected === id}
         />
       ))}
     </>
   )
 }
 
-// ── HUD overlay ──────────────────────────────────────────────────────────────
-function HUD() {
-  return (
-    <div style={{
-      position: 'fixed',
-      bottom: 24,
-      left: 24,
-      color: 'rgba(255,255,255,0.20)',
-      fontFamily: 'monospace',
-      fontSize: 11,
-      letterSpacing: '0.12em',
-      textTransform: 'uppercase',
-      pointerEvents: 'none',
-      lineHeight: 1.7,
-      userSelect: 'none',
-    }}>
-      <div>Drag nodes · Orbit · Scroll zoom</div>
-      <div style={{ opacity: 0.5 }}>3D Node Editor</div>
-    </div>
-  )
-}
-
-// ── Root component ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT
+// ─────────────────────────────────────────────────────────────────────────────
 export default function NodeEditor() {
-  const [nodes, setNodes] = useState(() =>
-    INITIAL_NODES.map(n => ({ ...n, pos: [...n.pos] }))
-  )
-  const edges = INITIAL_EDGES
+  // Use ref for positions so drag updates bypass React reconciliation (smooth 60fps)
+  const posRef = useRef(INIT.map(p => [...p]))
 
   const handleDrag = useCallback((id, newPos) => {
-    setNodes(prev => prev.map(n => n.id === id ? { ...n, pos: newPos } : n))
+    posRef.current = posRef.current.map((p, i) => i === id ? newPos : p)
   }, [])
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000' }}>
       <Canvas
-        camera={{ position: [0, 0, 7], fov: 45 }}
+        camera={{ position: [6.5, 5.0, 8.5], fov: 42 }}
         gl={{ antialias: true, alpha: false }}
         dpr={[1, 2]}
       >
         <color attach="background" args={['#000000']} />
-        <Scene nodes={nodes} edges={edges} onDrag={handleDrag} />
+        <Scene
+          posRef={posRef}
+          nodeCount={INIT.length}
+          onDrag={handleDrag}
+        />
       </Canvas>
-      <HUD />
+
+      <div style={{
+        position: 'fixed', bottom: 24, left: 24,
+        color: 'rgba(255,255,255,0.14)',
+        fontFamily: 'monospace', fontSize: 10.5,
+        letterSpacing: '0.15em', textTransform: 'uppercase',
+        pointerEvents: 'none', lineHeight: 2.0,
+        userSelect: 'none',
+      }}>
+        <div>Drag nodes · Orbit · Scroll zoom</div>
+        <div style={{ opacity: 0.4 }}>Impossible Cube Editor</div>
+      </div>
     </div>
   )
 }
