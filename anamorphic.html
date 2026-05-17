@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anamorphic Sculpture</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #666666; }
+    canvas { display: block; }
+    #ui {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      z-index: 10;
+    }
+    #ui button {
+      background: rgba(255,255,255,0.10);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.22);
+      padding: 10px 24px;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: monospace;
+      transition: background 0.2s;
+    }
+    #ui button:hover { background: rgba(255,255,255,0.20); }
+    #label {
+      position: fixed;
+      top: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.18);
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      font-family: monospace;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="label">Anamorphic Spatial Identity — Rotate to Reveal</div>
+  <div id="ui">
+    <button id="btn-front">Front View</button>
+    <button id="btn-orbit">Orbit View</button>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    /* ─── Renderer ─── */
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x666666);
+    document.body.appendChild(renderer.domElement);
+
+    /* ─── Scene ─── */
+    const scene = new THREE.Scene();
+
+    /* ─── Orthographic Camera ─── */
+    const aspect  = window.innerWidth / window.innerHeight;
+    const frustum = 4.5;
+    const camera  = new THREE.OrthographicCamera(
+      -frustum * aspect,  frustum * aspect,
+       frustum,          -frustum,
+       0.01, 200
+    );
+    // Front view: looking straight down -Z axis
+    camera.position.set(0, 0, 30);
+    camera.lookAt(0, 0, 0);
+
+    /* ─── Flat lighting — graphic / no render feel ─── */
+    const ambient = new THREE.AmbientLight(0xffffff, 0.85);
+    scene.add(ambient);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.35);
+    fill.position.set(0, 5, 20);
+    scene.add(fill);
+    // Side key to reveal depth when rotated
+    const side = new THREE.DirectionalLight(0xffffff, 0.5);
+    side.position.set(8, 3, 5);
+    scene.add(side);
+
+    /* ─── OrbitControls ─── */
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping  = true;
+    controls.dampingFactor  = 0.07;
+    controls.enablePan      = false;
+    controls.zoomSpeed      = 0.7;
+    controls.rotateSpeed    = 0.65;
+
+    /* ─── Materials ─── */
+    const matBlack = new THREE.MeshStandardMaterial({
+      color: 0x000000, roughness: 0.88, metalness: 0.0
+    });
+    const matPink = new THREE.MeshStandardMaterial({
+      color: 0xe85ad5, roughness: 0.82, metalness: 0.0
+    });
+
+    /* ══════════════════════════════════════════════════════
+       BLACK OBJECT — Anamorphic extruded symbol
+
+       Frontal silhouette (image1):
+         • Vertical stem (thin, tall, center)
+         • Quarter-circle arc sweeping top-left from stem top
+         • Wide horizontal base bar
+
+       3D reality:
+         • Stem: deeply extruded slab, tilted in Y so left/right
+           face different Z depths
+         • Arc: a thick extruded quarter-ring, rotated in Y,
+           so its L-end protrudes forward while R-end recedes
+         • Base: extruded bar, rotated in Y opposite direction
+         Each part is at a different Z offset so the composition
+         appears flat only from Z+ infinity.
+       ══════════════════════════════════════════════════════ */
+
+    const blackGroup = new THREE.Group();
+    scene.add(blackGroup);
+
+    // ── Stem ──
+    // 2D outline: thin rectangle
+    const stemShape = new THREE.Shape();
+    const sw = 0.17;   // half-width
+    stemShape.moveTo(-sw, 0.0);
+    stemShape.lineTo( sw, 0.0);
+    stemShape.lineTo( sw, 2.7);
+    stemShape.lineTo(-sw, 2.7);
+    stemShape.closePath();
+
+    const stemGeo = new THREE.ExtrudeGeometry(stemShape, {
+      depth: 1.6, bevelEnabled: false
+    });
+    stemGeo.translate(0, 0, -0.8);  // center depth at z=0
+
+    const stemMesh = new THREE.Mesh(stemGeo, matBlack);
+    // Tilt so right side pushes back — reveals depth on rotate
+    stemMesh.rotation.y = 0.28;
+    stemMesh.position.z = 0.0;
+    blackGroup.add(stemMesh);
+
+    // ── Quarter-arc ring ──
+    // Annulus slice: outer=1.6, inner=0.85, from 90° to 180°
+    const arcOuter = 1.60;
+    const arcInner = 0.82;
+    const arcSeg   = 48;
+    const arcShape = new THREE.Shape();
+    arcShape.absarc(0, 0, arcOuter, Math.PI / 2, Math.PI, false);
+    arcShape.lineTo(-arcInner, 0);
+    arcShape.absarc(0, 0, arcInner, Math.PI, Math.PI / 2, true);
+    arcShape.closePath();
+
+    const arcGeo = new THREE.ExtrudeGeometry(arcShape, {
+      depth: 0.52, bevelEnabled: false, curveSegments: arcSeg
+    });
+    arcGeo.translate(0, 0, -0.26);
+
+    const arcMesh = new THREE.Mesh(arcGeo, matBlack);
+    // Pivot: top of stem, left edge
+    arcMesh.position.set(-sw, 2.7, 0.0);
+    // Rotate in Y: left side of arc protrudes, right recedes
+    arcMesh.rotation.y = -0.38;
+    // Slight X tilt so top edge lifts — visible on rotate
+    arcMesh.rotation.x = 0.12;
+    blackGroup.add(arcMesh);
+
+    // ── Base bar ──
+    // Wide horizontal slab
+    const baseShape = new THREE.Shape();
+    baseShape.moveTo(-2.55, -0.30);
+    baseShape.lineTo( 2.55, -0.30);
+    baseShape.lineTo( 2.55,  0.30);
+    baseShape.lineTo(-2.55,  0.30);
+    baseShape.closePath();
+
+    const baseGeo = new THREE.ExtrudeGeometry(baseShape, {
+      depth: 0.32, bevelEnabled: false
+    });
+    baseGeo.translate(0, 0, -0.16);
+
+    const baseMesh = new THREE.Mesh(baseGeo, matBlack);
+    // Opposite Y-tilt from stem: right side protrudes forward
+    baseMesh.rotation.y = -0.22;
+    // Slight Z offset: base sits behind the stem intersection
+    baseMesh.position.z = -0.15;
+    blackGroup.add(baseMesh);
+
+    /* ══════════════════════════════════════════════════════
+       PINK OBJECT — Twisted ribbon / tube
+
+       Frontal silhouette (image1):
+         • C-shape open curve, positioned below-right of the base bar
+         • Thick stroke, opening to the left
+
+       3D reality:
+         • The curve is a TubeGeometry on a custom 3D path
+         • Middle section twists deep into Z space (ribbon effect)
+         • Ends come back toward the viewer
+         • The tube cross-section is elliptical (tall) so from front
+           it reads as a flat ribbon — from side it's a fat tube
+       ══════════════════════════════════════════════════════ */
+
+    class RibbonCurve extends THREE.Curve {
+      getPoint(t) {
+        // C-arc: sweep from ~-20° to ~-200° (opens left)
+        const a0 = -0.30;
+        const a1 = -Math.PI - 0.15;
+        const ang = a0 + t * (a1 - a0);
+
+        const r = 1.20;
+        const x = Math.cos(ang) * r;
+        const y = Math.sin(ang) * r;
+
+        // Z twist: dip backwards at t=0.5, surge forward at t=0,1
+        const zTwist = -Math.sin(t * Math.PI) * 1.1;
+
+        // Y warp: middle section drops slightly (ribbon sag)
+        const yWarp = Math.sin(t * Math.PI) * -0.18;
+
+        // X warp: slight lateral S-bend
+        const xWarp = Math.sin(t * Math.PI * 1.8) * 0.22;
+
+        return new THREE.Vector3(x + xWarp, y + yWarp, zTwist);
+      }
+    }
+
+    const ribbonCurve = new RibbonCurve();
+    const tubeGeo = new THREE.TubeGeometry(ribbonCurve, 100, 0.24, 16, false);
+    const tubeMesh = new THREE.Mesh(tubeGeo, matPink);
+
+    // Position: below and right of the base bar (matches image1)
+    tubeMesh.position.set(0.60, -1.40, 0.0);
+    scene.add(tubeMesh);
+
+    /* ─── Camera animation ─── */
+    const FRONT_POS    = new THREE.Vector3(0, 0, 30);
+    const FRONT_TARGET = new THREE.Vector3(0, 0, 0);
+    const ORBIT_POS    = new THREE.Vector3(7, 4, 18);
+    const ORBIT_TARGET = new THREE.Vector3(0, 0, 0);
+
+    let animating = false;
+    let aniFrom   = new THREE.Vector3();
+    let aniTo     = new THREE.Vector3();
+    let aniTgtFrom= new THREE.Vector3();
+    let aniTgtTo  = new THREE.Vector3();
+    let aniT      = 0;
+
+    function startCameraAnim(toPos, toTgt) {
+      aniFrom.copy(camera.position);
+      aniTo.copy(toPos);
+      aniTgtFrom.copy(controls.target);
+      aniTgtTo.copy(toTgt);
+      aniT = 0;
+      animating = true;
+      controls.enabled = false;
+    }
+
+    document.getElementById('btn-front').addEventListener('click', () =>
+      startCameraAnim(FRONT_POS, FRONT_TARGET));
+    document.getElementById('btn-orbit').addEventListener('click', () =>
+      startCameraAnim(ORBIT_POS, ORBIT_TARGET));
+
+    /* ─── Resize ─── */
+    window.addEventListener('resize', () => {
+      const w = window.innerWidth, h = window.innerHeight;
+      const a = w / h;
+      camera.left   = -frustum * a;
+      camera.right  =  frustum * a;
+      camera.top    =  frustum;
+      camera.bottom = -frustum;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+
+    /* ─── Render loop ─── */
+    const clock = new THREE.Clock();
+    const easeInOut = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+
+      if (animating) {
+        aniT = Math.min(1, aniT + dt * 1.4);
+        const e = easeInOut(aniT);
+        camera.position.lerpVectors(aniFrom, aniTo, e);
+        controls.target.lerpVectors(aniTgtFrom, aniTgtTo, e);
+        camera.lookAt(controls.target);
+        camera.updateProjectionMatrix();
+        if (aniT >= 1) {
+          animating = false;
+          controls.enabled = true;
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
