@@ -6,37 +6,42 @@
   <title>Anamorphic Sculpture</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; background: #666666; }
+    body { overflow: hidden; background: #666666; font-family: monospace; }
     canvas { display: block; }
+
     #ui {
       position: fixed; bottom: 32px; left: 50%;
       transform: translateX(-50%);
-      display: flex; gap: 12px; z-index: 10;
+      display: flex; gap: 10px; z-index: 10;
     }
     #ui button {
-      background: rgba(255,255,255,0.10);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.22);
-      padding: 10px 24px; font-size: 11px;
-      letter-spacing: 0.14em; text-transform: uppercase;
+      background: rgba(0,0,0,0.18);
+      color: rgba(255,255,255,0.80);
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 9px 22px; font-size: 10px;
+      letter-spacing: 0.16em; text-transform: uppercase;
       cursor: pointer; font-family: monospace;
-      transition: background 0.2s;
+      transition: background 0.15s, color 0.15s;
     }
-    #ui button:hover { background: rgba(255,255,255,0.20); }
-    #label {
-      position: fixed; top: 28px; left: 50%;
+    #ui button:hover {
+      background: rgba(0,0,0,0.32);
+      color: #fff;
+    }
+    #hint {
+      position: fixed; bottom: 80px; left: 50%;
       transform: translateX(-50%);
-      color: rgba(255,255,255,0.18); font-size: 10px;
-      letter-spacing: 0.22em; text-transform: uppercase;
-      font-family: monospace; pointer-events: none;
+      color: rgba(255,255,255,0.28); font-size: 9px;
+      letter-spacing: 0.20em; text-transform: uppercase;
+      pointer-events: none;
+      transition: opacity 0.8s;
     }
   </style>
 </head>
 <body>
-  <div id="label">Rotate to Reveal</div>
+  <div id="hint">Drag to rotate</div>
   <div id="ui">
-    <button id="btn-front">Front View</button>
-    <button id="btn-orbit">Orbit View</button>
+    <button id="btn-front">Front</button>
+    <button id="btn-orbit">Orbit</button>
   </div>
 
   <script type="importmap">
@@ -52,7 +57,7 @@
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-    /* ─── Renderer ─── */
+    /* ── Renderer ── */
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -61,73 +66,71 @@
 
     const scene = new THREE.Scene();
 
-    /* ─── Orthographic Camera ─── */
-    const FRUSTUM = 4.2;
-    let aspect = window.innerWidth / window.innerHeight;
-    const camera = new THREE.OrthographicCamera(
-      -FRUSTUM * aspect, FRUSTUM * aspect,
-       FRUSTUM, -FRUSTUM,
-       0.01, 200
+    /* ── Orthographic Camera ── */
+    const FRUS = 4.0;
+    let asp = window.innerWidth / window.innerHeight;
+    const cam = new THREE.OrthographicCamera(
+      -FRUS * asp, FRUS * asp, FRUS, -FRUS, 0.01, 300
     );
-    camera.position.set(0, 0, 30);
-    camera.lookAt(0, 0, 0);
+    cam.position.set(0, 0, 30);
+    cam.lookAt(0, 0, 0);
 
-    /* ─── Lighting: flat/graphic, minimal shadows ─── */
-    scene.add(new THREE.AmbientLight(0xffffff, 0.88));
-    const keyL = new THREE.DirectionalLight(0xffffff, 0.45);
-    keyL.position.set(1, 3, 20);
+    /* ── Lighting: flat graphic feel ── */
+    scene.add(new THREE.AmbientLight(0xffffff, 0.92));
+    const keyL = new THREE.DirectionalLight(0xffffff, 0.40);
+    keyL.position.set(0, 5, 25);
     scene.add(keyL);
-    const rimL = new THREE.DirectionalLight(0xffffff, 0.50);
-    rimL.position.set(-7, -3, 7);
+    const rimL = new THREE.DirectionalLight(0xffffff, 0.52);
+    rimL.position.set(-8, -2, 6);
     scene.add(rimL);
 
-    /* ─── OrbitControls ─── */
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.07;
-    controls.enablePan = false;
-    controls.zoomSpeed = 0.7;
-    controls.rotateSpeed = 0.65;
+    /* ── Controls ── */
+    const ctrl = new OrbitControls(cam, renderer.domElement);
+    ctrl.enableDamping  = true;
+    ctrl.dampingFactor  = 0.07;
+    ctrl.enablePan      = false;
+    ctrl.zoomSpeed      = 0.65;
+    ctrl.rotateSpeed    = 0.60;
 
-    /* ─── Materials ─── */
-    const matBlack = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.85, metalness: 0 });
-    const matPink  = new THREE.MeshStandardMaterial({ color: 0xe85ad5, roughness: 0.78, metalness: 0 });
+    /* ── Materials ── */
+    const mBlk = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.88, metalness: 0 });
+    const mPnk = new THREE.MeshStandardMaterial({ color: 0xe85ad5, roughness: 0.78, metalness: 0 });
 
-    /* ─── Utility ─── */
-    function buildArcPoints(cx, cy, r, startA, endA, seg) {
-      const pts = [];
-      for (let i = 0; i <= seg; i++) {
-        const a = startA + (endA - startA) * (i / seg);
-        pts.push(new THREE.Vector2(cx + Math.cos(a) * r, cy + Math.sin(a) * r));
-      }
-      return pts;
+    /* ── Helpers ── */
+    function arcPts(r, a0, a1, n) {
+      return Array.from({ length: n + 1 }, (_, i) => {
+        const a = a0 + (a1 - a0) * i / n;
+        return new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r);
+      });
     }
 
-    function makeExtrude(shape, depth) {
-      const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 64 });
-      geo.translate(0, 0, -depth / 2);
-      return geo;
+    function extrudeMesh(shape, depth, mat) {
+      const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 72 });
+      geo.translate(0, 0, -depth * 0.5);
+      return new THREE.Mesh(geo, mat);
     }
 
-    /* ══════════════════════════════════════════════════════
+    /* ════════════════════════════════════════════════════════
        BLACK OBJECT
 
-       Image1 silhouette:
-         • Horizontal base bar (full width, thin)
-         • Thin vertical stem rising from center of base
-         • Quarter-ring arc from stem top sweeping left+down
+       Frontal silhouette (image1):
+         • Wide horizontal base bar
+         • Thin vertical stem from bar center
+         • Thick quarter-ring arc at stem top, sweeping left
 
        Anamorphic 3D:
-         • Each piece has different extrusion depth
-         • Each piece rotated on Y by different amounts
-         • From Z+: projections align → flat 2D mark
-         • Rotated: non-coplanar depths revealed
-    ══════════════════════════════════════════════════════ */
+         Base  ── shallow depth, rotated -Y  (right side recedes)
+         Stem  ── deep extrusion,  rotated +Y  (right side comes forward)
+         Arc   ── medium depth,    rotated -Y + tiny X tilt
 
-    const blackGroup = new THREE.Group();
-    scene.add(blackGroup);
+       These counter-rotations keep frontal projections aligned
+       but break planarity the instant the camera moves.
+    ════════════════════════════════════════════════════════ */
 
-    // ── BASE BAR ──
+    const blkGrp = new THREE.Group();
+    scene.add(blkGrp);
+
+    // BASE BAR  (width 5.1, height 0.54, depth 0.38)
     {
       const s = new THREE.Shape();
       s.moveTo(-2.55,  0.27);
@@ -135,187 +138,191 @@
       s.lineTo( 2.55, -0.27);
       s.lineTo(-2.55, -0.27);
       s.closePath();
-      const m = new THREE.Mesh(makeExtrude(s, 0.42), matBlack);
-      // Right side recedes, left comes forward
-      m.rotation.y = -0.22;
-      m.position.set(0, 0, 0);
-      blackGroup.add(m);
+      const m = extrudeMesh(s, 0.38, mBlk);
+      m.rotation.y = -0.24;
+      blkGrp.add(m);
     }
 
-    // ── STEM ──
+    // STEM  (width 0.36, height 2.72, depth 2.2)
     {
-      const sw = 0.18;
-      const s = new THREE.Shape();
-      s.moveTo(-sw, 0);
-      s.lineTo( sw, 0);
-      s.lineTo( sw, 2.68);
-      s.lineTo(-sw, 2.68);
+      const hw = 0.18;
+      const s  = new THREE.Shape();
+      s.moveTo(-hw, 0); s.lineTo(hw, 0);
+      s.lineTo(hw, 2.72); s.lineTo(-hw, 2.72);
       s.closePath();
-      const m = new THREE.Mesh(makeExtrude(s, 1.9), matBlack);
-      // Left side recedes, right comes forward
-      m.rotation.y = 0.28;
+      const m = extrudeMesh(s, 2.2, mBlk);
+      m.rotation.y = 0.30;
       m.position.set(0, 0.27, 0);
-      blackGroup.add(m);
+      blkGrp.add(m);
     }
 
-    // ── QUARTER-RING ARC ──
-    // Outer=1.58, Inner=0.84 → thick ring
-    // Arc from 90° to 180° (stem top → sweeps left+down)
+    // QUARTER-RING ARC  (90° → 180°, outer=1.58, inner=0.84, depth=0.60)
+    // Arc center = stem-top LEFT edge so the ring's 0°-arm aligns with stem right
+    // and the 90°-arm points straight up from stem top
     {
-      const outerR = 1.58;
-      const innerR = 0.84;
-      const SEG    = 64;
+      const OR = 1.58, IR = 0.84, N = 72;
+      const s  = new THREE.Shape();
 
-      const s = new THREE.Shape();
-      // Outer arc: 90° → 180° (counter-clockwise)
-      const outPts = buildArcPoints(0, 0, outerR, Math.PI / 2, Math.PI, SEG);
-      s.moveTo(outPts[0].x, outPts[0].y);
-      outPts.slice(1).forEach(p => s.lineTo(p.x, p.y));
-      // Inner arc: 180° → 90° (clockwise = reversing)
-      const inPts = buildArcPoints(0, 0, innerR, Math.PI, Math.PI / 2, SEG);
-      inPts.forEach(p => s.lineTo(p.x, p.y));
+      // outer: 90° → 180° CCW
+      const op = arcPts(OR, Math.PI / 2, Math.PI, N);
+      s.moveTo(op[0].x, op[0].y);
+      op.slice(1).forEach(p => s.lineTo(p.x, p.y));
+
+      // inner: 180° → 90° (closing)
+      arcPts(IR, Math.PI, Math.PI / 2, N).forEach(p => s.lineTo(p.x, p.y));
       s.closePath();
 
-      const m = new THREE.Mesh(makeExtrude(s, 0.58), matBlack);
-      // Arc pivot = junction of stem top + stem left edge
-      // Stem top world-y = 0.27 + 2.68 = 2.95; left edge x = -0.18
-      m.position.set(-0.18, 2.95, 0);
-      // Arc's 90° start = (0, outerR) → this is directly above pivot → aligns with stem top
-      // Y-rotation: far left end of arc protrudes forward
-      m.rotation.y = -0.32;
-      m.rotation.x =  0.09;
-      blackGroup.add(m);
+      const m = extrudeMesh(s, 0.60, mBlk);
+
+      // Place pivot at stem top, aligned so arc blends with stem silhouette
+      // stem top world (in group): x = -0.18 (left edge), y = 0.27 + 2.72 = 2.99
+      m.position.set(-0.18, 2.99, 0);
+      m.rotation.y = -0.34;
+      m.rotation.x =  0.08;
+      blkGrp.add(m);
     }
 
-    // Center group vertically in scene
-    blackGroup.position.set(0, -1.55, 0);
+    // Shift group so base bar sits at y≈0 in world (composition center)
+    blkGrp.position.set(0, -1.55, 0);
 
-    /* ══════════════════════════════════════════════════════
+    /* ════════════════════════════════════════════════════════
        PINK OBJECT — C-arc ring sector (ExtrudeGeometry)
 
-       Image1 silhouette:
-         • Thick C-stroke arc, opens LEFT
-         • Top tip near right end of base bar
-         • Bottom tip pointing down-right
+       Frontal silhouette (image1):
+         Top tip  → aligns with base bar right end  (≈ world x=2.55, y=-1.55)
+         The arc  → sweeps clockwise, C opening LEFT
+         Bottom   → curves back in, below and left of top tip
 
-       Image2 reference (rotated view):
-         • Reveals as a large flat tilted slab/panel
-         • The extrusion depth IS the hidden dimension
+       Anamorphic 3D:
+         Extrusion depth = 3.0 (very deep)
+         Y-rotation = −0.28 (face tilted, hides depth from front)
+         Rotating camera reveals large angled flat slab (image2)
 
-       Implementation:
-         • 2D shape = ring sector (outer - inner arc)
-         • Large extrusion depth (2.8 units)
-         • Y-rotation tilts the slab so rotating the camera
-           reveals the full panel face
-         • From front: clean C silhouette (face of extrusion)
-         • Rotated: large flat slab + curved top/bottom faces
-    ══════════════════════════════════════════════════════ */
+       Geometry calibration:
+         Pink arc center: (1.05, -1.90) world
+         outerR = 1.60, innerR = 1.07  → stroke width ≈ 0.53
+         startA = atan2((-1.55−(−1.90)), (2.55−1.05)) = atan2(0.35, 1.50) ≈ 0.23 rad
+         — this puts the outer tip exactly at base bar right end
+    ════════════════════════════════════════════════════════ */
 
     {
-      const outerR = 1.26;
-      const innerR = 0.80;  // stroke width = 0.46
-      const SEG    = 72;
+      const OR = 1.60, IR = 1.07, N = 80;
 
-      // C opens LEFT: arc from -18° to -198° (goes clockwise in image1)
-      const startA = -0.31;               // ~ -18°
-      const endA   = -(Math.PI + 0.33);   // ~ -199°
+      // startA ≈ 0.23 rad → top tip touches (2.55, -1.55) world
+      const startA =  0.23;
+      // endA: C sweeps CW past bottom, ending at ~-200° (opens left)
+      const endA   = -(Math.PI + 0.26);  // ≈ -206°
 
       const s = new THREE.Shape();
-      // Outer arc: startA → endA (going more negative = CW in screen coords)
-      const outPts = buildArcPoints(0, 0, outerR, startA, endA, SEG);
-      s.moveTo(outPts[0].x, outPts[0].y);
-      outPts.slice(1).forEach(p => s.lineTo(p.x, p.y));
-      // Inner arc: endA → startA (reverse)
-      const inPts = buildArcPoints(0, 0, innerR, endA, startA, SEG);
-      inPts.forEach(p => s.lineTo(p.x, p.y));
+      // outer arc: startA → endA  (CW = going more negative)
+      const op = arcPts(OR, startA, endA, N);
+      s.moveTo(op[0].x, op[0].y);
+      op.slice(1).forEach(p => s.lineTo(p.x, p.y));
+      // inner arc: endA → startA (closing)
+      arcPts(IR, endA, startA, N).forEach(p => s.lineTo(p.x, p.y));
       s.closePath();
 
       const geo = new THREE.ExtrudeGeometry(s, {
-        depth: 2.8,
-        bevelEnabled: false,
-        curveSegments: 72
+        depth: 3.0, bevelEnabled: false, curveSegments: 80
       });
-      // Center extrusion: front face at z=+1.4, back face at z=-1.4
-      geo.translate(0, 0, -1.4);
+      geo.translate(0, 0, -1.5);   // center depth at z=0
 
-      const m = new THREE.Mesh(geo, matPink);
+      const m = new THREE.Mesh(geo, mPnk);
 
-      // Tilt on Y: makes the slab angled — from front still sees the C-face
-      // but rotating reveals the large angled panel (like image2)
-      m.rotation.y = -0.30;
-      // Slight X tilt for ribbon-like spatial quality
-      m.rotation.x = -0.08;
+      // Tilt in Y: hides depth from front, reveals panel on orbit
+      m.rotation.y = -0.28;
+      // Slight X: gives the slab a natural lean (matches image2 tilt direction)
+      m.rotation.x = -0.06;
 
-      // Position: C sits below-right, top-right tip meets base bar right end
-      // Base bar right end is at (2.55, 0) in blackGroup local → world (2.55, -1.55)
-      // C top tip at startA: (cos(-0.31)*1.26, sin(-0.31)*1.26) ≈ (1.21, -0.38)
-      // Offset to align: world position of C center
-      m.position.set(1.20, -1.60, 0.0);
+      // Position so startA tip = world (2.55, -1.55)
+      m.position.set(1.05, -1.90, 0);
 
       scene.add(m);
     }
 
-    /* ─── Camera animation helpers ─── */
-    const FRONT_POS    = new THREE.Vector3(0, 0, 30);
-    const FRONT_TARGET = new THREE.Vector3(0, 0, 0);
-    const ORBIT_POS    = new THREE.Vector3(6, 3.5, 20);
-    const ORBIT_TARGET = new THREE.Vector3(0, 0, 0);
+    /* ── Camera animation ── */
+    const FRONT  = new THREE.Vector3(0, 0, 30);
+    const ORBIT  = new THREE.Vector3(7, 4.5, 18);
+    const CENTER = new THREE.Vector3(0, 0, 0);
 
     let animating = false;
-    const aniState = {
-      from: new THREE.Vector3(), to: new THREE.Vector3(),
-      tgtFrom: new THREE.Vector3(), tgtTo: new THREE.Vector3(),
-      t: 0
+    const A = {
+      fromP: new THREE.Vector3(), toP: new THREE.Vector3(),
+      fromT: new THREE.Vector3(), toT: new THREE.Vector3(),
+      t: 0, speed: 1.4
     };
 
-    function startCameraAnim(toPos, toTgt) {
-      aniState.from.copy(camera.position);
-      aniState.to.copy(toPos);
-      aniState.tgtFrom.copy(controls.target);
-      aniState.tgtTo.copy(toTgt);
-      aniState.t = 0;
+    function goTo(pos, tgt) {
+      A.fromP.copy(cam.position);
+      A.toP.copy(pos);
+      A.fromT.copy(ctrl.target);
+      A.toT.copy(tgt);
+      A.t = 0;
       animating = true;
-      controls.enabled = false;
+      ctrl.enabled = false;
     }
 
-    document.getElementById('btn-front').addEventListener('click', () =>
-      startCameraAnim(FRONT_POS, FRONT_TARGET));
-    document.getElementById('btn-orbit').addEventListener('click', () =>
-      startCameraAnim(ORBIT_POS, ORBIT_TARGET));
+    document.getElementById('btn-front').addEventListener('click', () => goTo(FRONT, CENTER));
+    document.getElementById('btn-orbit').addEventListener('click', () => goTo(ORBIT, CENTER));
 
-    /* ─── Resize ─── */
+    /* ── Auto-hint on load: drift to orbit then back to front ── */
+    const hintEl = document.getElementById('hint');
+    let autoPhase = 0;  // 0=wait, 1=going orbit, 2=going front, 3=done
+
+    function autoHint() {
+      if (autoPhase === 0) {
+        autoPhase = 1;
+        goTo(ORBIT, CENTER);
+      } else if (autoPhase === 2) {
+        goTo(FRONT, CENTER);
+        setTimeout(() => { autoPhase = 3; }, 2000);
+      }
+    }
+
+    setTimeout(autoHint, 900);
+
+    ctrl.addEventListener('start', () => {
+      autoPhase = 3;
+      hintEl.style.opacity = '0';
+    });
+
+    /* ── Resize ── */
     window.addEventListener('resize', () => {
-      aspect = window.innerWidth / window.innerHeight;
-      camera.left   = -FRUSTUM * aspect;
-      camera.right  =  FRUSTUM * aspect;
-      camera.top    =  FRUSTUM;
-      camera.bottom = -FRUSTUM;
-      camera.updateProjectionMatrix();
+      asp = window.innerWidth / window.innerHeight;
+      cam.left = -FRUS * asp; cam.right = FRUS * asp;
+      cam.top  =  FRUS;       cam.bottom = -FRUS;
+      cam.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    /* ─── Render loop ─── */
+    /* ── Render loop ── */
     const clock = new THREE.Clock();
-    const ease = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+    const ease  = t => t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t;
 
-    function animate() {
-      requestAnimationFrame(animate);
+    function frame() {
+      requestAnimationFrame(frame);
       const dt = clock.getDelta();
 
       if (animating) {
-        aniState.t = Math.min(1, aniState.t + dt * 1.3);
-        const e = ease(aniState.t);
-        camera.position.lerpVectors(aniState.from, aniState.to, e);
-        controls.target.lerpVectors(aniState.tgtFrom, aniState.tgtTo, e);
-        camera.lookAt(controls.target);
-        camera.updateProjectionMatrix();
-        if (aniState.t >= 1) { animating = false; controls.enabled = true; }
+        A.t = Math.min(1, A.t + dt * A.speed);
+        const e = ease(A.t);
+        cam.position.lerpVectors(A.fromP, A.toP, e);
+        ctrl.target.lerpVectors(A.fromT, A.toT, e);
+        cam.lookAt(ctrl.target);
+        cam.updateProjectionMatrix();
+
+        if (A.t >= 1) {
+          animating = false;
+          ctrl.enabled = true;
+          // after auto-orbit lands, send back to front
+          if (autoPhase === 1) { autoPhase = 2; setTimeout(autoHint, 1400); }
+        }
       }
 
-      controls.update();
-      renderer.render(scene, camera);
+      ctrl.update();
+      renderer.render(scene, cam);
     }
-    animate();
+    frame();
   </script>
 </body>
 </html>
