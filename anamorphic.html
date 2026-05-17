@@ -8,9 +8,8 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { overflow: hidden; background: #666666; font-family: monospace; }
     canvas { display: block; }
-
     #ui {
-      position: fixed; bottom: 32px; left: 50%;
+      position: fixed; bottom: 30px; left: 50%;
       transform: translateX(-50%);
       display: flex; gap: 10px; z-index: 10;
     }
@@ -21,24 +20,12 @@
       padding: 9px 22px; font-size: 10px;
       letter-spacing: 0.16em; text-transform: uppercase;
       cursor: pointer; font-family: monospace;
-      transition: background 0.15s, color 0.15s;
+      transition: background 0.15s;
     }
-    #ui button:hover {
-      background: rgba(0,0,0,0.32);
-      color: #fff;
-    }
-    #hint {
-      position: fixed; bottom: 80px; left: 50%;
-      transform: translateX(-50%);
-      color: rgba(255,255,255,0.28); font-size: 9px;
-      letter-spacing: 0.20em; text-transform: uppercase;
-      pointer-events: none;
-      transition: opacity 0.8s;
-    }
+    #ui button:hover { background: rgba(0,0,0,0.32); color: #fff; }
   </style>
 </head>
 <body>
-  <div id="hint">Drag to rotate</div>
   <div id="ui">
     <button id="btn-front">Front</button>
     <button id="btn-orbit">Orbit</button>
@@ -66,37 +53,37 @@
 
     const scene = new THREE.Scene();
 
-    /* ── Orthographic Camera ── */
-    const FRUS = 4.0;
+    /* ── Orthographic camera ── */
+    const FRUS = 3.0;
     let asp = window.innerWidth / window.innerHeight;
     const cam = new THREE.OrthographicCamera(
-      -FRUS * asp, FRUS * asp, FRUS, -FRUS, 0.01, 300
+      -FRUS * asp, FRUS * asp, FRUS, -FRUS, 0.01, 200
     );
     cam.position.set(0, 0, 30);
     cam.lookAt(0, 0, 0);
 
-    /* ── Lighting: flat graphic feel ── */
-    scene.add(new THREE.AmbientLight(0xffffff, 0.92));
-    const keyL = new THREE.DirectionalLight(0xffffff, 0.40);
-    keyL.position.set(0, 5, 25);
-    scene.add(keyL);
-    const rimL = new THREE.DirectionalLight(0xffffff, 0.52);
-    rimL.position.set(-8, -2, 6);
-    scene.add(rimL);
+    /* ── Flat graphic lighting ── */
+    scene.add(new THREE.AmbientLight(0xffffff, 0.90));
+    const kL = new THREE.DirectionalLight(0xffffff, 0.42);
+    kL.position.set(0, 4, 22);
+    scene.add(kL);
+    const rL = new THREE.DirectionalLight(0xffffff, 0.50);
+    rL.position.set(-7, -2, 7);
+    scene.add(rL);
 
     /* ── Controls ── */
     const ctrl = new OrbitControls(cam, renderer.domElement);
-    ctrl.enableDamping  = true;
-    ctrl.dampingFactor  = 0.07;
-    ctrl.enablePan      = false;
-    ctrl.zoomSpeed      = 0.65;
-    ctrl.rotateSpeed    = 0.60;
+    ctrl.enableDamping = true;
+    ctrl.dampingFactor = 0.07;
+    ctrl.enablePan = false;
+    ctrl.zoomSpeed = 0.65;
+    ctrl.rotateSpeed = 0.60;
 
     /* ── Materials ── */
     const mBlk = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.88, metalness: 0 });
     const mPnk = new THREE.MeshStandardMaterial({ color: 0xe85ad5, roughness: 0.78, metalness: 0 });
 
-    /* ── Helpers ── */
+    /* ── Arc point helper ── */
     function arcPts(r, a0, a1, n) {
       return Array.from({ length: n + 1 }, (_, i) => {
         const a = a0 + (a1 - a0) * i / n;
@@ -104,187 +91,151 @@
       });
     }
 
-    function extrudeMesh(shape, depth, mat) {
-      const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 72 });
-      geo.translate(0, 0, -depth * 0.5);
-      return new THREE.Mesh(geo, mat);
-    }
-
-    /* ════════════════════════════════════════════════════════
+    /* ════════════════════════════════════════════════════════════
        BLACK OBJECT
 
-       Frontal silhouette (image1):
-         • Wide horizontal base bar
-         • Thin vertical stem from bar center
-         • Thick quarter-ring arc at stem top, sweeping left
+       Image2 (front view) silhouette — SINGLE closed 2D shape:
+
+         Shape = L-shape with the OUTER top-left corner replaced
+         by a large smooth quarter-circle arc.
+
+         Coordinates (arc center at local origin):
+           arc center  = (0, 0)  [at base-top level, stem-left edge]
+           arc 90°     = (0, R)  → stem top-left corner
+           arc 180°    = (-R, 0) → base bar top-left end
+
+         Full outline:
+           (0, R)  ← stem top-left
+           arc CCW 90°→180°  →  (-R, 0)  ← base top-left
+           (-R, -2bh)        ← base bottom-left
+           (sw+br, -2bh)     ← base bottom-right
+           (sw+br, 0)        ← base top-right
+           (sw, 0)           ← stem-right meets base
+           (sw, R)           ← stem top-right
+           close → (0, R)    ← stem top cap (short horizontal)
 
        Anamorphic 3D:
-         Base  ── shallow depth, rotated -Y  (right side recedes)
-         Stem  ── deep extrusion,  rotated +Y  (right side comes forward)
-         Arc   ── medium depth,    rotated -Y + tiny X tilt
-
-       These counter-rotations keep frontal projections aligned
-       but break planarity the instant the camera moves.
-    ════════════════════════════════════════════════════════ */
-
-    const blkGrp = new THREE.Group();
-    scene.add(blkGrp);
-
-    // BASE BAR  (width 5.1, height 0.54, depth 0.38)
-    {
-      const s = new THREE.Shape();
-      s.moveTo(-2.55,  0.27);
-      s.lineTo( 2.55,  0.27);
-      s.lineTo( 2.55, -0.27);
-      s.lineTo(-2.55, -0.27);
-      s.closePath();
-      const m = extrudeMesh(s, 0.38, mBlk);
-      m.rotation.y = -0.24;
-      blkGrp.add(m);
-    }
-
-    // STEM  (width 0.36, height 2.72, depth 2.2)
-    {
-      const hw = 0.18;
-      const s  = new THREE.Shape();
-      s.moveTo(-hw, 0); s.lineTo(hw, 0);
-      s.lineTo(hw, 2.72); s.lineTo(-hw, 2.72);
-      s.closePath();
-      const m = extrudeMesh(s, 2.2, mBlk);
-      m.rotation.y = 0.30;
-      m.position.set(0, 0.27, 0);
-      blkGrp.add(m);
-    }
-
-    // QUARTER-RING ARC  (90° → 180°, outer=1.58, inner=0.84, depth=0.60)
-    // Arc center = stem-top LEFT edge so the ring's 0°-arm aligns with stem right
-    // and the 90°-arm points straight up from stem top
-    {
-      const OR = 1.58, IR = 0.84, N = 72;
-      const s  = new THREE.Shape();
-
-      // outer: 90° → 180° CCW
-      const op = arcPts(OR, Math.PI / 2, Math.PI, N);
-      s.moveTo(op[0].x, op[0].y);
-      op.slice(1).forEach(p => s.lineTo(p.x, p.y));
-
-      // inner: 180° → 90° (closing)
-      arcPts(IR, Math.PI, Math.PI / 2, N).forEach(p => s.lineTo(p.x, p.y));
-      s.closePath();
-
-      const m = extrudeMesh(s, 0.60, mBlk);
-
-      // Place pivot at stem top, aligned so arc blends with stem silhouette
-      // stem top world (in group): x = -0.18 (left edge), y = 0.27 + 2.72 = 2.99
-      m.position.set(-0.18, 2.99, 0);
-      m.rotation.y = -0.34;
-      m.rotation.x =  0.08;
-      blkGrp.add(m);
-    }
-
-    // Shift group so base bar sits at y≈0 in world (composition center)
-    blkGrp.position.set(0, -1.55, 0);
-
-    /* ════════════════════════════════════════════════════════
-       PINK OBJECT — C-arc ring sector (ExtrudeGeometry)
-
-       Frontal silhouette (image1):
-         Top tip  → aligns with base bar right end  (≈ world x=2.55, y=-1.55)
-         The arc  → sweeps clockwise, C opening LEFT
-         Bottom   → curves back in, below and left of top tip
-
-       Anamorphic 3D:
-         Extrusion depth = 3.0 (very deep)
-         Y-rotation = −0.28 (face tilted, hides depth from front)
-         Rotating camera reveals large angled flat slab (image2)
-
-       Geometry calibration:
-         Pink arc center: (1.05, -1.90) world
-         outerR = 1.60, innerR = 1.07  → stroke width ≈ 0.53
-         startA = atan2((-1.55−(−1.90)), (2.55−1.05)) = atan2(0.35, 1.50) ≈ 0.23 rad
-         — this puts the outer tip exactly at base bar right end
-    ════════════════════════════════════════════════════════ */
+         Extrusion depth 2.0, rotation.y +0.22
+         Rotating camera reveals the thick slab + depth differences
+    ════════════════════════════════════════════════════════════ */
 
     {
-      const OR = 1.60, IR = 1.07, N = 80;
-
-      // startA ≈ 0.23 rad → top tip touches (2.55, -1.55) world
-      const startA =  0.23;
-      // endA: C sweeps CW past bottom, ending at ~-200° (opens left)
-      const endA   = -(Math.PI + 0.26);  // ≈ -206°
+      const R  = 2.40;   // arc radius = stem height above base
+      const sw = 0.32;   // stem width (to the right of arc center)
+      const bh = 0.27;   // base half-height  (total base h = 0.54)
+      const br = 0.88;   // base right extension beyond stem
 
       const s = new THREE.Shape();
-      // outer arc: startA → endA  (CW = going more negative)
-      const op = arcPts(OR, startA, endA, N);
-      s.moveTo(op[0].x, op[0].y);
-      op.slice(1).forEach(p => s.lineTo(p.x, p.y));
-      // inner arc: endA → startA (closing)
-      arcPts(IR, endA, startA, N).forEach(p => s.lineTo(p.x, p.y));
-      s.closePath();
+      s.moveTo(0, R);
+      // Quarter-circle arc: CCW from 90° to 180° (upper-left quadrant)
+      s.absarc(0, 0, R, Math.PI / 2, Math.PI, false);
+      s.lineTo(-R,     -2 * bh);
+      s.lineTo(sw + br,-2 * bh);
+      s.lineTo(sw + br, 0);
+      s.lineTo(sw,      0);
+      s.lineTo(sw,      R);
+      s.closePath();  // → back to (0, R)
 
       const geo = new THREE.ExtrudeGeometry(s, {
-        depth: 3.0, bevelEnabled: false, curveSegments: 80
+        depth: 2.0, bevelEnabled: false, curveSegments: 96
       });
-      geo.translate(0, 0, -1.5);   // center depth at z=0
+      geo.translate(0, 0, -1.0);  // center extrusion at z=0
 
-      const m = new THREE.Mesh(geo, mPnk);
-
-      // Tilt in Y: hides depth from front, reveals panel on orbit
-      m.rotation.y = -0.28;
-      // Slight X: gives the slab a natural lean (matches image2 tilt direction)
-      m.rotation.x = -0.06;
-
-      // Position so startA tip = world (2.55, -1.55)
-      m.position.set(1.05, -1.90, 0);
-
+      const m = new THREE.Mesh(geo, mBlk);
+      // Tilt: right side of shape pushes forward, left recedes
+      m.rotation.y = 0.22;
+      m.position.set(0, 0, 0);
       scene.add(m);
     }
 
-    /* ── Camera animation ── */
+    /* ════════════════════════════════════════════════════════════
+       PINK OBJECT
+
+       Image2 (front view): thick C-arc stroke below the base bar,
+         opening to the LEFT, top tip meeting the base bar right end.
+
+       Image1 (3D rotated view): large angled flat slab + curved strip
+         → the 3.2-unit extrusion depth, revealed when rotating.
+
+       Geometry:
+         Ring sector: outer R=1.48, inner R=0.95, stroke=0.53
+         startA = 1.05 rad (~60°) → top tip aligns with base-right end
+         Sweep 200° clockwise → endA = -2.44 rad (~-140°)
+
+       Position calibrated so top tip aligns exactly with
+       base bar right end in orthographic front projection.
+    ════════════════════════════════════════════════════════════ */
+
+    {
+      const OR     = 1.48;
+      const IR     = 0.95;
+      const startA =  1.05;                            // ~60°
+      const endA   =  startA - (200 * Math.PI / 180); // CW 200° → ~-82°... -2.44 rad
+
+      const N = 90;
+      const s = new THREE.Shape();
+
+      // outer arc: startA → endA (decreasing = CW direction)
+      const op = arcPts(OR, startA, endA, N);
+      s.moveTo(op[0].x, op[0].y);
+      op.slice(1).forEach(p => s.lineTo(p.x, p.y));
+
+      // inner arc: endA → startA (increasing = CCW, closes the ring)
+      const ip = arcPts(IR, endA, startA, N);
+      ip.forEach(p => s.lineTo(p.x, p.y));
+
+      s.closePath();
+
+      const geo = new THREE.ExtrudeGeometry(s, {
+        depth: 3.2, bevelEnabled: false, curveSegments: 90
+      });
+      geo.translate(0, 0, -1.6);
+
+      const m = new THREE.Mesh(geo, mPnk);
+      m.rotation.y = -0.25;
+      m.rotation.x = -0.05;
+
+      /* Position so tip aligns with base bar right end:
+         Base right local = (sw+br, 0) = (1.20, 0)
+         After black rot.y=0.22: world X ≈ 1.20 * cos(0.22) ≈ 1.171
+         Tip local = (OR*cos(startA), OR*sin(startA)) = (0.736, 1.283)
+         After pink rot.y=-0.25: X contribution ≈ 0.736 * cos(0.25) ≈ 0.713
+         px = 1.171 - 0.713 = 0.458
+         py = 0    - 1.283 = -1.283                                  */
+      m.position.set(0.458, -1.283, 0);
+      scene.add(m);
+    }
+
+    /* ── Camera presets ── */
     const FRONT  = new THREE.Vector3(0, 0, 30);
-    const ORBIT  = new THREE.Vector3(7, 4.5, 18);
+    const ORBIT  = new THREE.Vector3(6.5, 4.0, 16);
     const CENTER = new THREE.Vector3(0, 0, 0);
 
     let animating = false;
     const A = {
-      fromP: new THREE.Vector3(), toP: new THREE.Vector3(),
-      fromT: new THREE.Vector3(), toT: new THREE.Vector3(),
-      t: 0, speed: 1.4
+      fp: new THREE.Vector3(), tp: new THREE.Vector3(),
+      ft: new THREE.Vector3(), tt: new THREE.Vector3(),
+      t: 0, spd: 1.35
     };
 
     function goTo(pos, tgt) {
-      A.fromP.copy(cam.position);
-      A.toP.copy(pos);
-      A.fromT.copy(ctrl.target);
-      A.toT.copy(tgt);
-      A.t = 0;
-      animating = true;
-      ctrl.enabled = false;
+      A.fp.copy(cam.position); A.tp.copy(pos);
+      A.ft.copy(ctrl.target);  A.tt.copy(tgt);
+      A.t = 0; animating = true; ctrl.enabled = false;
     }
 
     document.getElementById('btn-front').addEventListener('click', () => goTo(FRONT, CENTER));
     document.getElementById('btn-orbit').addEventListener('click', () => goTo(ORBIT, CENTER));
 
-    /* ── Auto-hint on load: drift to orbit then back to front ── */
-    const hintEl = document.getElementById('hint');
-    let autoPhase = 0;  // 0=wait, 1=going orbit, 2=going front, 3=done
+    /* ── Auto-hint: orbit briefly then return to front ── */
+    let autoPhase = 0;
+    ctrl.addEventListener('start', () => { autoPhase = 3; });
 
-    function autoHint() {
-      if (autoPhase === 0) {
-        autoPhase = 1;
-        goTo(ORBIT, CENTER);
-      } else if (autoPhase === 2) {
-        goTo(FRONT, CENTER);
-        setTimeout(() => { autoPhase = 3; }, 2000);
-      }
-    }
-
-    setTimeout(autoHint, 900);
-
-    ctrl.addEventListener('start', () => {
-      autoPhase = 3;
-      hintEl.style.opacity = '0';
-    });
+    setTimeout(() => {
+      if (autoPhase !== 0) return;
+      autoPhase = 1;
+      goTo(ORBIT, CENTER);
+    }, 800);
 
     /* ── Resize ── */
     window.addEventListener('resize', () => {
@@ -297,25 +248,28 @@
 
     /* ── Render loop ── */
     const clock = new THREE.Clock();
-    const ease  = t => t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t;
+    const ease  = t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 
     function frame() {
       requestAnimationFrame(frame);
       const dt = clock.getDelta();
 
       if (animating) {
-        A.t = Math.min(1, A.t + dt * A.speed);
+        A.t = Math.min(1, A.t + dt * A.spd);
         const e = ease(A.t);
-        cam.position.lerpVectors(A.fromP, A.toP, e);
-        ctrl.target.lerpVectors(A.fromT, A.toT, e);
+        cam.position.lerpVectors(A.fp, A.tp, e);
+        ctrl.target.lerpVectors(A.ft, A.tt, e);
         cam.lookAt(ctrl.target);
         cam.updateProjectionMatrix();
 
         if (A.t >= 1) {
-          animating = false;
-          ctrl.enabled = true;
-          // after auto-orbit lands, send back to front
-          if (autoPhase === 1) { autoPhase = 2; setTimeout(autoHint, 1400); }
+          animating = false; ctrl.enabled = true;
+          if (autoPhase === 1) {
+            autoPhase = 2;
+            setTimeout(() => { if (autoPhase === 2) goTo(FRONT, CENTER); }, 1200);
+          } else if (autoPhase === 2) {
+            autoPhase = 3;
+          }
         }
       }
 
