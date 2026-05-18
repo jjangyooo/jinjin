@@ -4,9 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SPOTLIGHT — Second Edition Exhibition</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -17,83 +14,25 @@ html, body {
   cursor: none;
 }
 
-/* ── POSTER LAYER ── */
-#poster {
+/* ── POSTER LAYER (imageA.png) ── */
+#poster-layer {
   position: fixed;
   inset: 0;
-  background: #f0ece6;
-  display: flex;
-  justify-content: center;
-  align-items: stretch;
   z-index: 1;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-}
-
-#poster-inner {
-  width: min(100vw, calc(100vh * 0.707));
-  max-width: 860px;
-  padding: clamp(26px, 4.5vw, 64px) clamp(22px, 3.5vw, 58px);
   display: flex;
-  flex-direction: column;
-  color: #0a0a0a;
-  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  align-items: center;
+  justify-content: center;
 }
 
-.p-title {
-  font-size: clamp(62px, 12.4vw, 186px);
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 0.86;
-  text-transform: uppercase;
-  margin-bottom: 0.12em;
-}
-
-.p-sub {
-  font-size: clamp(10px, 1.25vw, 16px);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  margin-bottom: clamp(18px, 3.4vw, 50px);
-  font-family: 'Playfair Display', Georgia, serif;
-}
-
-.p-body {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0 clamp(8px, 1.8vw, 24px);
-  flex: 1;
-  align-content: start;
-}
-
-.p-col p {
-  font-size: clamp(11px, 1.75vw, 22px);
-  font-weight: 700;
-  line-height: 1.11;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
-  font-family: 'Playfair Display', Georgia, serif;
-}
-
-.p-footer {
-  margin-top: auto;
-  padding-top: clamp(16px, 3vw, 46px);
-  border-top: 2px solid #0a0a0a;
-}
-
-.p-venue {
-  font-size: clamp(10px, 1.5vw, 19px);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.05em;
-}
-
-.p-venue-lg {
-  font-size: clamp(32px, 6.8vw, 100px);
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 0.86;
-  text-transform: uppercase;
+#poster-img {
+  display: block;
+  height: 100vh;
+  width: auto;
+  max-width: 100vw;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 /* ── DARKNESS CANVAS ── */
@@ -120,7 +59,7 @@ html, body {
   z-index: 12;
   pointer-events: none;
   mix-blend-mode: overlay;
-  opacity: 0.22;
+  opacity: 0.20;
 }
 
 /* ── EDGE VIGNETTE ── */
@@ -138,24 +77,26 @@ html, body {
   );
 }
 
-/* ── ORB ── */
-#orb {
+/* ── CONTROLLER (imageB.png) ── */
+#controller {
   position: fixed;
   top: 0; left: 0;
   z-index: 20;
-  border-radius: 50%;
   pointer-events: none;
   will-change: transform;
-  background: radial-gradient(circle at 33% 30%,
-    #252525 0%,
-    #0d0d0d 38%,
-    #020202 74%,
-    #000 100%
-  );
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.028),
-    0 10px 56px rgba(0,0,0,0.98),
-    inset 0 1px 4px rgba(255,255,255,0.042);
+}
+
+#controller-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Invert so black-on-white becomes white-on-black,
+     then screen blend makes white glow and black disappear —
+     the controller appears as luminous letterforms in the dark */
+  filter: invert(1);
+  mix-blend-mode: screen;
+  opacity: 0.70;
 }
 
 /* ── INTRO: projector warm-up ── */
@@ -165,7 +106,7 @@ html, body {
   z-index: 50;
   background: #050508;
   pointer-events: none;
-  transition: opacity 3.2s cubic-bezier(0.42, 0, 0.18, 1);
+  transition: opacity 3.4s cubic-bezier(0.42, 0, 0.18, 1);
 }
 
 /* ── HINT ── */
@@ -188,72 +129,58 @@ html, body {
 </head>
 <body>
 
-<div id="poster">
-  <div id="poster-inner">
-    <div class="p-title">SPOT<br>LIGHT</div>
-    <div class="p-sub">Second Edition Exhibition</div>
-    <div class="p-body">
-      <div class="p-col">
-        <p>Digital Dark<br>Patterns<br>Silent<br>Influence<br>Obscured<br>Patterns<br>Intent<br>You<br>Think You<br>Choose Now<br>Attention</p>
-      </div>
-      <div class="p-col">
-        <p>Behavioral<br>Design Sub&#8209;<br>conscious<br>Perception<br>Attention<br>Cognition<br>Control<br>Framework<br>To Show<br>Is To Hide<br>Half Seen,<br>Fully Guided</p>
-      </div>
-      <div class="p-col">
-        <p>Interface<br>Control<br>Responses<br>Are&#8212;&#8212;<br>Prebuilt<br>Limited<br>Options<br>Your Input<br>Expected<br>Decision</p>
-      </div>
-    </div>
-    <div class="p-footer">
-      <div class="p-venue">Coma Nova &#8212; October 18, 2026</div>
-      <div class="p-venue-lg">Coma<br>Nova</div>
-    </div>
-  </div>
+<!-- Poster layer: exact imageA.png, never altered -->
+<div id="poster-layer">
+  <img id="poster-img" src="imageA.png" alt="">
 </div>
 
 <canvas id="mask-canvas"></canvas>
 <canvas id="bloom-canvas"></canvas>
 <canvas id="grain-canvas"></canvas>
 <div id="vignette"></div>
-<div id="orb"></div>
+
+<!-- Spotlight controller: imageB.png, follows cursor, scaled by scroll -->
+<div id="controller">
+  <img id="controller-img" src="imageB.png" alt="">
+</div>
+
 <div id="intro"></div>
-<div id="hint">Move cursor &ensp;&middot;&ensp; Scroll to adjust depth</div>
+<div id="hint">Move cursor &ensp;&middot;&ensp; Scroll to adjust distance</div>
 
 <script>
 (function () {
   'use strict';
 
-  const mCvs    = document.getElementById('mask-canvas');
-  const bCvs    = document.getElementById('bloom-canvas');
-  const gCvs    = document.getElementById('grain-canvas');
-  const orbEl   = document.getElementById('orb');
-  const hintEl  = document.getElementById('hint');
+  const mCvs   = document.getElementById('mask-canvas');
+  const bCvs   = document.getElementById('bloom-canvas');
+  const gCvs   = document.getElementById('grain-canvas');
+  const ctrlEl = document.getElementById('controller');
+  const hintEl = document.getElementById('hint');
   const introEl = document.getElementById('intro');
-  const posterEl= document.getElementById('poster');
-  const innerEl = document.getElementById('poster-inner');
 
   const mCtx = mCvs.getContext('2d');
   const bCtx = bCvs.getContext('2d');
   const gCtx = gCvs.getContext('2d');
 
   // ── Constants ──────────────────────────────────────────────
-  const EASE_POS   = 0.18;   // per spec: 0.16–0.22
-  const EASE_DEPTH = 0.10;   // depth responds faster now
-  const ORB_MIN    = 42;     // px diameter at max spread
-  const ORB_MAX    = 218;    // px diameter at max tight
-  const SPOT_FAR   = 0.70;   // screen diagonal fraction, far
-  const SPOT_NEAR  = 0.11;   // screen diagonal fraction, close
+  const EASE_POS   = 0.18;   // position follow easing (spec: 0.16–0.22)
+  const EASE_DEPTH = 0.10;   // depth (scroll) easing
+  const CTRL_MIN   = 68;     // controller px width when far (small)
+  const CTRL_MAX   = 340;    // controller px width when close (large)
+  const SPOT_FAR   = 0.68;   // spotlight radius as fraction of screen diagonal — far
+  const SPOT_NEAR  = 0.09;   // spotlight radius — close/tight
 
   // ── Dimensions ────────────────────────────────────────────
   let W = 0, H = 0, DIAG = 0;
 
   // ── State ─────────────────────────────────────────────────
-  // Start at 0.62 → spotlight is dramatic but reveals enough to intrigue
-  let tx, ty, tdep = 0.62;
-  let dx, dy, ddep = 0.62;
+  // Start depth=0.48: mid-range dramatic beam revealing partial poster
+  let tx, ty, tdep = 0.48;
+  let dx, dy, ddep = 0.48;
   let hintFaded = false;
   let frameCount = 0;
 
-  // ── Grain (offscreen noise tile, 320×320) ─────────────────
+  // ── Grain: warm-tinted 320px noise tile ───────────────────
   const GS     = 320;
   const grainC = document.createElement('canvas');
   grainC.width = grainC.height = GS;
@@ -264,9 +191,9 @@ html, body {
     const d = grainD.data;
     for (let i = 0; i < d.length; i += 4) {
       const v  = Math.random() * 255 | 0;
-      d[i]   = Math.min(255, v + 9);   // warm tint: R+9
+      d[i]   = Math.min(255, v + 9);   // warm: R+9
       d[i+1] = v;
-      d[i+2] = Math.max(0,  v - 7);   // B-7
+      d[i+2] = Math.max(0,  v - 7);   // cool: B-7
       d[i+3] = 30;
     }
     grainX.putImageData(grainD, 0, 0);
@@ -276,53 +203,27 @@ html, body {
     gCtx.clearRect(0, 0, W, H);
     const ox = Math.random() * GS | 0;
     const oy = Math.random() * GS | 0;
-    for (let px = -ox; px < W; px += GS) {
-      for (let py = -oy; py < H; py += GS) {
+    for (let px = -ox; px < W; px += GS)
+      for (let py = -oy; py < H; py += GS)
         gCtx.drawImage(grainC, px, py);
-      }
-    }
   }
 
-  // ── Asset loading ─────────────────────────────────────────
-  function tryLoad(src, onSuccess) {
-    const img = new Image();
-    img.onload  = onSuccess;
-    img.onerror = () => {};
-    img.src     = src;
-  }
-
-  tryLoad('poster.png', () => {
-    posterEl.style.backgroundImage    = "url('poster.png')";
-    posterEl.style.backgroundSize     = 'contain';
-    posterEl.style.backgroundPosition = 'center';
-    innerEl.style.visibility          = 'hidden';
-  });
-
-  tryLoad('orb.png', () => {
-    orbEl.style.background   = "url('orb.png') center/contain no-repeat";
-    orbEl.style.borderRadius = '50%';
-    orbEl.style.boxShadow    = '0 10px 56px rgba(0,0,0,0.98)';
-  });
-
-  // ── Intro ─────────────────────────────────────────────────
-  // Page opens fully dark. Brief pause then fades like an analog
-  // projector lamp reaching operating temperature.
+  // ── Intro: analog projector lamp warm-up ──────────────────
   setTimeout(() => {
     introEl.style.opacity = '0';
     introEl.addEventListener('transitionend', () => introEl.remove(), { once: true });
-  }, 180);
+  }, 200);
 
   // ── Resize ────────────────────────────────────────────────
   function resize() {
     W    = window.innerWidth;
     H    = window.innerHeight;
     DIAG = Math.hypot(W, H);
-    mCvs.width = bCvs.width = gCvs.width  = W;
-    mCvs.height= bCvs.height= gCvs.height = H;
-    if (!tx) { tx = dx = W * 0.5; ty = dy = H * 0.5; }
+    mCvs.width  = bCvs.width  = gCvs.width  = W;
+    mCvs.height = bCvs.height = gCvs.height = H;
+    if (tx === undefined) { tx = dx = W * 0.5; ty = dy = H * 0.5; }
     refreshGrain();
   }
-
   window.addEventListener('resize', resize);
 
   // ── Input ─────────────────────────────────────────────────
@@ -332,6 +233,7 @@ html, body {
     if (!hintFaded) { hintEl.style.opacity = '0'; hintFaded = true; }
   });
 
+  // Scroll scales the controller: bigger = closer = tighter beam
   document.addEventListener('wheel', e => {
     tdep = Math.min(1, Math.max(0, tdep + e.deltaY * 0.0007));
     e.preventDefault();
@@ -347,10 +249,11 @@ html, body {
 
   // ── Math helpers ──────────────────────────────────────────
   const lerp = (a, b, t) => a + (b - a) * t;
-  const fi   = (f, dt) => 1 - Math.pow(1 - f, dt * 60); // framerate-independent factor
+  // Framerate-independent easing factor
+  const fi   = (f, dt) => 1 - Math.pow(1 - f, dt * 60);
 
-  // ── MASK: darkness + organic spotlight punch ───────────────
-  function drawMask(x, y, orbR, spotR, ts) {
+  // ── MASK: near-black darkness with organic spotlight punch ─
+  function drawMask(x, y, ctrlR, spotR, ts) {
     mCtx.clearRect(0, 0, W, H);
 
     // Near-black base
@@ -358,12 +261,12 @@ html, body {
     mCtx.fillStyle = 'rgba(5,5,8,0.985)';
     mCtx.fillRect(0, 0, W, H);
 
-    // Punch the spotlight hole
+    // Cut the spotlight hole with destination-out
     mCtx.globalCompositeOperation = 'destination-out';
 
     const s = ts * 0.001;
 
-    // Breathing scale + 3-axis organic drift
+    // Organic multi-axis drift — makes edges feel imperfect and physical
     const breathe = 1 + 0.028 * Math.sin(s * 0.82);
     const ox1 = Math.sin(s * 0.71) * 4.8 + Math.cos(s * 1.19) * 3.1;
     const oy1 = Math.cos(s * 0.57) * 6.0 + Math.sin(s * 1.07) * 2.8;
@@ -372,14 +275,14 @@ html, body {
     const ox3 = Math.cos(s * 0.51 + 0.9) * 3.6;
     const oy3 = Math.sin(s * 0.65 + 2.0) * 4.1;
 
-    // Primary cone — sharp theatrical falloff
+    // Primary cone: sharp theatrical falloff, flat bright center
     const g1 = mCtx.createRadialGradient(
-      x + ox1 * 0.20, y + oy1 * 0.20, orbR * 0.08,
+      x + ox1 * 0.20, y + oy1 * 0.20, ctrlR * 0.08,
       x + ox1 * 0.06, y + oy1 * 0.06, spotR * breathe
     );
     g1.addColorStop(0.00, 'rgba(0,0,0,1.00)');
-    g1.addColorStop(0.52, 'rgba(0,0,0,0.96)');  // stays bright in center
-    g1.addColorStop(0.72, 'rgba(0,0,0,0.76)');  // transition starts here
+    g1.addColorStop(0.52, 'rgba(0,0,0,0.96)');
+    g1.addColorStop(0.72, 'rgba(0,0,0,0.76)');
     g1.addColorStop(0.84, 'rgba(0,0,0,0.40)');
     g1.addColorStop(0.92, 'rgba(0,0,0,0.12)');
     g1.addColorStop(0.97, 'rgba(0,0,0,0.02)');
@@ -387,9 +290,9 @@ html, body {
     mCtx.fillStyle = g1;
     mCtx.fillRect(0, 0, W, H);
 
-    // Secondary layer — irregular edge
+    // Secondary: irregular edge offset
     const g2 = mCtx.createRadialGradient(
-      x + ox2 * 0.42, y + oy2 * 0.42, orbR * 0.05,
+      x + ox2 * 0.42, y + oy2 * 0.42, ctrlR * 0.05,
       x + ox2 * 0.15, y + oy2 * 0.15, spotR * 0.80 * breathe
     );
     g2.addColorStop(0.00, 'rgba(0,0,0,0.46)');
@@ -399,9 +302,9 @@ html, body {
     mCtx.fillStyle = g2;
     mCtx.fillRect(0, 0, W, H);
 
-    // Tertiary layer — further organic imperfection
+    // Tertiary: slow breathing distortion at edge
     const g3 = mCtx.createRadialGradient(
-      x + ox3 * 0.36, y + oy3 * 0.36, orbR * 0.04,
+      x + ox3 * 0.36, y + oy3 * 0.36, ctrlR * 0.04,
       x + ox3 * 0.12, y + oy3 * 0.12,
       spotR * 0.88 * (1 + 0.02 * Math.cos(s * 1.04))
     );
@@ -412,10 +315,9 @@ html, body {
     mCtx.fillStyle = g3;
     mCtx.fillRect(0, 0, W, H);
 
-    // Restore — apply soft center dimming
-    // (restrains the hotspot; makes center feel "projected" not screen-lit)
+    // Subtle center dimming: keeps hotspot from looking screen-lit
     mCtx.globalCompositeOperation = 'source-over';
-    const gc = mCtx.createRadialGradient(x, y, 0, x, y, orbR * 2.8);
+    const gc = mCtx.createRadialGradient(x, y, 0, x, y, ctrlR * 2.8);
     gc.addColorStop(0.0, 'rgba(5,5,8,0.22)');
     gc.addColorStop(0.4, 'rgba(5,5,8,0.10)');
     gc.addColorStop(1.0, 'rgba(5,5,8,0.00)');
@@ -423,20 +325,20 @@ html, body {
     mCtx.fillRect(0, 0, W, H);
   }
 
-  // ── BLOOM: warm cinematic optical glow ────────────────────
-  // All gradients positioned at / beyond the dark-light boundary.
-  // mix-blend-mode:screen (on canvas CSS) makes them glow on darkness.
-  function drawBloom(x, y, orbR, spotR, ts) {
+  // ── BLOOM: warm cinematic optical glow at boundary ─────────
+  // mix-blend-mode:screen on canvas → bloom visible only over darkness
+  function drawBloom(x, y, ctrlR, spotR, ts) {
     bCtx.clearRect(0, 0, W, H);
 
     const s       = ts * 0.001;
     const breathe = 1 + 0.024 * Math.sin(s * 0.82 + 0.5);
     const flicker = 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(s * 1.31) * Math.cos(s * 0.86));
 
-    // Corona — peaks right at the transition boundary
-    const cIn  = spotR * 0.60 * breathe;
-    const cOut = spotR * 1.12 * breathe;
-    const corona = bCtx.createRadialGradient(x, y, cIn, x, y, cOut);
+    // Corona: peaks at the dark→light boundary
+    const corona = bCtx.createRadialGradient(
+      x, y, spotR * 0.60 * breathe,
+      x, y, spotR * 1.12 * breathe
+    );
     corona.addColorStop(0.00, 'rgba(0,0,0,0)');
     corona.addColorStop(0.26, `rgba(255,244,214,${(0.52 * flicker).toFixed(3)})`);
     corona.addColorStop(0.50, `rgba(248,233,196,${(0.36 * flicker).toFixed(3)})`);
@@ -445,7 +347,7 @@ html, body {
     bCtx.fillStyle = corona;
     bCtx.fillRect(0, 0, W, H);
 
-    // Wide outer halo — fully in the dark zone
+    // Wide outer halo: fully in darkness, warm amber diffusion
     const halo = bCtx.createRadialGradient(
       x, y, spotR * 0.75 * breathe,
       x, y, spotR * 1.50 * breathe
@@ -458,20 +360,15 @@ html, body {
     bCtx.fillStyle = halo;
     bCtx.fillRect(0, 0, W, H);
 
-    // Horizontal lens streak — anamorphic, asymmetric
-    // Starts at the dark/light boundary, not at center
-    const sOffY  = -spotR * 0.052;
-    const sLen   = spotR * 0.98;
-    const sHalf  = Math.max(orbR * 1.3, 24);
-
+    // Horizontal anamorphic lens streak
+    const sLen  = spotR * 0.98;
+    const sHalf = Math.max(ctrlR * 1.3, 24);
+    const scy   = y - spotR * 0.052;
     bCtx.save();
-    bCtx.translate(x, y + sOffY);
+    bCtx.translate(x, scy);
     bCtx.scale(1, sHalf / sLen);
-    bCtx.translate(-x, -(y + sOffY));
-    const st1 = bCtx.createRadialGradient(
-      x, y + sOffY, spotR * 0.56,
-      x, y + sOffY, sLen
-    );
+    bCtx.translate(-x, -scy);
+    const st1 = bCtx.createRadialGradient(x, scy, spotR * 0.56, x, scy, sLen);
     st1.addColorStop(0.00, 'rgba(0,0,0,0)');
     st1.addColorStop(0.16, `rgba(255,253,238,${(0.42 * flicker).toFixed(3)})`);
     st1.addColorStop(0.44, `rgba(248,240,216,${(0.22 * flicker).toFixed(3)})`);
@@ -481,19 +378,15 @@ html, body {
     bCtx.fillRect(0, 0, W, H);
     bCtx.restore();
 
-    // Vertical ghost streak — faint, offset right
-    const vOffX  = spotR * 0.074;
-    const vLen   = spotR * 0.72;
-    const vHalf  = Math.max(orbR * 0.58, 15);
-
+    // Vertical ghost streak: faint, slightly offset
+    const vLen  = spotR * 0.72;
+    const vHalf = Math.max(ctrlR * 0.58, 15);
+    const scx   = x + spotR * 0.074;
     bCtx.save();
-    bCtx.translate(x + vOffX, y);
+    bCtx.translate(scx, y);
     bCtx.scale(vHalf / vLen, 1);
-    bCtx.translate(-(x + vOffX), -y);
-    const st2 = bCtx.createRadialGradient(
-      x + vOffX, y, spotR * 0.48,
-      x + vOffX, y, vLen
-    );
+    bCtx.translate(-scx, -y);
+    const st2 = bCtx.createRadialGradient(scx, y, spotR * 0.48, scx, y, vLen);
     st2.addColorStop(0.00, 'rgba(0,0,0,0)');
     st2.addColorStop(0.22, `rgba(255,250,226,${(0.22 * flicker).toFixed(3)})`);
     st2.addColorStop(0.56, `rgba(240,228,202,${(0.11 * flicker).toFixed(3)})`);
@@ -502,11 +395,9 @@ html, body {
     bCtx.fillRect(0, 0, W, H);
     bCtx.restore();
 
-    // Slow optical pulse — flicker at the very edge of the beam
+    // Slow edge pulse: irregular organic flicker at beam boundary
     const pulse = Math.abs(Math.sin(s * 0.43)) * Math.abs(Math.cos(s * 0.67));
-    const edgeR1 = spotR * 0.78;
-    const edgeR2 = spotR * 1.02;
-    const edge   = bCtx.createRadialGradient(x, y, edgeR1, x, y, edgeR2);
+    const edge  = bCtx.createRadialGradient(x, y, spotR * 0.78, x, y, spotR * 1.02);
     edge.addColorStop(0.0, 'rgba(0,0,0,0)');
     edge.addColorStop(0.5, `rgba(255,248,226,${(0.18 * pulse).toFixed(3)})`);
     edge.addColorStop(1.0, 'rgba(0,0,0,0)');
@@ -529,21 +420,22 @@ html, body {
     dy   = lerp(dy,   ty,   ep);
     ddep = lerp(ddep, tdep, ed);
 
-    const orbDiam = lerp(ORB_MIN, ORB_MAX, ddep);
-    const orbR    = orbDiam * 0.5;
-    const spotR   = DIAG * lerp(SPOT_FAR, SPOT_NEAR, ddep);
+    // depth → controller size (larger = closer) and spotlight radius (larger = tighter)
+    const ctrlSize = lerp(CTRL_MIN, CTRL_MAX, ddep);
+    const ctrlR    = ctrlSize * 0.5;
+    const spotR    = DIAG * lerp(SPOT_FAR, SPOT_NEAR, ddep);
 
-    drawMask(dx, dy, orbR, spotR, ts);
-    drawBloom(dx, dy, orbR, spotR, ts);
+    drawMask(dx, dy, ctrlR, spotR, ts);
+    drawBloom(dx, dy, ctrlR, spotR, ts);
 
-    // Refresh grain every 2 frames → 30fps rolling film grain feel
+    // Grain refreshes every 2 frames → 30fps rolling analog texture
     if (frameCount % 2 === 0) refreshGrain();
     drawGrain();
 
-    // Orb: GPU transform only — no layout thrash
-    orbEl.style.transform = `translate3d(${(dx - orbR).toFixed(2)}px,${(dy - orbR).toFixed(2)}px,0)`;
-    orbEl.style.width     = orbDiam.toFixed(1) + 'px';
-    orbEl.style.height    = orbDiam.toFixed(1) + 'px';
+    // Controller: GPU transform only — no layout thrash
+    ctrlEl.style.transform = `translate3d(${(dx - ctrlR).toFixed(2)}px,${(dy - ctrlR).toFixed(2)}px,0)`;
+    ctrlEl.style.width     = ctrlSize.toFixed(1) + 'px';
+    ctrlEl.style.height    = ctrlSize.toFixed(1) + 'px';
 
     requestAnimationFrame(frame);
   }
