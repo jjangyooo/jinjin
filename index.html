@@ -15,7 +15,7 @@ html, body {
   cursor: none;
 }
 
-/* ── POSTER: imageA.png, fullscreen, never altered ── */
+/* imageA.png: fullscreen poster, never altered */
 #poster {
   position: fixed;
   inset: 0;
@@ -34,7 +34,7 @@ html, body {
   -webkit-user-drag: none;
 }
 
-/* ── DARKNESS: near-black overlay, spotlight punched through ── */
+/* Darkness: covers everything; spotlight hole is punched from imageB's boundary */
 #darkness {
   position: fixed;
   inset: 0;
@@ -42,7 +42,7 @@ html, body {
   pointer-events: none;
 }
 
-/* ── BLOOM: warm halo at the boundary, screen-blended ── */
+/* Bloom: warm optical glow, screen-blended so it only illuminates darkness */
 #bloom {
   position: fixed;
   inset: 0;
@@ -51,7 +51,7 @@ html, body {
   mix-blend-mode: screen;
 }
 
-/* ── GRAIN: analog film texture ── */
+/* Film grain */
 #grain {
   position: fixed;
   inset: 0;
@@ -61,7 +61,7 @@ html, body {
   opacity: 0.18;
 }
 
-/* ── VIGNETTE: deepens screen corners ── */
+/* Edge vignette */
 #vignette {
   position: fixed;
   inset: 0;
@@ -76,7 +76,7 @@ html, body {
   );
 }
 
-/* ── CONTROLLER: imageB.png, follows cursor, scale = distance ── */
+/* imageB.png: the optical controller — the ONLY moving object */
 #controller {
   position: fixed;
   top: 0;
@@ -93,13 +93,13 @@ html, body {
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
-  /* difference: appears white-on-dark over darkness,
-     inverts naturally where spotlight reveals the bright poster */
-  mix-blend-mode: difference;
-  opacity: 0.58;
+  /* Invert + screen: imageB glows as luminous white over darkness,
+     making it visibly the object that controls the light */
+  filter: invert(1);
+  mix-blend-mode: screen;
+  opacity: 0.78;
 }
 
-/* ── INTRO ── */
 #intro {
   position: fixed;
   inset: 0;
@@ -109,7 +109,6 @@ html, body {
   transition: opacity 2.6s cubic-bezier(0.42, 0, 0.18, 1);
 }
 
-/* ── HINT ── */
 #hint {
   position: fixed;
   bottom: 20px;
@@ -129,28 +128,21 @@ html, body {
 </head>
 <body>
 
-<!-- Layer 1: poster artwork, exactly as provided -->
 <div id="poster">
   <img src="imageA.png" alt="">
 </div>
 
-<!-- Layer 2+3: darkness + bloom canvases -->
 <canvas id="darkness"></canvas>
 <canvas id="bloom"></canvas>
-
-<!-- Layer 4: film grain -->
 <canvas id="grain"></canvas>
-
-<!-- Layer 5: edge vignette -->
 <div id="vignette"></div>
 
-<!-- Layer 6: spotlight controller — imageB.png, the only moving element -->
 <div id="controller">
   <img src="imageB.png" alt="">
 </div>
 
 <div id="intro"></div>
-<div id="hint">Move cursor &ensp;·&ensp; Scroll to adjust distance</div>
+<div id="hint">Move cursor &ensp;&middot;&ensp; Scroll to adjust distance</div>
 
 <script>
 (function () {
@@ -167,23 +159,23 @@ html, body {
   const bCtx = bloomCvs.getContext('2d');
   const gCtx = grainCvs.getContext('2d');
 
-  // ── Tuning ────────────────────────────────────────────────
-  // Scroll makes imageB bigger (closer) or smaller (farther).
-  // Bigger imageB = tighter spotlight. Smaller = wider spread.
-  const CTRL_MIN  = 70;    // px — controller at smallest (far)
-  const CTRL_MAX  = 310;   // px — controller at largest (close)
-  const SPOT_WIDE  = 0.60; // spotlight radius / diagonal — far
-  const SPOT_TIGHT = 0.08; // spotlight radius / diagonal — close
+  // imageB size range (px). Larger = physically closer = tighter spotlight.
+  const CTRL_MIN   = 56;
+  const CTRL_MAX   = 250;
+  // Spotlight radius as fraction of screen diagonal.
+  // spotR is always >= ctrlR * 1.5 so projection beyond lens is always visible.
+  const SPOT_WIDE  = 0.58;
+  const SPOT_TIGHT = 0.13;
   const EASE_POS   = 0.17;
   const EASE_DEPTH = 0.09;
 
   let W, H, DIAG;
-  let tx, ty, tdepth = 0.45;
-  let sx, sy, sdepth = 0.45;
+  let tx, ty, tdepth = 0.42;
+  let sx, sy, sdepth = 0.42;
   let hintDone = false;
-  let fc = 0; // frame counter
+  let fc = 0;
 
-  // ── Film grain ────────────────────────────────────────────
+  // ── Film grain tile ───────────────────────────────────────
   const GS    = 256;
   const gTile = document.createElement('canvas');
   gTile.width = gTile.height = GS;
@@ -194,9 +186,9 @@ html, body {
     const d = gData.data;
     for (let i = 0; i < d.length; i += 4) {
       const v = Math.random() * 255 | 0;
-      d[i]   = Math.min(255, v + 8);  // warm tint R
+      d[i]   = Math.min(255, v + 8);
       d[i+1] = v;
-      d[i+2] = Math.max(0,   v - 6);  // cool tint B
+      d[i+2] = Math.max(0,   v - 6);
       d[i+3] = 26;
     }
     gX.putImageData(gData, 0, 0);
@@ -232,7 +224,6 @@ html, body {
     if (!hintDone) { hintEl.style.opacity = '0'; hintDone = true; }
   });
 
-  // Scroll: deeper = imageB larger = spotlight tighter
   document.addEventListener('wheel', e => {
     tdepth = Math.max(0, Math.min(1, tdepth + e.deltaY * 0.0008));
     e.preventDefault();
@@ -246,120 +237,141 @@ html, body {
 
   setTimeout(() => { hintEl.style.opacity = '0'; }, 4500);
 
-  // Intro: starts full black, fades like a projector lamp warming up
   setTimeout(() => {
     introEl.style.opacity = '0';
     introEl.addEventListener('transitionend', () => introEl.remove(), { once: true });
   }, 160);
 
-  // ── Helpers ───────────────────────────────────────────────
   const lerp = (a, b, t) => a + (b - a) * t;
-  const fi   = (f, dt) => 1 - Math.pow(1 - f, dt * 60); // framerate-independent easing
+  const fi   = (f, dt) => 1 - Math.pow(1 - f, dt * 60);
 
   // ── DARKNESS + SPOTLIGHT ───────────────────────────────────
-  // Three offset radial gradients create the organic, non-perfect edge.
-  // destination-out punches the hole through the darkness.
+  // Critical design: the revealed area originates FROM imageB's edge.
+  //
+  // Step 1 — hard clear circle at exactly ctrlR:
+  //   The area directly under imageB is always fully revealed.
+  //   This makes imageB feel like an aperture/lens that opens the darkness.
+  //
+  // Step 2 — gradual projection falloff from ctrlR outward to spotR:
+  //   Light "projects" from imageB into the surrounding darkness.
+  //   Organic drift on the outer edge makes it feel physical, not digital.
+  //
+  // When imageB scales up: ctrlR grows → spotR grows proportionally →
+  //   the whole system tightens; the causal link is direct and obvious.
   function drawDarkness(x, y, ctrlR, spotR, t) {
     dCtx.clearRect(0, 0, W, H);
 
     dCtx.globalCompositeOperation = 'source-over';
-    dCtx.fillStyle = 'rgba(4,4,7,0.984)';
+    dCtx.fillStyle = 'rgba(4,4,7,0.986)';
     dCtx.fillRect(0, 0, W, H);
 
     dCtx.globalCompositeOperation = 'destination-out';
 
-    const s = t * 0.001;
-    const breathe = 1 + 0.024 * Math.sin(s * 0.76);
+    // — Step 1: hard clear under imageB (the aperture) —
+    dCtx.beginPath();
+    dCtx.arc(x, y, ctrlR, 0, Math.PI * 2);
+    dCtx.fillStyle = 'rgba(0,0,0,1)';
+    dCtx.fill();
 
-    // Slow multi-axis drift gives the edge organic imperfection
-    const a1x = Math.sin(s * 0.61) * 5.0 + Math.cos(s * 1.04) * 2.2;
-    const a1y = Math.cos(s * 0.52) * 5.6 + Math.sin(s * 0.88) * 2.0;
-    const a2x = Math.sin(s * 0.84 + 1.3) * 4.4 + Math.cos(s * 0.56 + 0.7) * 2.6;
-    const a2y = Math.cos(s * 0.68 + 0.8) * 3.6 + Math.sin(s * 1.06 + 1.6) * 2.4;
-    const a3x = Math.cos(s * 0.44 + 0.5) * 3.2;
-    const a3y = Math.sin(s * 0.57 + 1.8) * 3.8;
+    // — Step 2: light projection beyond imageB's perimeter —
+    const s       = t * 0.001;
+    const breathe = 1 + 0.022 * Math.sin(s * 0.74);
 
-    // Primary cone: flat-bright center, sharp theatrical falloff
+    // Organic drift only on the outer radius — inner stays fixed at imageB edge
+    const a1x = Math.sin(s * 0.59) * 5.2 + Math.cos(s * 1.02) * 2.4;
+    const a1y = Math.cos(s * 0.51) * 5.8 + Math.sin(s * 0.86) * 2.2;
+    const a2x = Math.sin(s * 0.82 + 1.2) * 4.6;
+    const a2y = Math.cos(s * 0.66 + 0.7) * 3.8;
+    const a3x = Math.cos(s * 0.43 + 0.4) * 3.4;
+    const a3y = Math.sin(s * 0.55 + 1.7) * 4.0;
+
+    // Primary: inner fixed at ctrlR, outer drifts organically
     const g1 = dCtx.createRadialGradient(
-      x + a1x * 0.16, y + a1y * 0.16, ctrlR * 0.06,
-      x + a1x * 0.05, y + a1y * 0.05, spotR * breathe
+      x, y, ctrlR,
+      x + a1x * 0.08, y + a1y * 0.08, spotR * breathe
     );
-    g1.addColorStop(0.00, 'rgba(0,0,0,1.00)');
-    g1.addColorStop(0.54, 'rgba(0,0,0,0.97)');
-    g1.addColorStop(0.73, 'rgba(0,0,0,0.70)');
-    g1.addColorStop(0.85, 'rgba(0,0,0,0.33)');
-    g1.addColorStop(0.93, 'rgba(0,0,0,0.09)');
-    g1.addColorStop(0.98, 'rgba(0,0,0,0.01)');
+    g1.addColorStop(0.00, 'rgba(0,0,0,0.94)');
+    g1.addColorStop(0.18, 'rgba(0,0,0,0.72)');
+    g1.addColorStop(0.42, 'rgba(0,0,0,0.36)');
+    g1.addColorStop(0.68, 'rgba(0,0,0,0.10)');
+    g1.addColorStop(0.86, 'rgba(0,0,0,0.02)');
     g1.addColorStop(1.00, 'rgba(0,0,0,0.00)');
     dCtx.fillStyle = g1;
     dCtx.fillRect(0, 0, W, H);
 
-    // Secondary: offset, blurs the edge differently
+    // Secondary: irregular edge, slightly different drift axis
     const g2 = dCtx.createRadialGradient(
-      x + a2x * 0.36, y + a2y * 0.36, ctrlR * 0.04,
-      x + a2x * 0.11, y + a2y * 0.11, spotR * 0.79 * breathe
+      x, y, ctrlR,
+      x + a2x * 0.13, y + a2y * 0.13, spotR * 0.82 * breathe
     );
-    g2.addColorStop(0.00, 'rgba(0,0,0,0.42)');
-    g2.addColorStop(0.48, 'rgba(0,0,0,0.20)');
-    g2.addColorStop(0.78, 'rgba(0,0,0,0.05)');
+    g2.addColorStop(0.00, 'rgba(0,0,0,0.38)');
+    g2.addColorStop(0.44, 'rgba(0,0,0,0.16)');
+    g2.addColorStop(0.78, 'rgba(0,0,0,0.04)');
     g2.addColorStop(1.00, 'rgba(0,0,0,0.00)');
     dCtx.fillStyle = g2;
     dCtx.fillRect(0, 0, W, H);
 
-    // Tertiary: slow breathing, final edge irregularity
+    // Tertiary: slow breathing, final edge softness
     const g3 = dCtx.createRadialGradient(
-      x + a3x * 0.28, y + a3y * 0.28, ctrlR * 0.03,
-      x + a3x * 0.09, y + a3y * 0.09,
-      spotR * 0.86 * (1 + 0.016 * Math.cos(s * 0.93))
+      x, y, ctrlR,
+      x + a3x * 0.10, y + a3y * 0.10,
+      spotR * 0.90 * (1 + 0.015 * Math.cos(s * 0.91))
     );
-    g3.addColorStop(0.00, 'rgba(0,0,0,0.20)');
-    g3.addColorStop(0.60, 'rgba(0,0,0,0.08)');
-    g3.addColorStop(0.90, 'rgba(0,0,0,0.02)');
+    g3.addColorStop(0.00, 'rgba(0,0,0,0.18)');
+    g3.addColorStop(0.52, 'rgba(0,0,0,0.07)');
+    g3.addColorStop(0.88, 'rgba(0,0,0,0.01)');
     g3.addColorStop(1.00, 'rgba(0,0,0,0.00)');
     dCtx.fillStyle = g3;
     dCtx.fillRect(0, 0, W, H);
 
-    // Slight center dimming: projected light, not screen glow
+    // Restore — subtle center restraint so light reads as projected
     dCtx.globalCompositeOperation = 'source-over';
-    const gc = dCtx.createRadialGradient(x, y, 0, x, y, ctrlR * 2.4);
-    gc.addColorStop(0.0, 'rgba(4,4,7,0.16)');
+    const gc = dCtx.createRadialGradient(x, y, 0, x, y, ctrlR * 0.75);
+    gc.addColorStop(0.0, 'rgba(4,4,7,0.13)');
     gc.addColorStop(1.0, 'rgba(4,4,7,0.00)');
     dCtx.fillStyle = gc;
     dCtx.fillRect(0, 0, W, H);
   }
 
   // ── BLOOM ─────────────────────────────────────────────────
-  // Warm amber glow concentrated at the dark→light boundary.
-  // mix-blend-mode:screen means it only glows where there's darkness.
-  function drawBloom(x, y, spotR, t) {
+  // Two zones, both anchored to imageB's perimeter (ctrlR):
+  //
+  // 1. Rim glow: tight halo exactly at ctrlR — makes the lens/aperture
+  //    edge visibly luminous, directly connecting imageB to the light.
+  //
+  // 2. Projection bloom: warm amber spreading FROM ctrlR outward —
+  //    the "spill" of light beyond the aperture into the darkness.
+  function drawBloom(x, y, ctrlR, spotR, t) {
     bCtx.clearRect(0, 0, W, H);
 
     const s       = t * 0.001;
-    const breathe = 1 + 0.020 * Math.sin(s * 0.76 + 0.4);
-    const flicker = 0.80 + 0.20 * (0.5 + 0.5 * Math.sin(s * 1.18) * Math.cos(s * 0.74));
+    const breathe = 1 + 0.018 * Math.sin(s * 0.74 + 0.4);
+    const flicker = 0.80 + 0.20 * (0.5 + 0.5 * Math.sin(s * 1.16) * Math.cos(s * 0.72));
 
-    // Corona: peaks exactly at the dark↔light edge
-    const cr = bCtx.createRadialGradient(
-      x, y, spotR * 0.62 * breathe,
-      x, y, spotR * 1.08 * breathe
-    );
-    cr.addColorStop(0.00, 'rgba(0,0,0,0)');
-    cr.addColorStop(0.28, `rgba(255,242,208,${(0.46 * flicker).toFixed(3)})`);
-    cr.addColorStop(0.54, `rgba(246,228,186,${(0.30 * flicker).toFixed(3)})`);
-    cr.addColorStop(0.78, `rgba(230,212,170,${(0.13 * flicker).toFixed(3)})`);
+    // Rim glow: luminous halo at imageB's exact circular boundary
+    const rim = bCtx.createRadialGradient(x, y, ctrlR * 0.76, x, y, ctrlR * 1.38);
+    rim.addColorStop(0.00, 'rgba(0,0,0,0)');
+    rim.addColorStop(0.38, `rgba(255,252,232,${(0.52 * flicker).toFixed(3)})`);
+    rim.addColorStop(0.65, `rgba(255,246,218,${(0.32 * flicker).toFixed(3)})`);
+    rim.addColorStop(1.00, 'rgba(0,0,0,0)');
+    bCtx.fillStyle = rim;
+    bCtx.fillRect(0, 0, W, H);
+
+    // Projection bloom: from imageB edge into the dark zone beyond
+    const cr = bCtx.createRadialGradient(x, y, ctrlR, x, y, spotR * 1.18 * breathe);
+    cr.addColorStop(0.00, `rgba(255,244,212,${(0.46 * flicker).toFixed(3)})`);
+    cr.addColorStop(0.18, `rgba(252,240,200,${(0.32 * flicker).toFixed(3)})`);
+    cr.addColorStop(0.44, `rgba(244,228,184,${(0.17 * flicker).toFixed(3)})`);
+    cr.addColorStop(0.70, `rgba(230,212,166,${(0.07 * flicker).toFixed(3)})`);
     cr.addColorStop(1.00, 'rgba(0,0,0,0)');
     bCtx.fillStyle = cr;
     bCtx.fillRect(0, 0, W, H);
 
-    // Outer halo: diffuse amber glow in the dark zone beyond the beam
-    const hl = bCtx.createRadialGradient(
-      x, y, spotR * 0.80 * breathe,
-      x, y, spotR * 1.46 * breathe
-    );
+    // Outer ambient: diffuse amber far in the dark zone
+    const hl = bCtx.createRadialGradient(x, y, spotR * 0.78 * breathe, x, y, spotR * 1.52 * breathe);
     hl.addColorStop(0.00, 'rgba(0,0,0,0)');
-    hl.addColorStop(0.24, `rgba(255,242,210,${(0.24 * flicker).toFixed(3)})`);
-    hl.addColorStop(0.52, `rgba(238,220,180,${(0.12 * flicker).toFixed(3)})`);
-    hl.addColorStop(0.82, `rgba(212,194,152,${(0.05 * flicker).toFixed(3)})`);
+    hl.addColorStop(0.26, `rgba(255,242,210,${(0.18 * flicker).toFixed(3)})`);
+    hl.addColorStop(0.58, `rgba(238,220,178,${(0.08 * flicker).toFixed(3)})`);
     hl.addColorStop(1.00, 'rgba(0,0,0,0)');
     bCtx.fillStyle = hl;
     bCtx.fillRect(0, 0, W, H);
@@ -380,18 +392,18 @@ html, body {
     sy     = lerp(sy,     ty,     ep);
     sdepth = lerp(sdepth, tdepth, ed);
 
-    // Depth → controller size (visual feedback) and spotlight radius
     const ctrlSize = lerp(CTRL_MIN, CTRL_MAX, sdepth);
     const ctrlR    = ctrlSize * 0.5;
-    const spotR    = DIAG * lerp(SPOT_WIDE, SPOT_TIGHT, sdepth);
+    // Guarantee spotR always exceeds ctrlR enough to show visible projection
+    const spotR    = Math.max(ctrlR * 1.55, DIAG * lerp(SPOT_WIDE, SPOT_TIGHT, sdepth));
 
     drawDarkness(sx, sy, ctrlR, spotR, ts);
-    drawBloom(sx, sy, spotR, ts);
+    drawBloom(sx, sy, ctrlR, spotR, ts);
 
     if (fc % 2 === 0) refreshGrain();
     drawGrain();
 
-    // GPU transform only — no style.left/top
+    // GPU transform only
     ctrlEl.style.transform = `translate3d(${(sx - ctrlR).toFixed(1)}px,${(sy - ctrlR).toFixed(1)}px,0)`;
     ctrlEl.style.width     = ctrlSize.toFixed(0) + 'px';
     ctrlEl.style.height    = ctrlSize.toFixed(0) + 'px';
