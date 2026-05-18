@@ -87,8 +87,9 @@ html, body {
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
-  mix-blend-mode: difference;
-  opacity: 0.58;
+  filter: invert(1);
+  mix-blend-mode: screen;
+  opacity: 0.78;
 }
 
 #intro {
@@ -150,16 +151,16 @@ html, body {
   const bCtx = bloomCvs.getContext('2d');
   const gCtx = grainCvs.getContext('2d');
 
-  const CTRL_MIN   = 70;
-  const CTRL_MAX   = 310;
-  const SPOT_WIDE  = 0.60;
-  const SPOT_TIGHT = 0.08;
+  const CTRL_MIN   = 56;
+  const CTRL_MAX   = 250;
+  const SPOT_WIDE  = 0.58;
+  const SPOT_TIGHT = 0.13;
   const EASE_POS   = 0.17;
   const EASE_DEPTH = 0.09;
 
   let W, H, DIAG;
-  let tx, ty, tdepth = 0.45;
-  let sx, sy, sdepth = 0.45;
+  let tx, ty, tdepth = 0.42;
+  let sx, sy, sdepth = 0.42;
   let hintDone = false;
   let fc = 0;
 
@@ -234,93 +235,98 @@ html, body {
     dCtx.clearRect(0, 0, W, H);
 
     dCtx.globalCompositeOperation = 'source-over';
-    dCtx.fillStyle = 'rgba(4,4,7,0.984)';
+    dCtx.fillStyle = 'rgba(4,4,7,0.986)';
     dCtx.fillRect(0, 0, W, H);
 
     dCtx.globalCompositeOperation = 'destination-out';
 
-    const s = t * 0.001;
-    const breathe = 1 + 0.024 * Math.sin(s * 0.76);
+    // Hard clear exactly under imageB — the aperture
+    dCtx.beginPath();
+    dCtx.arc(x, y, ctrlR, 0, Math.PI * 2);
+    dCtx.fillStyle = 'rgba(0,0,0,1)';
+    dCtx.fill();
 
-    const a1x = Math.sin(s * 0.61) * 5.0 + Math.cos(s * 1.04) * 2.2;
-    const a1y = Math.cos(s * 0.52) * 5.6 + Math.sin(s * 0.88) * 2.0;
-    const a2x = Math.sin(s * 0.84 + 1.3) * 4.4 + Math.cos(s * 0.56 + 0.7) * 2.6;
-    const a2y = Math.cos(s * 0.68 + 0.8) * 3.6 + Math.sin(s * 1.06 + 1.6) * 2.4;
-    const a3x = Math.cos(s * 0.44 + 0.5) * 3.2;
-    const a3y = Math.sin(s * 0.57 + 1.8) * 3.8;
+    const s       = t * 0.001;
+    const breathe = 1 + 0.022 * Math.sin(s * 0.74);
+    const a1x = Math.sin(s * 0.59) * 5.2 + Math.cos(s * 1.02) * 2.4;
+    const a1y = Math.cos(s * 0.51) * 5.8 + Math.sin(s * 0.86) * 2.2;
+    const a2x = Math.sin(s * 0.82 + 1.2) * 4.6;
+    const a2y = Math.cos(s * 0.66 + 0.7) * 3.8;
+    const a3x = Math.cos(s * 0.43 + 0.4) * 3.4;
+    const a3y = Math.sin(s * 0.55 + 1.7) * 4.0;
 
     const g1 = dCtx.createRadialGradient(
-      x + a1x * 0.16, y + a1y * 0.16, ctrlR * 0.06,
-      x + a1x * 0.05, y + a1y * 0.05, spotR * breathe
+      x, y, ctrlR,
+      x + a1x * 0.08, y + a1y * 0.08, spotR * breathe
     );
-    g1.addColorStop(0.00, 'rgba(0,0,0,1.00)');
-    g1.addColorStop(0.54, 'rgba(0,0,0,0.97)');
-    g1.addColorStop(0.73, 'rgba(0,0,0,0.70)');
-    g1.addColorStop(0.85, 'rgba(0,0,0,0.33)');
-    g1.addColorStop(0.93, 'rgba(0,0,0,0.09)');
-    g1.addColorStop(0.98, 'rgba(0,0,0,0.01)');
+    g1.addColorStop(0.00, 'rgba(0,0,0,0.94)');
+    g1.addColorStop(0.18, 'rgba(0,0,0,0.72)');
+    g1.addColorStop(0.42, 'rgba(0,0,0,0.36)');
+    g1.addColorStop(0.68, 'rgba(0,0,0,0.10)');
+    g1.addColorStop(0.86, 'rgba(0,0,0,0.02)');
     g1.addColorStop(1.00, 'rgba(0,0,0,0.00)');
     dCtx.fillStyle = g1;
     dCtx.fillRect(0, 0, W, H);
 
     const g2 = dCtx.createRadialGradient(
-      x + a2x * 0.36, y + a2y * 0.36, ctrlR * 0.04,
-      x + a2x * 0.11, y + a2y * 0.11, spotR * 0.79 * breathe
+      x, y, ctrlR,
+      x + a2x * 0.13, y + a2y * 0.13, spotR * 0.82 * breathe
     );
-    g2.addColorStop(0.00, 'rgba(0,0,0,0.42)');
-    g2.addColorStop(0.48, 'rgba(0,0,0,0.20)');
-    g2.addColorStop(0.78, 'rgba(0,0,0,0.05)');
+    g2.addColorStop(0.00, 'rgba(0,0,0,0.38)');
+    g2.addColorStop(0.44, 'rgba(0,0,0,0.16)');
+    g2.addColorStop(0.78, 'rgba(0,0,0,0.04)');
     g2.addColorStop(1.00, 'rgba(0,0,0,0.00)');
     dCtx.fillStyle = g2;
     dCtx.fillRect(0, 0, W, H);
 
     const g3 = dCtx.createRadialGradient(
-      x + a3x * 0.28, y + a3y * 0.28, ctrlR * 0.03,
-      x + a3x * 0.09, y + a3y * 0.09,
-      spotR * 0.86 * (1 + 0.016 * Math.cos(s * 0.93))
+      x, y, ctrlR,
+      x + a3x * 0.10, y + a3y * 0.10,
+      spotR * 0.90 * (1 + 0.015 * Math.cos(s * 0.91))
     );
-    g3.addColorStop(0.00, 'rgba(0,0,0,0.20)');
-    g3.addColorStop(0.60, 'rgba(0,0,0,0.08)');
-    g3.addColorStop(0.90, 'rgba(0,0,0,0.02)');
+    g3.addColorStop(0.00, 'rgba(0,0,0,0.18)');
+    g3.addColorStop(0.52, 'rgba(0,0,0,0.07)');
+    g3.addColorStop(0.88, 'rgba(0,0,0,0.01)');
     g3.addColorStop(1.00, 'rgba(0,0,0,0.00)');
     dCtx.fillStyle = g3;
     dCtx.fillRect(0, 0, W, H);
 
     dCtx.globalCompositeOperation = 'source-over';
-    const gc = dCtx.createRadialGradient(x, y, 0, x, y, ctrlR * 2.4);
-    gc.addColorStop(0.0, 'rgba(4,4,7,0.16)');
+    const gc = dCtx.createRadialGradient(x, y, 0, x, y, ctrlR * 0.75);
+    gc.addColorStop(0.0, 'rgba(4,4,7,0.13)');
     gc.addColorStop(1.0, 'rgba(4,4,7,0.00)');
     dCtx.fillStyle = gc;
     dCtx.fillRect(0, 0, W, H);
   }
 
-  function drawBloom(x, y, spotR, t) {
+  function drawBloom(x, y, ctrlR, spotR, t) {
     bCtx.clearRect(0, 0, W, H);
 
     const s       = t * 0.001;
-    const breathe = 1 + 0.020 * Math.sin(s * 0.76 + 0.4);
-    const flicker = 0.80 + 0.20 * (0.5 + 0.5 * Math.sin(s * 1.18) * Math.cos(s * 0.74));
+    const breathe = 1 + 0.018 * Math.sin(s * 0.74 + 0.4);
+    const flicker = 0.80 + 0.20 * (0.5 + 0.5 * Math.sin(s * 1.16) * Math.cos(s * 0.72));
 
-    const cr = bCtx.createRadialGradient(
-      x, y, spotR * 0.62 * breathe,
-      x, y, spotR * 1.08 * breathe
-    );
-    cr.addColorStop(0.00, 'rgba(0,0,0,0)');
-    cr.addColorStop(0.28, `rgba(255,242,208,${(0.46 * flicker).toFixed(3)})`);
-    cr.addColorStop(0.54, `rgba(246,228,186,${(0.30 * flicker).toFixed(3)})`);
-    cr.addColorStop(0.78, `rgba(230,212,170,${(0.13 * flicker).toFixed(3)})`);
+    const rim = bCtx.createRadialGradient(x, y, ctrlR * 0.76, x, y, ctrlR * 1.38);
+    rim.addColorStop(0.00, 'rgba(0,0,0,0)');
+    rim.addColorStop(0.38, `rgba(255,252,232,${(0.52 * flicker).toFixed(3)})`);
+    rim.addColorStop(0.65, `rgba(255,246,218,${(0.32 * flicker).toFixed(3)})`);
+    rim.addColorStop(1.00, 'rgba(0,0,0,0)');
+    bCtx.fillStyle = rim;
+    bCtx.fillRect(0, 0, W, H);
+
+    const cr = bCtx.createRadialGradient(x, y, ctrlR, x, y, spotR * 1.18 * breathe);
+    cr.addColorStop(0.00, `rgba(255,244,212,${(0.46 * flicker).toFixed(3)})`);
+    cr.addColorStop(0.18, `rgba(252,240,200,${(0.32 * flicker).toFixed(3)})`);
+    cr.addColorStop(0.44, `rgba(244,228,184,${(0.17 * flicker).toFixed(3)})`);
+    cr.addColorStop(0.70, `rgba(230,212,166,${(0.07 * flicker).toFixed(3)})`);
     cr.addColorStop(1.00, 'rgba(0,0,0,0)');
     bCtx.fillStyle = cr;
     bCtx.fillRect(0, 0, W, H);
 
-    const hl = bCtx.createRadialGradient(
-      x, y, spotR * 0.80 * breathe,
-      x, y, spotR * 1.46 * breathe
-    );
+    const hl = bCtx.createRadialGradient(x, y, spotR * 0.78 * breathe, x, y, spotR * 1.52 * breathe);
     hl.addColorStop(0.00, 'rgba(0,0,0,0)');
-    hl.addColorStop(0.24, `rgba(255,242,210,${(0.24 * flicker).toFixed(3)})`);
-    hl.addColorStop(0.52, `rgba(238,220,180,${(0.12 * flicker).toFixed(3)})`);
-    hl.addColorStop(0.82, `rgba(212,194,152,${(0.05 * flicker).toFixed(3)})`);
+    hl.addColorStop(0.26, `rgba(255,242,210,${(0.18 * flicker).toFixed(3)})`);
+    hl.addColorStop(0.58, `rgba(238,220,178,${(0.08 * flicker).toFixed(3)})`);
     hl.addColorStop(1.00, 'rgba(0,0,0,0)');
     bCtx.fillStyle = hl;
     bCtx.fillRect(0, 0, W, H);
@@ -342,10 +348,10 @@ html, body {
 
     const ctrlSize = lerp(CTRL_MIN, CTRL_MAX, sdepth);
     const ctrlR    = ctrlSize * 0.5;
-    const spotR    = DIAG * lerp(SPOT_WIDE, SPOT_TIGHT, sdepth);
+    const spotR    = Math.max(ctrlR * 1.55, DIAG * lerp(SPOT_WIDE, SPOT_TIGHT, sdepth));
 
     drawDarkness(sx, sy, ctrlR, spotR, ts);
-    drawBloom(sx, sy, spotR, ts);
+    drawBloom(sx, sy, ctrlR, spotR, ts);
 
     if (fc % 2 === 0) refreshGrain();
     drawGrain();
