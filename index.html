@@ -1,16 +1,365 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>3D Node Editor</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #000; }
-    </style>
-    <script type="module" crossorigin src="/jinjin/assets/index-DeCvB0uh.js"></script>
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPOTLIGHT — COMA NOVA</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #060608;
+  cursor: none;
+}
+
+#poster {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#poster img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+#darkness {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+#bloom {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+#grain {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.18;
+}
+
+#vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 78% 72% at 50% 50%,
+    transparent 32%,
+    rgba(4,4,7,0.28) 58%,
+    rgba(4,4,7,0.62) 78%,
+    rgba(4,4,7,0.92) 100%
+  );
+}
+
+#controller {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  pointer-events: none;
+  will-change: transform;
+}
+#controller img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  mix-blend-mode: difference;
+  opacity: 0.58;
+}
+
+#intro {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #060608;
+  pointer-events: none;
+  transition: opacity 2.6s cubic-bezier(0.42, 0, 0.18, 1);
+}
+
+#hint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  color: rgba(255,255,255,0.10);
+  font-family: Georgia, serif;
+  font-size: 9px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  pointer-events: none;
+  transition: opacity 1.8s ease;
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+
+<div id="poster">
+  <img src="imageA.png" alt="">
+</div>
+
+<canvas id="darkness"></canvas>
+<canvas id="bloom"></canvas>
+<canvas id="grain"></canvas>
+<div id="vignette"></div>
+
+<div id="controller">
+  <img src="imageB.png" alt="">
+</div>
+
+<div id="intro"></div>
+<div id="hint">Move cursor &ensp;&middot;&ensp; Scroll to adjust distance</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const darkCvs  = document.getElementById('darkness');
+  const bloomCvs = document.getElementById('bloom');
+  const grainCvs = document.getElementById('grain');
+  const ctrlEl   = document.getElementById('controller');
+  const hintEl   = document.getElementById('hint');
+  const introEl  = document.getElementById('intro');
+
+  const dCtx = darkCvs.getContext('2d');
+  const bCtx = bloomCvs.getContext('2d');
+  const gCtx = grainCvs.getContext('2d');
+
+  const CTRL_MIN   = 70;
+  const CTRL_MAX   = 310;
+  const SPOT_WIDE  = 0.60;
+  const SPOT_TIGHT = 0.08;
+  const EASE_POS   = 0.17;
+  const EASE_DEPTH = 0.09;
+
+  let W, H, DIAG;
+  let tx, ty, tdepth = 0.45;
+  let sx, sy, sdepth = 0.45;
+  let hintDone = false;
+  let fc = 0;
+
+  const GS    = 256;
+  const gTile = document.createElement('canvas');
+  gTile.width = gTile.height = GS;
+  const gX    = gTile.getContext('2d');
+  const gData = gX.createImageData(GS, GS);
+
+  function refreshGrain() {
+    const d = gData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const v = Math.random() * 255 | 0;
+      d[i]   = Math.min(255, v + 8);
+      d[i+1] = v;
+      d[i+2] = Math.max(0,   v - 6);
+      d[i+3] = 26;
+    }
+    gX.putImageData(gData, 0, 0);
+  }
+
+  function drawGrain() {
+    gCtx.clearRect(0, 0, W, H);
+    const ox = Math.random() * GS | 0;
+    const oy = Math.random() * GS | 0;
+    for (let px = -ox; px < W; px += GS)
+      for (let py = -oy; py < H; py += GS)
+        gCtx.drawImage(gTile, px, py);
+  }
+
+  function resize() {
+    W    = window.innerWidth;
+    H    = window.innerHeight;
+    DIAG = Math.hypot(W, H);
+    [darkCvs, bloomCvs, grainCvs].forEach(c => {
+      c.width  = W;
+      c.height = H;
+    });
+    if (tx === undefined) { tx = sx = W * 0.5; ty = sy = H * 0.5; }
+    refreshGrain();
+  }
+  window.addEventListener('resize', resize);
+
+  document.addEventListener('mousemove', e => {
+    tx = e.clientX;
+    ty = e.clientY;
+    if (!hintDone) { hintEl.style.opacity = '0'; hintDone = true; }
+  });
+
+  document.addEventListener('wheel', e => {
+    tdepth = Math.max(0, Math.min(1, tdepth + e.deltaY * 0.0008));
+    e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchmove', e => {
+    tx = e.touches[0].clientX;
+    ty = e.touches[0].clientY;
+    e.preventDefault();
+  }, { passive: false });
+
+  setTimeout(() => { hintEl.style.opacity = '0'; }, 4500);
+
+  setTimeout(() => {
+    introEl.style.opacity = '0';
+    introEl.addEventListener('transitionend', () => introEl.remove(), { once: true });
+  }, 160);
+
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const fi   = (f, dt) => 1 - Math.pow(1 - f, dt * 60);
+
+  function drawDarkness(x, y, ctrlR, spotR, t) {
+    dCtx.clearRect(0, 0, W, H);
+
+    dCtx.globalCompositeOperation = 'source-over';
+    dCtx.fillStyle = 'rgba(4,4,7,0.984)';
+    dCtx.fillRect(0, 0, W, H);
+
+    dCtx.globalCompositeOperation = 'destination-out';
+
+    const s = t * 0.001;
+    const breathe = 1 + 0.024 * Math.sin(s * 0.76);
+
+    const a1x = Math.sin(s * 0.61) * 5.0 + Math.cos(s * 1.04) * 2.2;
+    const a1y = Math.cos(s * 0.52) * 5.6 + Math.sin(s * 0.88) * 2.0;
+    const a2x = Math.sin(s * 0.84 + 1.3) * 4.4 + Math.cos(s * 0.56 + 0.7) * 2.6;
+    const a2y = Math.cos(s * 0.68 + 0.8) * 3.6 + Math.sin(s * 1.06 + 1.6) * 2.4;
+    const a3x = Math.cos(s * 0.44 + 0.5) * 3.2;
+    const a3y = Math.sin(s * 0.57 + 1.8) * 3.8;
+
+    const g1 = dCtx.createRadialGradient(
+      x + a1x * 0.16, y + a1y * 0.16, ctrlR * 0.06,
+      x + a1x * 0.05, y + a1y * 0.05, spotR * breathe
+    );
+    g1.addColorStop(0.00, 'rgba(0,0,0,1.00)');
+    g1.addColorStop(0.54, 'rgba(0,0,0,0.97)');
+    g1.addColorStop(0.73, 'rgba(0,0,0,0.70)');
+    g1.addColorStop(0.85, 'rgba(0,0,0,0.33)');
+    g1.addColorStop(0.93, 'rgba(0,0,0,0.09)');
+    g1.addColorStop(0.98, 'rgba(0,0,0,0.01)');
+    g1.addColorStop(1.00, 'rgba(0,0,0,0.00)');
+    dCtx.fillStyle = g1;
+    dCtx.fillRect(0, 0, W, H);
+
+    const g2 = dCtx.createRadialGradient(
+      x + a2x * 0.36, y + a2y * 0.36, ctrlR * 0.04,
+      x + a2x * 0.11, y + a2y * 0.11, spotR * 0.79 * breathe
+    );
+    g2.addColorStop(0.00, 'rgba(0,0,0,0.42)');
+    g2.addColorStop(0.48, 'rgba(0,0,0,0.20)');
+    g2.addColorStop(0.78, 'rgba(0,0,0,0.05)');
+    g2.addColorStop(1.00, 'rgba(0,0,0,0.00)');
+    dCtx.fillStyle = g2;
+    dCtx.fillRect(0, 0, W, H);
+
+    const g3 = dCtx.createRadialGradient(
+      x + a3x * 0.28, y + a3y * 0.28, ctrlR * 0.03,
+      x + a3x * 0.09, y + a3y * 0.09,
+      spotR * 0.86 * (1 + 0.016 * Math.cos(s * 0.93))
+    );
+    g3.addColorStop(0.00, 'rgba(0,0,0,0.20)');
+    g3.addColorStop(0.60, 'rgba(0,0,0,0.08)');
+    g3.addColorStop(0.90, 'rgba(0,0,0,0.02)');
+    g3.addColorStop(1.00, 'rgba(0,0,0,0.00)');
+    dCtx.fillStyle = g3;
+    dCtx.fillRect(0, 0, W, H);
+
+    dCtx.globalCompositeOperation = 'source-over';
+    const gc = dCtx.createRadialGradient(x, y, 0, x, y, ctrlR * 2.4);
+    gc.addColorStop(0.0, 'rgba(4,4,7,0.16)');
+    gc.addColorStop(1.0, 'rgba(4,4,7,0.00)');
+    dCtx.fillStyle = gc;
+    dCtx.fillRect(0, 0, W, H);
+  }
+
+  function drawBloom(x, y, spotR, t) {
+    bCtx.clearRect(0, 0, W, H);
+
+    const s       = t * 0.001;
+    const breathe = 1 + 0.020 * Math.sin(s * 0.76 + 0.4);
+    const flicker = 0.80 + 0.20 * (0.5 + 0.5 * Math.sin(s * 1.18) * Math.cos(s * 0.74));
+
+    const cr = bCtx.createRadialGradient(
+      x, y, spotR * 0.62 * breathe,
+      x, y, spotR * 1.08 * breathe
+    );
+    cr.addColorStop(0.00, 'rgba(0,0,0,0)');
+    cr.addColorStop(0.28, `rgba(255,242,208,${(0.46 * flicker).toFixed(3)})`);
+    cr.addColorStop(0.54, `rgba(246,228,186,${(0.30 * flicker).toFixed(3)})`);
+    cr.addColorStop(0.78, `rgba(230,212,170,${(0.13 * flicker).toFixed(3)})`);
+    cr.addColorStop(1.00, 'rgba(0,0,0,0)');
+    bCtx.fillStyle = cr;
+    bCtx.fillRect(0, 0, W, H);
+
+    const hl = bCtx.createRadialGradient(
+      x, y, spotR * 0.80 * breathe,
+      x, y, spotR * 1.46 * breathe
+    );
+    hl.addColorStop(0.00, 'rgba(0,0,0,0)');
+    hl.addColorStop(0.24, `rgba(255,242,210,${(0.24 * flicker).toFixed(3)})`);
+    hl.addColorStop(0.52, `rgba(238,220,180,${(0.12 * flicker).toFixed(3)})`);
+    hl.addColorStop(0.82, `rgba(212,194,152,${(0.05 * flicker).toFixed(3)})`);
+    hl.addColorStop(1.00, 'rgba(0,0,0,0)');
+    bCtx.fillStyle = hl;
+    bCtx.fillRect(0, 0, W, H);
+  }
+
+  let lastTs = 0;
+
+  function tick(ts) {
+    const dt = Math.min((ts - lastTs) / 1000, 0.05);
+    lastTs = ts;
+    fc++;
+
+    const ep = fi(EASE_POS,   dt);
+    const ed = fi(EASE_DEPTH, dt);
+
+    sx     = lerp(sx,     tx,     ep);
+    sy     = lerp(sy,     ty,     ep);
+    sdepth = lerp(sdepth, tdepth, ed);
+
+    const ctrlSize = lerp(CTRL_MIN, CTRL_MAX, sdepth);
+    const ctrlR    = ctrlSize * 0.5;
+    const spotR    = DIAG * lerp(SPOT_WIDE, SPOT_TIGHT, sdepth);
+
+    drawDarkness(sx, sy, ctrlR, spotR, ts);
+    drawBloom(sx, sy, spotR, ts);
+
+    if (fc % 2 === 0) refreshGrain();
+    drawGrain();
+
+    ctrlEl.style.transform = `translate3d(${(sx - ctrlR).toFixed(1)}px,${(sy - ctrlR).toFixed(1)}px,0)`;
+    ctrlEl.style.width     = ctrlSize.toFixed(0) + 'px';
+    ctrlEl.style.height    = ctrlSize.toFixed(0) + 'px';
+
+    requestAnimationFrame(tick);
+  }
+
+  resize();
+  requestAnimationFrame(ts => { lastTs = ts; requestAnimationFrame(tick); });
+}());
+</script>
+</body>
 </html>
