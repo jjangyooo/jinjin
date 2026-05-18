@@ -159,15 +159,23 @@ html, body {
   const bCtx = bloomCvs.getContext('2d');
   const gCtx = grainCvs.getContext('2d');
 
-  // imageB size range (px). Larger = physically closer = tighter spotlight.
   const CTRL_MIN   = 56;
   const CTRL_MAX   = 250;
-  // Spotlight radius as fraction of screen diagonal.
-  // spotR is always >= ctrlR * 1.5 so projection beyond lens is always visible.
   const SPOT_WIDE  = 0.58;
   const SPOT_TIGHT = 0.13;
   const EASE_POS   = 0.17;
   const EASE_DEPTH = 0.09;
+
+  // ── Reveal state machine ──────────────────────────────────
+  // sdepth below THRESH → aperture collapse → full poster reveal.
+  // sdepth back above THRESH+HYST → darkness reconstructs.
+  const ST = { SPOTLIGHT: 0, BREAKING: 1, REVEALED: 2, REBUILDING: 3 };
+  const REVEAL_THRESH  = 0.19;  // sdepth trigger point
+  const REVEAL_HYST    = 0.05;  // hysteresis to prevent flicker on re-entry
+  const BREAK_SPEED    = 3.2;   // units/sec — fast (~310ms)
+  const REBUILD_SPEED  = 1.0;   // units/sec — deliberate (~1000ms)
+  let state  = ST.SPOTLIGHT;
+  let breakT = 0;               // 0→1 during BREAKING; 1→0 during REBUILDING
 
   let W, H, DIAG;
   let tx, ty, tdepth = 0.42;
@@ -246,38 +254,36 @@ html, body {
   const fi   = (f, dt) => 1 - Math.pow(1 - f, dt * 60);
 
   // ── DARKNESS + SPOTLIGHT ───────────────────────────────────
-  // Critical design: the revealed area originates FROM imageB's edge.
-  //
-  // Step 1 — hard clear circle at exactly ctrlR:
-  //   The area directly under imageB is always fully revealed.
-  //   This makes imageB feel like an aperture/lens that opens the darkness.
-  //
-  // Step 2 — gradual projection falloff from ctrlR outward to spotR:
-  //   Light "projects" from imageB into the surrounding darkness.
-  //   Organic drift on the outer edge makes it feel physical, not digital.
-  //
-  // When imageB scales up: ctrlR grows → spotR grows proportionally →
-  //   the whole system tightens; the causal link is direct and obvious.
-  function drawDarkness(x, y, ctrlR, spotR, t) {
+  // breakT=0: normal spotlight. breakT→1: iris expands + darkness fades.
+  // Spotlight hole originates FROM imageB's perimeter (ctrlR).
+  function drawDarkness(x, y, ctrlR, spotR, t, bt) {
     dCtx.clearRect(0, 0, W, H);
 
+    // During break: darkness base opacity collapses on a slow-then-sudden curve.
+    // Stays near full until ~50% through, then crashes to zero.
+    const darkEase = bt < 0.5 ? bt * bt * 0.4 : 0.1 + Math.pow((bt - 0.5) * 2, 2.2) * 0.9;
+    const darkBase = 0.986 * (1 - darkEase);
+    if (darkBase < 0.004) { dCtx.clearRect(0, 0, W, H); return; }
+
     dCtx.globalCompositeOperation = 'source-over';
-    dCtx.fillStyle = 'rgba(4,4,7,0.986)';
+    dCtx.fillStyle = `rgba(4,4,7,${darkBase.toFixed(3)})`;
     dCtx.fillRect(0, 0, W, H);
 
     dCtx.globalCompositeOperation = 'destination-out';
 
-    // — Step 1: hard clear under imageB (the aperture) —
+    // During break: spotlight iris rapidly expands outward past screen edge
+    const irisExpand = bt > 0 ? 1 + bt * bt * 14 : 1;
+    const activeSpotR = spotR * irisExpand;
+
+    // Hard clear under imageB (the aperture)
     dCtx.beginPath();
     dCtx.arc(x, y, ctrlR, 0, Math.PI * 2);
     dCtx.fillStyle = 'rgba(0,0,0,1)';
     dCtx.fill();
 
-    // — Step 2: light projection beyond imageB's perimeter —
+    // Light projection beyond imageB's perimeter
     const s       = t * 0.001;
     const breathe = 1 + 0.022 * Math.sin(s * 0.74);
-
-    // Organic drift only on the outer radius — inner stays fixed at imageB edge
     const a1x = Math.sin(s * 0.59) * 5.2 + Math.cos(s * 1.02) * 2.4;
     const a1y = Math.cos(s * 0.51) * 5.8 + Math.sin(s * 0.86) * 2.2;
     const a2x = Math.sin(s * 0.82 + 1.2) * 4.6;
@@ -285,10 +291,9 @@ html, body {
     const a3x = Math.cos(s * 0.43 + 0.4) * 3.4;
     const a3y = Math.sin(s * 0.55 + 1.7) * 4.0;
 
-    // Primary: inner fixed at ctrlR, outer drifts organically
     const g1 = dCtx.createRadialGradient(
       x, y, ctrlR,
-      x + a1x * 0.08, y + a1y * 0.08, spotR * breathe
+      x + a1x * 0.08, y + a1y * 0.08, activeSpotR * breathe
     );
     g1.addColorStop(0.00, 'rgba(0,0,0,0.94)');
     g1.addColorStop(0.18, 'rgba(0,0,0,0.72)');
@@ -299,10 +304,9 @@ html, body {
     dCtx.fillStyle = g1;
     dCtx.fillRect(0, 0, W, H);
 
-    // Secondary: irregular edge, slightly different drift axis
     const g2 = dCtx.createRadialGradient(
       x, y, ctrlR,
-      x + a2x * 0.13, y + a2y * 0.13, spotR * 0.82 * breathe
+      x + a2x * 0.13, y + a2y * 0.13, activeSpotR * 0.82 * breathe
     );
     g2.addColorStop(0.00, 'rgba(0,0,0,0.38)');
     g2.addColorStop(0.44, 'rgba(0,0,0,0.16)');
@@ -311,11 +315,10 @@ html, body {
     dCtx.fillStyle = g2;
     dCtx.fillRect(0, 0, W, H);
 
-    // Tertiary: slow breathing, final edge softness
     const g3 = dCtx.createRadialGradient(
       x, y, ctrlR,
       x + a3x * 0.10, y + a3y * 0.10,
-      spotR * 0.90 * (1 + 0.015 * Math.cos(s * 0.91))
+      activeSpotR * 0.90 * (1 + 0.015 * Math.cos(s * 0.91))
     );
     g3.addColorStop(0.00, 'rgba(0,0,0,0.18)');
     g3.addColorStop(0.52, 'rgba(0,0,0,0.07)');
@@ -324,7 +327,6 @@ html, body {
     dCtx.fillStyle = g3;
     dCtx.fillRect(0, 0, W, H);
 
-    // Restore — subtle center restraint so light reads as projected
     dCtx.globalCompositeOperation = 'source-over';
     const gc = dCtx.createRadialGradient(x, y, 0, x, y, ctrlR * 0.75);
     gc.addColorStop(0.0, 'rgba(4,4,7,0.13)');
@@ -334,47 +336,59 @@ html, body {
   }
 
   // ── BLOOM ─────────────────────────────────────────────────
-  // Two zones, both anchored to imageB's perimeter (ctrlR):
-  //
-  // 1. Rim glow: tight halo exactly at ctrlR — makes the lens/aperture
-  //    edge visibly luminous, directly connecting imageB to the light.
-  //
-  // 2. Projection bloom: warm amber spreading FROM ctrlR outward —
-  //    the "spill" of light beyond the aperture into the darkness.
-  function drawBloom(x, y, ctrlR, spotR, t) {
+  // During BREAKING: burst flash emanates outward from imageB center.
+  // Peak burst at breakT≈0.25 then fades; regular bloom suppressed as breakT→1.
+  function drawBloom(x, y, ctrlR, spotR, t, bt) {
     bCtx.clearRect(0, 0, W, H);
 
     const s       = t * 0.001;
     const breathe = 1 + 0.018 * Math.sin(s * 0.74 + 0.4);
     const flicker = 0.80 + 0.20 * (0.5 + 0.5 * Math.sin(s * 1.16) * Math.cos(s * 0.72));
 
-    // Rim glow: luminous halo at imageB's exact circular boundary
-    const rim = bCtx.createRadialGradient(x, y, ctrlR * 0.76, x, y, ctrlR * 1.38);
-    rim.addColorStop(0.00, 'rgba(0,0,0,0)');
-    rim.addColorStop(0.38, `rgba(255,252,232,${(0.52 * flicker).toFixed(3)})`);
-    rim.addColorStop(0.65, `rgba(255,246,218,${(0.32 * flicker).toFixed(3)})`);
-    rim.addColorStop(1.00, 'rgba(0,0,0,0)');
-    bCtx.fillStyle = rim;
-    bCtx.fillRect(0, 0, W, H);
+    // Regular bloom fades out as break progresses
+    const bloomMul = 1 - Math.min(1, bt * 2.5);
 
-    // Projection bloom: from imageB edge into the dark zone beyond
-    const cr = bCtx.createRadialGradient(x, y, ctrlR, x, y, spotR * 1.18 * breathe);
-    cr.addColorStop(0.00, `rgba(255,244,212,${(0.46 * flicker).toFixed(3)})`);
-    cr.addColorStop(0.18, `rgba(252,240,200,${(0.32 * flicker).toFixed(3)})`);
-    cr.addColorStop(0.44, `rgba(244,228,184,${(0.17 * flicker).toFixed(3)})`);
-    cr.addColorStop(0.70, `rgba(230,212,166,${(0.07 * flicker).toFixed(3)})`);
-    cr.addColorStop(1.00, 'rgba(0,0,0,0)');
-    bCtx.fillStyle = cr;
-    bCtx.fillRect(0, 0, W, H);
+    if (bloomMul > 0.01) {
+      const rim = bCtx.createRadialGradient(x, y, ctrlR * 0.76, x, y, ctrlR * 1.38);
+      rim.addColorStop(0.00, 'rgba(0,0,0,0)');
+      rim.addColorStop(0.38, `rgba(255,252,232,${(0.52 * flicker * bloomMul).toFixed(3)})`);
+      rim.addColorStop(0.65, `rgba(255,246,218,${(0.32 * flicker * bloomMul).toFixed(3)})`);
+      rim.addColorStop(1.00, 'rgba(0,0,0,0)');
+      bCtx.fillStyle = rim;
+      bCtx.fillRect(0, 0, W, H);
 
-    // Outer ambient: diffuse amber far in the dark zone
-    const hl = bCtx.createRadialGradient(x, y, spotR * 0.78 * breathe, x, y, spotR * 1.52 * breathe);
-    hl.addColorStop(0.00, 'rgba(0,0,0,0)');
-    hl.addColorStop(0.26, `rgba(255,242,210,${(0.18 * flicker).toFixed(3)})`);
-    hl.addColorStop(0.58, `rgba(238,220,178,${(0.08 * flicker).toFixed(3)})`);
-    hl.addColorStop(1.00, 'rgba(0,0,0,0)');
-    bCtx.fillStyle = hl;
-    bCtx.fillRect(0, 0, W, H);
+      const cr = bCtx.createRadialGradient(x, y, ctrlR, x, y, spotR * 1.18 * breathe);
+      cr.addColorStop(0.00, `rgba(255,244,212,${(0.46 * flicker * bloomMul).toFixed(3)})`);
+      cr.addColorStop(0.18, `rgba(252,240,200,${(0.32 * flicker * bloomMul).toFixed(3)})`);
+      cr.addColorStop(0.44, `rgba(244,228,184,${(0.17 * flicker * bloomMul).toFixed(3)})`);
+      cr.addColorStop(0.70, `rgba(230,212,166,${(0.07 * flicker * bloomMul).toFixed(3)})`);
+      cr.addColorStop(1.00, 'rgba(0,0,0,0)');
+      bCtx.fillStyle = cr;
+      bCtx.fillRect(0, 0, W, H);
+
+      const hl = bCtx.createRadialGradient(x, y, spotR * 0.78 * breathe, x, y, spotR * 1.52 * breathe);
+      hl.addColorStop(0.00, 'rgba(0,0,0,0)');
+      hl.addColorStop(0.26, `rgba(255,242,210,${(0.18 * flicker * bloomMul).toFixed(3)})`);
+      hl.addColorStop(0.58, `rgba(238,220,178,${(0.08 * flicker * bloomMul).toFixed(3)})`);
+      hl.addColorStop(1.00, 'rgba(0,0,0,0)');
+      bCtx.fillStyle = hl;
+      bCtx.fillRect(0, 0, W, H);
+    }
+
+    // Burst flash: peaks at breakT≈0.22, expands rapidly and fades
+    // Feels like the aperture momentarily overloading with light
+    if (bt > 0 && bt < 0.75) {
+      const burstPeak = Math.sin(Math.min(1, bt / 0.38) * Math.PI); // 0→1→0 arc
+      const burstR    = ctrlR + bt * bt * DIAG * 0.9;               // expands outward
+      const burst = bCtx.createRadialGradient(x, y, 0, x, y, burstR);
+      burst.addColorStop(0.00, `rgba(255,255,248,${(burstPeak * 0.70).toFixed(3)})`);
+      burst.addColorStop(0.12, `rgba(255,252,230,${(burstPeak * 0.52).toFixed(3)})`);
+      burst.addColorStop(0.35, `rgba(255,245,215,${(burstPeak * 0.28).toFixed(3)})`);
+      burst.addColorStop(0.65, `rgba(248,235,195,${(burstPeak * 0.10).toFixed(3)})`);
+      burst.addColorStop(1.00, 'rgba(0,0,0,0)');
+      bCtx.fillStyle = burst;
+      bCtx.fillRect(0, 0, W, H);
+    }
   }
 
   // ── MAIN LOOP ─────────────────────────────────────────────
@@ -392,19 +406,71 @@ html, body {
     sy     = lerp(sy,     ty,     ep);
     sdepth = lerp(sdepth, tdepth, ed);
 
+    // ── State machine ──────────────────────────────────────
+    if (state === ST.SPOTLIGHT && sdepth < REVEAL_THRESH) {
+      state  = ST.BREAKING;
+      breakT = 0;
+    } else if ((state === ST.REVEALED || state === ST.BREAKING) &&
+               sdepth > REVEAL_THRESH + REVEAL_HYST) {
+      state  = ST.REBUILDING;
+      breakT = 1;
+    }
+
+    if (state === ST.BREAKING) {
+      breakT = Math.min(1, breakT + BREAK_SPEED * dt);
+      if (breakT >= 1) state = ST.REVEALED;
+    } else if (state === ST.REBUILDING) {
+      breakT = Math.max(0, breakT - REBUILD_SPEED * dt);
+      if (breakT <= 0) state = ST.SPOTLIGHT;
+    }
+
+    const bt = (state === ST.SPOTLIGHT) ? 0 :
+               (state === ST.REVEALED)  ? 1 : breakT;
+
     const ctrlSize = lerp(CTRL_MIN, CTRL_MAX, sdepth);
     const ctrlR    = ctrlSize * 0.5;
-    // Guarantee spotR always exceeds ctrlR enough to show visible projection
     const spotR    = Math.max(ctrlR * 1.55, DIAG * lerp(SPOT_WIDE, SPOT_TIGHT, sdepth));
 
-    drawDarkness(sx, sy, ctrlR, spotR, ts);
-    drawBloom(sx, sy, ctrlR, spotR, ts);
+    // Skip all canvas drawing when fully revealed (poster is bare)
+    if (bt < 0.999) {
+      drawDarkness(sx, sy, ctrlR, spotR, ts, bt);
+      drawBloom(sx, sy, ctrlR, spotR, ts, bt);
+    } else {
+      dCtx.clearRect(0, 0, W, H);
+      bCtx.clearRect(0, 0, W, H);
+    }
 
     if (fc % 2 === 0) refreshGrain();
+    // Grain only visible in spotlight mode; fades with darkness
+    grainCvs.style.opacity = (1 - Math.min(1, bt * 2)).toFixed(3);
     drawGrain();
 
-    // GPU transform only
-    ctrlEl.style.transform = `translate3d(${(sx - ctrlR).toFixed(1)}px,${(sy - ctrlR).toFixed(1)}px,0)`;
+    // ── imageB controller ──────────────────────────────────
+    // BREAKING: collapses — brief expansion then rapid scale-to-zero
+    // REBUILDING: reappears in second half of rebuild
+    // REVEALED: hidden
+    let cScale = 1, cOpacity = 1;
+    if (bt > 0) {
+      if (bt < 0.28) {
+        // Brief outward snap before collapse (aperture cracking open)
+        cScale   = 1 + bt * 2.0;
+        cOpacity = 1 - bt * 3.2;
+      } else {
+        cScale   = 0;
+        cOpacity = 0;
+      }
+    }
+    // Reappear: during REBUILDING, fade in once breakT < 0.45
+    if (state === ST.REBUILDING && breakT < 0.45) {
+      const reappear = 1 - breakT / 0.45;
+      cOpacity = Math.pow(reappear, 2);
+      cScale   = reappear;
+    }
+
+    ctrlEl.style.opacity   = cOpacity.toFixed(3);
+    // Center scale on cursor: translate to center, scale, translate back
+    ctrlEl.style.transform = `translate3d(${(sx - ctrlR).toFixed(1)}px,${(sy - ctrlR).toFixed(1)}px,0) scale(${cScale.toFixed(3)})`;
+    ctrlEl.style.transformOrigin = '50% 50%';
     ctrlEl.style.width     = ctrlSize.toFixed(0) + 'px';
     ctrlEl.style.height    = ctrlSize.toFixed(0) + 'px';
 
