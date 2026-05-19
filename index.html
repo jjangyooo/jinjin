@@ -427,18 +427,19 @@ html, body {
              : breakT;
 
     // ── Flashlight physics ─────────────────────────────────
-    const ctrlSize  = lerp(CTRL_MIN, CTRL_MAX, sdepth);
-    const ctrlR     = ctrlSize * 0.5;
-    // distFactor: 1=far (wide), 0=close (tight)
-    const distFactor = 1 - sdepth;
-    // Quadratic spread: minimal when close, expands rapidly when far
+    const ctrlSize   = lerp(CTRL_MIN, CTRL_MAX, sdepth);
+    const ctrlR      = ctrlSize * 0.5;  // imageB element sizing only
+    const distFactor = 1 - sdepth;      // 1=far (wide), 0=close (tight)
+    // nozzleR: fixed small beam origin — does NOT grow when close.
+    // spotR grows only from distance (distFactor), so scrolling down
+    // (large imageB, small distFactor) keeps the beam tight.
+    const nozzleR    = 18;
     const beamSpread = distFactor * distFactor * DIAG * SPREAD_SCALE;
-    // Minimum 4% overhang so a gradient always has inner < outer radius
-    const spotR     = Math.max(ctrlR * 1.04, ctrlR + beamSpread);
+    const spotR      = nozzleR + beamSpread;
 
     if (bt < 0.999) {
-      drawDarkness(sx, sy, ctrlR, spotR, ts, bt);
-      drawBloom(sx, sy, ctrlR, spotR, ts, bt, distFactor);
+      drawDarkness(sx, sy, nozzleR, spotR, ts, bt);
+      drawBloom(sx, sy, nozzleR, spotR, ts, bt, distFactor);
     } else {
       dCtx.clearRect(0, 0, W, H);
       bCtx.clearRect(0, 0, W, H);
