@@ -15,6 +15,7 @@ html, body {
   cursor: none;
 }
 
+/* imageA.png: fullscreen poster, never altered */
 #poster {
   position: fixed;
   inset: 0;
@@ -33,6 +34,7 @@ html, body {
   -webkit-user-drag: none;
 }
 
+/* Darkness canvas */
 #darkness {
   position: fixed;
   inset: 0;
@@ -40,6 +42,7 @@ html, body {
   pointer-events: none;
 }
 
+/* Edge softness at beam boundary — screen blend, minimal */
 #bloom {
   position: fixed;
   inset: 0;
@@ -48,6 +51,7 @@ html, body {
   mix-blend-mode: screen;
 }
 
+/* Film grain */
 #grain {
   position: fixed;
   inset: 0;
@@ -57,6 +61,7 @@ html, body {
   opacity: 0.18;
 }
 
+/* Edge vignette */
 #vignette {
   position: fixed;
   inset: 0;
@@ -71,6 +76,12 @@ html, body {
   );
 }
 
+/*
+  imageB.png: physical flashlight/projector body.
+  multiply blend: visible only where spotlight reveals the bright poster beneath.
+  Corners fall into darkness and disappear — the lit area reads as circular.
+  No glow, no emission, no invert.
+*/
 #controller {
   position: fixed;
   top: 0;
@@ -87,9 +98,8 @@ html, body {
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
-  filter: invert(1);
-  mix-blend-mode: screen;
-  opacity: 0.78;
+  mix-blend-mode: multiply;
+  opacity: 0.92;
 }
 
 #intro {
@@ -151,12 +161,11 @@ html, body {
   const bCtx = bloomCvs.getContext('2d');
   const gCtx = grainCvs.getContext('2d');
 
-  const CTRL_MIN   = 56;
-  const CTRL_MAX   = 250;
-  const SPOT_WIDE  = 0.58;
-  const SPOT_TIGHT = 0.13;
-  const EASE_POS   = 0.17;
-  const EASE_DEPTH = 0.09;
+  const CTRL_MIN    = 76;
+  const CTRL_MAX    = 192;
+  const SPREAD_SCALE = 0.50;
+  const EASE_POS    = 0.17;
+  const EASE_DEPTH  = 0.09;
 
   const ST = { SPOTLIGHT: 0, BREAKING: 1, REVEALED: 2, REBUILDING: 3 };
   const REVEAL_THRESH  = 0.19;
@@ -167,8 +176,8 @@ html, body {
   let breakT = 0;
 
   let W, H, DIAG;
-  let tx, ty, tdepth = 0.42;
-  let sx, sy, sdepth = 0.42;
+  let tx, ty, tdepth = 0.50;
+  let sx, sy, sdepth = 0.50;
   let hintDone = false;
   let fc = 0;
 
@@ -182,10 +191,10 @@ html, body {
     const d = gData.data;
     for (let i = 0; i < d.length; i += 4) {
       const v = Math.random() * 255 | 0;
-      d[i]   = Math.min(255, v + 8);
+      d[i]   = Math.min(255, v + 6);
       d[i+1] = v;
-      d[i+2] = Math.max(0,   v - 6);
-      d[i+3] = 26;
+      d[i+2] = Math.max(0,   v - 5);
+      d[i+3] = 24;
     }
     gX.putImageData(gData, 0, 0);
   }
@@ -242,7 +251,9 @@ html, body {
   function drawDarkness(x, y, ctrlR, spotR, t, bt) {
     dCtx.clearRect(0, 0, W, H);
 
-    const darkEase = bt < 0.5 ? bt * bt * 0.4 : 0.1 + Math.pow((bt - 0.5) * 2, 2.2) * 0.9;
+    const darkEase = bt < 0.5
+      ? bt * bt * 0.4
+      : 0.1 + Math.pow((bt - 0.5) * 2, 2.2) * 0.9;
     const darkBase = 0.986 * (1 - darkEase);
     if (darkBase < 0.004) { dCtx.clearRect(0, 0, W, H); return; }
 
@@ -261,105 +272,76 @@ html, body {
     dCtx.fill();
 
     const s       = t * 0.001;
-    const breathe = 1 + 0.022 * Math.sin(s * 0.74);
-    const a1x = Math.sin(s * 0.59) * 5.2 + Math.cos(s * 1.02) * 2.4;
-    const a1y = Math.cos(s * 0.51) * 5.8 + Math.sin(s * 0.86) * 2.2;
-    const a2x = Math.sin(s * 0.82 + 1.2) * 4.6;
-    const a2y = Math.cos(s * 0.66 + 0.7) * 3.8;
-    const a3x = Math.cos(s * 0.43 + 0.4) * 3.4;
-    const a3y = Math.sin(s * 0.55 + 1.7) * 4.0;
+    const breathe = 1 + 0.020 * Math.sin(s * 0.74);
+    const a1x = Math.sin(s * 0.59) * 4.8 + Math.cos(s * 1.02) * 2.2;
+    const a1y = Math.cos(s * 0.51) * 5.4 + Math.sin(s * 0.86) * 2.0;
+    const a2x = Math.sin(s * 0.82 + 1.2) * 4.2;
+    const a2y = Math.cos(s * 0.66 + 0.7) * 3.6;
+    const a3x = Math.cos(s * 0.43 + 0.4) * 3.0;
+    const a3y = Math.sin(s * 0.55 + 1.7) * 3.8;
 
     const g1 = dCtx.createRadialGradient(
       x, y, ctrlR,
-      x + a1x * 0.08, y + a1y * 0.08, activeSpotR * breathe
+      x + a1x * 0.07, y + a1y * 0.07, activeSpotR * breathe
     );
-    g1.addColorStop(0.00, 'rgba(0,0,0,0.94)');
-    g1.addColorStop(0.18, 'rgba(0,0,0,0.72)');
-    g1.addColorStop(0.42, 'rgba(0,0,0,0.36)');
-    g1.addColorStop(0.68, 'rgba(0,0,0,0.10)');
-    g1.addColorStop(0.86, 'rgba(0,0,0,0.02)');
+    g1.addColorStop(0.00, 'rgba(0,0,0,0.96)');
+    g1.addColorStop(0.22, 'rgba(0,0,0,0.76)');
+    g1.addColorStop(0.50, 'rgba(0,0,0,0.38)');
+    g1.addColorStop(0.76, 'rgba(0,0,0,0.09)');
+    g1.addColorStop(0.92, 'rgba(0,0,0,0.02)');
     g1.addColorStop(1.00, 'rgba(0,0,0,0.00)');
     dCtx.fillStyle = g1;
     dCtx.fillRect(0, 0, W, H);
 
     const g2 = dCtx.createRadialGradient(
       x, y, ctrlR,
-      x + a2x * 0.13, y + a2y * 0.13, activeSpotR * 0.82 * breathe
+      x + a2x * 0.12, y + a2y * 0.12, activeSpotR * 0.82 * breathe
     );
-    g2.addColorStop(0.00, 'rgba(0,0,0,0.38)');
-    g2.addColorStop(0.44, 'rgba(0,0,0,0.16)');
-    g2.addColorStop(0.78, 'rgba(0,0,0,0.04)');
+    g2.addColorStop(0.00, 'rgba(0,0,0,0.36)');
+    g2.addColorStop(0.44, 'rgba(0,0,0,0.14)');
+    g2.addColorStop(0.80, 'rgba(0,0,0,0.03)');
     g2.addColorStop(1.00, 'rgba(0,0,0,0.00)');
     dCtx.fillStyle = g2;
     dCtx.fillRect(0, 0, W, H);
 
     const g3 = dCtx.createRadialGradient(
       x, y, ctrlR,
-      x + a3x * 0.10, y + a3y * 0.10,
-      activeSpotR * 0.90 * (1 + 0.015 * Math.cos(s * 0.91))
+      x + a3x * 0.09, y + a3y * 0.09,
+      activeSpotR * 0.88 * (1 + 0.014 * Math.cos(s * 0.91))
     );
-    g3.addColorStop(0.00, 'rgba(0,0,0,0.18)');
-    g3.addColorStop(0.52, 'rgba(0,0,0,0.07)');
-    g3.addColorStop(0.88, 'rgba(0,0,0,0.01)');
+    g3.addColorStop(0.00, 'rgba(0,0,0,0.16)');
+    g3.addColorStop(0.55, 'rgba(0,0,0,0.06)');
+    g3.addColorStop(0.90, 'rgba(0,0,0,0.01)');
     g3.addColorStop(1.00, 'rgba(0,0,0,0.00)');
     dCtx.fillStyle = g3;
     dCtx.fillRect(0, 0, W, H);
 
     dCtx.globalCompositeOperation = 'source-over';
-    const gc = dCtx.createRadialGradient(x, y, 0, x, y, ctrlR * 0.75);
-    gc.addColorStop(0.0, 'rgba(4,4,7,0.13)');
+    const gc = dCtx.createRadialGradient(x, y, 0, x, y, ctrlR * 0.7);
+    gc.addColorStop(0.0, 'rgba(4,4,7,0.10)');
     gc.addColorStop(1.0, 'rgba(4,4,7,0.00)');
     dCtx.fillStyle = gc;
     dCtx.fillRect(0, 0, W, H);
   }
 
-  function drawBloom(x, y, ctrlR, spotR, t, bt) {
+  function drawBloom(x, y, ctrlR, spotR, t, bt, distFactor) {
     bCtx.clearRect(0, 0, W, H);
 
-    const s       = t * 0.001;
-    const breathe = 1 + 0.018 * Math.sin(s * 0.74 + 0.4);
-    const flicker = 0.80 + 0.20 * (0.5 + 0.5 * Math.sin(s * 1.16) * Math.cos(s * 0.72));
-    const bloomMul = 1 - Math.min(1, bt * 2.5);
+    if (distFactor < 0.08 || bt > 0.5) return;
 
-    if (bloomMul > 0.01) {
-      const rim = bCtx.createRadialGradient(x, y, ctrlR * 0.76, x, y, ctrlR * 1.38);
-      rim.addColorStop(0.00, 'rgba(0,0,0,0)');
-      rim.addColorStop(0.38, `rgba(255,252,232,${(0.52 * flicker * bloomMul).toFixed(3)})`);
-      rim.addColorStop(0.65, `rgba(255,246,218,${(0.32 * flicker * bloomMul).toFixed(3)})`);
-      rim.addColorStop(1.00, 'rgba(0,0,0,0)');
-      bCtx.fillStyle = rim;
-      bCtx.fillRect(0, 0, W, H);
+    const s      = t * 0.001;
+    const breathe = 1 + 0.016 * Math.sin(s * 0.74 + 0.4);
+    const strength = distFactor * 0.38;
 
-      const cr = bCtx.createRadialGradient(x, y, ctrlR, x, y, spotR * 1.18 * breathe);
-      cr.addColorStop(0.00, `rgba(255,244,212,${(0.46 * flicker * bloomMul).toFixed(3)})`);
-      cr.addColorStop(0.18, `rgba(252,240,200,${(0.32 * flicker * bloomMul).toFixed(3)})`);
-      cr.addColorStop(0.44, `rgba(244,228,184,${(0.17 * flicker * bloomMul).toFixed(3)})`);
-      cr.addColorStop(0.70, `rgba(230,212,166,${(0.07 * flicker * bloomMul).toFixed(3)})`);
-      cr.addColorStop(1.00, 'rgba(0,0,0,0)');
-      bCtx.fillStyle = cr;
-      bCtx.fillRect(0, 0, W, H);
-
-      const hl = bCtx.createRadialGradient(x, y, spotR * 0.78 * breathe, x, y, spotR * 1.52 * breathe);
-      hl.addColorStop(0.00, 'rgba(0,0,0,0)');
-      hl.addColorStop(0.26, `rgba(255,242,210,${(0.18 * flicker * bloomMul).toFixed(3)})`);
-      hl.addColorStop(0.58, `rgba(238,220,178,${(0.08 * flicker * bloomMul).toFixed(3)})`);
-      hl.addColorStop(1.00, 'rgba(0,0,0,0)');
-      bCtx.fillStyle = hl;
-      bCtx.fillRect(0, 0, W, H);
-    }
-
-    if (bt > 0 && bt < 0.75) {
-      const burstPeak = Math.sin(Math.min(1, bt / 0.38) * Math.PI);
-      const burstR    = ctrlR + bt * bt * DIAG * 0.9;
-      const burst = bCtx.createRadialGradient(x, y, 0, x, y, burstR);
-      burst.addColorStop(0.00, `rgba(255,255,248,${(burstPeak * 0.70).toFixed(3)})`);
-      burst.addColorStop(0.12, `rgba(255,252,230,${(burstPeak * 0.52).toFixed(3)})`);
-      burst.addColorStop(0.35, `rgba(255,245,215,${(burstPeak * 0.28).toFixed(3)})`);
-      burst.addColorStop(0.65, `rgba(248,235,195,${(burstPeak * 0.10).toFixed(3)})`);
-      burst.addColorStop(1.00, 'rgba(0,0,0,0)');
-      bCtx.fillStyle = burst;
-      bCtx.fillRect(0, 0, W, H);
-    }
+    const edgeIn  = spotR * 0.88 * breathe;
+    const edgeOut = spotR * 1.10 * breathe;
+    const edge = bCtx.createRadialGradient(x, y, edgeIn, x, y, edgeOut);
+    edge.addColorStop(0.00, 'rgba(0,0,0,0)');
+    edge.addColorStop(0.40, `rgba(248,242,230,${(strength * 0.50).toFixed(3)})`);
+    edge.addColorStop(0.70, `rgba(240,234,220,${(strength * 0.28).toFixed(3)})`);
+    edge.addColorStop(1.00, 'rgba(0,0,0,0)');
+    bCtx.fillStyle = edge;
+    bCtx.fillRect(0, 0, W, H);
   }
 
   let lastTs = 0;
@@ -393,16 +375,19 @@ html, body {
       if (breakT <= 0) state = ST.SPOTLIGHT;
     }
 
-    const bt = (state === ST.SPOTLIGHT) ? 0 :
-               (state === ST.REVEALED)  ? 1 : breakT;
+    const bt = (state === ST.SPOTLIGHT) ? 0
+             : (state === ST.REVEALED)  ? 1
+             : breakT;
 
-    const ctrlSize = lerp(CTRL_MIN, CTRL_MAX, sdepth);
-    const ctrlR    = ctrlSize * 0.5;
-    const spotR    = Math.max(ctrlR * 1.55, DIAG * lerp(SPOT_WIDE, SPOT_TIGHT, sdepth));
+    const ctrlSize  = lerp(CTRL_MIN, CTRL_MAX, sdepth);
+    const ctrlR     = ctrlSize * 0.5;
+    const distFactor = 1 - sdepth;
+    const beamSpread = distFactor * distFactor * DIAG * SPREAD_SCALE;
+    const spotR     = Math.max(ctrlR * 1.04, ctrlR + beamSpread);
 
     if (bt < 0.999) {
       drawDarkness(sx, sy, ctrlR, spotR, ts, bt);
-      drawBloom(sx, sy, ctrlR, spotR, ts, bt);
+      drawBloom(sx, sy, ctrlR, spotR, ts, bt, distFactor);
     } else {
       dCtx.clearRect(0, 0, W, H);
       bCtx.clearRect(0, 0, W, H);
@@ -416,7 +401,7 @@ html, body {
     if (bt > 0) {
       if (bt < 0.28) {
         cScale   = 1 + bt * 2.0;
-        cOpacity = 1 - bt * 3.2;
+        cOpacity = 1 - bt * 3.4;
       } else {
         cScale   = 0;
         cOpacity = 0;
