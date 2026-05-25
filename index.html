@@ -198,6 +198,38 @@ html, body {
   let hintDone = false;
   let fc = 0;
 
+  // ── Flicker system ────────────────────────────────────────
+  let fk      = 1.0;    // 1=normal, 0=dark
+  let fkSeq   = null;   // active sequence
+  let fkTimer = 5 + Math.random() * 6; // seconds until first check
+
+  // Build a random 1-or-2-blink keyframe sequence
+  function fkMake() {
+    const blinks = Math.random() < 0.40 ? 2 : 1;
+    const kf = [{ t: 0, v: 1.0 }];
+    let c = 0.010 + Math.random() * 0.008;
+    for (let i = 0; i < blinks; i++) {
+      kf.push({ t: c, v: 0.04 + Math.random() * 0.10 });
+      c += 0.022 + Math.random() * 0.030;
+      kf.push({ t: c, v: 0.88 + Math.random() * 0.12 });
+      c += 0.010 + Math.random() * 0.014;
+      if (i < blinks - 1) {
+        kf.push({ t: c, v: 0.05 + Math.random() * 0.08 });
+        c += 0.016 + Math.random() * 0.020;
+      }
+    }
+    kf.push({ t: c, v: 1.0 });
+    return { kf, dur: c, t: 0 };
+  }
+
+  // Step-evaluate: instant cuts (no lerp) for electrical-fault feel
+  function fkEval(seq) {
+    for (let i = 0; i < seq.kf.length - 1; i++) {
+      if (seq.t < seq.kf[i + 1].t) return seq.kf[i].v;
+    }
+    return 1.0;
+  }
+
   // ── Film grain tile ───────────────────────────────────────
   const GS    = 256;
   const gTile = document.createElement('canvas');
@@ -360,6 +392,13 @@ html, body {
     gc.addColorStop(1.0, 'rgba(4,4,7,0.00)');
     dCtx.fillStyle = gc;
     dCtx.fillRect(0, 0, W, H);
+
+    // Flicker: collapse spotlight by painting darkness back over cleared area
+    if (fk < 0.999) {
+      dCtx.globalCompositeOperation = 'source-over';
+      dCtx.fillStyle = `rgba(4,4,7,${((1 - fk) * 0.95).toFixed(3)})`;
+      dCtx.fillRect(0, 0, W, H);
+    }
   }
 
   // ── EDGE SOFTNESS ─────────────────────────────────────────
@@ -375,7 +414,7 @@ html, body {
     const s      = t * 0.001;
     const breathe = 1 + 0.016 * Math.sin(s * 0.74 + 0.4);
     // Softness proportional to distance — far = wider cone edge
-    const strength = distFactor * 0.38;
+    const strength = distFactor * 0.38 * fk;
 
     // Narrow ring exactly at the beam boundary
     const edgeIn  = spotR * 0.88 * breathe;
@@ -426,6 +465,23 @@ html, body {
              : (state === ST.REVEALED)  ? 1
              : breakT;
 
+    // ── Flicker ────────────────────────────────────────────
+    // Only flicker in SPOTLIGHT state — not during reveal/rebuild
+    if (state === ST.SPOTLIGHT) {
+      fkTimer -= dt;
+      if (fkTimer <= 0) {
+        if (fkSeq === null && Math.random() < 0.72) fkSeq = fkMake();
+        fkTimer = 3.5 + Math.random() * 7.0;
+      }
+    }
+    if (fkSeq !== null) {
+      fkSeq.t += dt;
+      fk = fkEval(fkSeq);
+      if (fkSeq.t >= fkSeq.dur) { fk = 1.0; fkSeq = null; }
+    } else if (state !== ST.SPOTLIGHT) {
+      fk = 1.0;
+    }
+
     // ── Flashlight physics ─────────────────────────────────
     const ctrlSize   = lerp(CTRL_MIN, CTRL_MAX, sdepth);
     const ctrlR      = ctrlSize * 0.5;  // imageB element sizing only
@@ -466,7 +522,7 @@ html, body {
       cScale   = reappear;
     }
 
-    ctrlEl.style.opacity         = cOpacity.toFixed(3);
+    ctrlEl.style.opacity         = (cOpacity * fk).toFixed(3);
     ctrlEl.style.transform       = `translate3d(${(sx - ctrlR).toFixed(1)}px,${(sy - ctrlR).toFixed(1)}px,0) scale(${cScale.toFixed(3)})`;
     ctrlEl.style.transformOrigin = '50% 50%';
     ctrlEl.style.width           = ctrlSize.toFixed(0) + 'px';
