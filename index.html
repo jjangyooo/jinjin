@@ -170,7 +170,6 @@ html, body {
   let hintDone = false;
   let fc = 0;
 
-  // ── Flicker system ────────────────────────────────
   let fk      = 1.0;
   let fkSeq   = null;
   let fkTimer = 1.5 + Math.random() * 2.5;
@@ -181,12 +180,12 @@ html, body {
     let c = 0.010 + Math.random() * 0.008;
     for (let i = 0; i < blinks; i++) {
       kf.push({ t: c, v: 0.01 + Math.random() * 0.04 });
-      c += 0.022 + Math.random() * 0.030;
+      c += 0.060 + Math.random() * 0.090;
       kf.push({ t: c, v: 0.88 + Math.random() * 0.12 });
       c += 0.010 + Math.random() * 0.014;
       if (i < blinks - 1) {
         kf.push({ t: c, v: 0.02 + Math.random() * 0.04 });
-        c += 0.016 + Math.random() * 0.020;
+        c += 0.050 + Math.random() * 0.070;
       }
     }
     kf.push({ t: c, v: 1.0 });
@@ -200,7 +199,6 @@ html, body {
     return 1.0;
   }
 
-  // ── Film grain tile ───────────────────────────────
   const GS    = 256;
   const gTile = document.createElement('canvas');
   gTile.width = gTile.height = GS;
@@ -300,7 +298,6 @@ html, body {
     const a3x = Math.cos(s * 0.43 + 0.4) * 3.0;
     const a3y = Math.sin(s * 0.55 + 1.7) * 3.8;
 
-    // Primary cone — full clear at inner edge, strong across most of beam
     const g1 = dCtx.createRadialGradient(
       x, y, ctrlR,
       x + a1x * 0.07, y + a1y * 0.07, activeSpotR * breathe
@@ -315,7 +312,6 @@ html, body {
     dCtx.fillStyle = g1;
     dCtx.fillRect(0, 0, W, H);
 
-    // Secondary: pushes residual darkness lower
     const g2 = dCtx.createRadialGradient(
       x, y, ctrlR,
       x + a2x * 0.12, y + a2y * 0.12, activeSpotR * 0.82 * breathe
@@ -328,7 +324,6 @@ html, body {
     dCtx.fillStyle = g2;
     dCtx.fillRect(0, 0, W, H);
 
-    // Tertiary: organic edge irregularity
     const g3 = dCtx.createRadialGradient(
       x, y, ctrlR,
       x + a3x * 0.09, y + a3y * 0.09,
@@ -410,7 +405,6 @@ html, body {
              : (state === ST.REVEALED)  ? 1
              : breakT;
 
-    // ── Flicker (SPOTLIGHT state only) ────────────────────
     if (state === ST.SPOTLIGHT) {
       fkTimer -= dt;
       if (fkTimer <= 0) {
