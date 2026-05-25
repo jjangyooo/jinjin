@@ -15,7 +15,6 @@ html, body {
   cursor: none;
 }
 
-/* imageA.png: fullscreen poster, never altered */
 #poster {
   position: fixed;
   inset: 0;
@@ -34,7 +33,6 @@ html, body {
   -webkit-user-drag: none;
 }
 
-/* Darkness canvas */
 #darkness {
   position: fixed;
   inset: 0;
@@ -42,15 +40,8 @@ html, body {
   pointer-events: none;
 }
 
-/* Text ghost signals — poster words flickering through the dark */
-#textghosts {
-  position: fixed;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-}
+/* Ghost word divs are injected at z-index 3 by JS */
 
-/* Edge softness at beam boundary — screen blend, minimal */
 #bloom {
   position: fixed;
   inset: 0;
@@ -59,7 +50,6 @@ html, body {
   mix-blend-mode: screen;
 }
 
-/* Film grain */
 #grain {
   position: fixed;
   inset: 0;
@@ -69,7 +59,6 @@ html, body {
   opacity: 0.18;
 }
 
-/* Edge vignette */
 #vignette {
   position: fixed;
   inset: 0;
@@ -84,12 +73,6 @@ html, body {
   );
 }
 
-/*
-  imageB.png: physical flashlight/projector body.
-  multiply blend: visible only where spotlight reveals the bright poster beneath.
-  Corners fall into darkness and disappear — the lit area reads as circular.
-  No glow, no emission, no invert.
-*/
 #controller {
   position: fixed;
   top: 0;
@@ -143,7 +126,6 @@ html, body {
 </div>
 
 <canvas id="darkness"></canvas>
-<canvas id="textghosts"></canvas>
 <canvas id="bloom"></canvas>
 <canvas id="grain"></canvas>
 <div id="vignette"></div>
@@ -159,48 +141,29 @@ html, body {
 (function () {
   'use strict';
 
-  const darkCvs   = document.getElementById('darkness');
-  const ghostCvs  = document.getElementById('textghosts');
-  const bloomCvs  = document.getElementById('bloom');
-  const grainCvs  = document.getElementById('grain');
-  const ctrlEl    = document.getElementById('controller');
-  const hintEl    = document.getElementById('hint');
-  const introEl   = document.getElementById('intro');
+  const darkCvs  = document.getElementById('darkness');
+  const bloomCvs = document.getElementById('bloom');
+  const grainCvs = document.getElementById('grain');
+  const ctrlEl   = document.getElementById('controller');
+  const hintEl   = document.getElementById('hint');
+  const introEl  = document.getElementById('intro');
   const posterImg = document.querySelector('#poster img');
 
-  const dCtx  = darkCvs.getContext('2d');
-  const ghCtx = ghostCvs.getContext('2d');
-  const bCtx  = bloomCvs.getContext('2d');
-  const gCtx  = grainCvs.getContext('2d');
+  const dCtx = darkCvs.getContext('2d');
+  const bCtx = bloomCvs.getContext('2d');
+  const gCtx = grainCvs.getContext('2d');
 
-  // ── Flashlight distance model ─────────────────────────────
-  //
-  // sdepth 0→1 maps "scroll up (far)" → "scroll down (close)"
-  //
-  // CLOSE (sdepth high, large imageB):
-  //   flashlight pressed against surface.
-  //   visible circle ≈ imageB size only. almost no spread.
-  //
-  // FAR (sdepth low, small imageB):
-  //   flashlight pulled back.
-  //   cone expands. wide soft light covers large area.
-  //
-  // Beam radius formula: spotR = ctrlR + distFactor² × DIAG × SPREAD_SCALE
-  // distFactor = 1 − sdepth: 0 when close, 1 when far.
-  // Quadratic because real cone spread accelerates with distance.
+  const CTRL_MIN     = 76;
+  const CTRL_MAX     = 192;
+  const SPREAD_SCALE = 0.50;
+  const EASE_POS     = 0.17;
+  const EASE_DEPTH   = 0.09;
 
-  const CTRL_MIN    = 76;    // px — imageB at far distance (small)
-  const CTRL_MAX    = 192;   // px — imageB at close distance (~2.5× = ~200% of original)
-  const SPREAD_SCALE = 0.50; // controls how wide the far beam gets
-  const EASE_POS    = 0.17;
-  const EASE_DEPTH  = 0.09;
-
-  // ── Reveal state machine ──────────────────────────────────
   const ST = { SPOTLIGHT: 0, BREAKING: 1, REVEALED: 2, REBUILDING: 3 };
-  const REVEAL_THRESH  = 0.19;
-  const REVEAL_HYST    = 0.05;
-  const BREAK_SPEED    = 3.2;
-  const REBUILD_SPEED  = 1.0;
+  const REVEAL_THRESH = 0.19;
+  const REVEAL_HYST   = 0.05;
+  const BREAK_SPEED   = 3.2;
+  const REBUILD_SPEED = 1.0;
   let state  = ST.SPOTLIGHT;
   let breakT = 0;
 
@@ -211,17 +174,16 @@ html, body {
   let fc = 0;
 
   // ── Flicker system ────────────────────────────────────────
-  let fk      = 1.0;    // 1=normal, 0=dark
-  let fkSeq   = null;   // active sequence
-  let fkTimer = 1.5 + Math.random() * 2.5; // first flicker in 1.5-4s
+  let fk      = 1.0;
+  let fkSeq   = null;
+  let fkTimer = 1.5 + Math.random() * 2.5;
 
-  // Build a random 1-or-2-blink keyframe sequence
   function fkMake() {
     const blinks = Math.random() < 0.40 ? 2 : 1;
     const kf = [{ t: 0, v: 1.0 }];
     let c = 0.010 + Math.random() * 0.008;
     for (let i = 0; i < blinks; i++) {
-      kf.push({ t: c, v: 0.01 + Math.random() * 0.04 }); // near-black cut
+      kf.push({ t: c, v: 0.01 + Math.random() * 0.04 });
       c += 0.060 + Math.random() * 0.090;
       kf.push({ t: c, v: 0.88 + Math.random() * 0.12 });
       c += 0.010 + Math.random() * 0.014;
@@ -234,7 +196,6 @@ html, body {
     return { kf, dur: c, t: 0 };
   }
 
-  // Step-evaluate: instant cuts (no lerp) for electrical-fault feel
   function fkEval(seq) {
     for (let i = 0; i < seq.kf.length - 1; i++) {
       if (seq.t < seq.kf[i + 1].t) return seq.kf[i].v;
@@ -242,7 +203,7 @@ html, body {
     return 1.0;
   }
 
-  // ── Film grain tile ───────────────────────────────────────
+  // ── Film grain ────────────────────────────────────────────
   const GS    = 256;
   const gTile = document.createElement('canvas');
   gTile.width = gTile.height = GS;
@@ -271,8 +232,7 @@ html, body {
   }
 
   // ── Ghost text regions ────────────────────────────────────
-  // Fractions of poster natural dimensions (x, y from top-left of poster).
-  // 34 regions: 3 header + 9 left col + 11 mid col + 9 right col + 2 footer
+  // x, y, w, h as fractions of the poster's rendered rectangle
   const GHOST_REGIONS = [
     { x: 0.06, y: 0.040, w: 0.88, h: 0.092 }, // COMA NOVA
     { x: 0.04, y: 0.122, w: 0.92, h: 0.172 }, // SPOTLIGHT
@@ -314,10 +274,30 @@ html, body {
     { x: 0.05, y: 0.855, w: 0.90, h: 0.065 },
   ];
 
-  // Per-region animation state
-  // ph: 0=idle, 1=fade-in, 2=hold, 3=fade-out
-  const ghostStates = GHOST_REGIONS.map((_, i) => ({
-    ph: 0, phT: 0, timer: Math.random() * 2,
+  // Create one DOM div per region.
+  // Each div is an overflow:hidden crop window showing imageA.png at exactly
+  // the right position via background-image + background-size + background-position.
+  // JS animates opacity, filter, transform — no canvas drawImage involved.
+  const ghostEls = GHOST_REGIONS.map(() => {
+    const el = document.createElement('div');
+    el.style.cssText = [
+      'position:fixed',
+      'overflow:hidden',
+      'pointer-events:none',
+      'z-index:3',
+      'opacity:0',
+      'background-image:url(imageA.png)',
+      'background-repeat:no-repeat',
+      'will-change:opacity,filter,transform',
+    ].join(';');
+    document.body.appendChild(el);
+    return el;
+  });
+
+  // Per-region animation state. ph: 0=idle 1=up 2=hold 3=down
+  const ghostStates = GHOST_REGIONS.map(() => ({
+    ph: 0, phT: 0,
+    timer: Math.random() * 2,
     op: 0, blur: 0, ox: 0, oy: 0,
     peak: 0, upD: 0, holdD: 0, downD: 0,
     blurStart: 0, blurEnd: 0,
@@ -334,11 +314,10 @@ html, body {
   }
 
   function updateGhosts(dt) {
-    // During reveal/rebuild, quickly fade out any active ghosts
     if (state !== ST.SPOTLIGHT) {
       ghostStates.forEach(g => {
         if (g.ph !== 0) {
-          g.op = Math.max(0, g.op - dt * 10);
+          g.op = Math.max(0, g.op - dt * 12);
           if (g.op <= 0) { g.ph = 0; g.op = 0; }
         }
       });
@@ -393,37 +372,37 @@ html, body {
     });
   }
 
-  function drawGhosts() {
-    ghCtx.clearRect(0, 0, W, H);
-    if (state !== ST.SPOTLIGHT) return;
-    if (!posterImg.complete || !posterImg.naturalWidth) return;
-
+  function applyGhosts() {
     const pr = calcPosterRect();
-    if (!pr) return;
 
     ghostStates.forEach((g, i) => {
-      if (g.ph === 0 || g.op < 0.01) return;
-
+      const el  = ghostEls[i];
       const reg = GHOST_REGIONS[i];
-      const rx  = pr.x + reg.x * pr.w;
-      const ry  = pr.y + reg.y * pr.h;
-      const rw  = reg.w * pr.w;
-      const rh  = reg.h * pr.h;
 
-      ghCtx.save();
-      ghCtx.globalAlpha = g.op;
-      if (g.blur > 0.05) ghCtx.filter = `blur(${g.blur.toFixed(2)}px)`;
+      const hide = (state !== ST.SPOTLIGHT) || g.ph === 0 || g.op < 0.01;
+      if (hide) {
+        el.style.opacity = '0';
+        return;
+      }
 
-      // Clip to the region rectangle (with pad for blur overflow)
-      const pad = Math.ceil(g.blur * 3) + 4;
-      ghCtx.beginPath();
-      ghCtx.rect(rx - pad + g.ox, ry - pad + g.oy, rw + pad * 2, rh + pad * 2);
-      ghCtx.clip();
+      const rx = (pr ? pr.x + reg.x * pr.w : 0);
+      const ry = (pr ? pr.y + reg.y * pr.h : 0);
+      const rw = (pr ? reg.w * pr.w : 0);
+      const rh = (pr ? reg.h * pr.h : 0);
 
-      // Draw full poster image offset by jitter — clip reveals only this region
-      ghCtx.drawImage(posterImg, pr.x + g.ox, pr.y + g.oy, pr.w, pr.h);
+      if (!pr || rw < 1 || rh < 1) { el.style.opacity = '0'; return; }
 
-      ghCtx.restore();
+      el.style.left   = rx + 'px';
+      el.style.top    = ry + 'px';
+      el.style.width  = rw + 'px';
+      el.style.height = rh + 'px';
+
+      el.style.backgroundSize     = pr.w + 'px ' + pr.h + 'px';
+      el.style.backgroundPosition = (-reg.x * pr.w) + 'px ' + (-reg.y * pr.h) + 'px';
+
+      el.style.opacity   = g.op.toFixed(3);
+      el.style.filter    = g.blur > 0.08 ? 'blur(' + g.blur.toFixed(2) + 'px)' : 'none';
+      el.style.transform = 'translate(' + g.ox.toFixed(1) + 'px,' + g.oy.toFixed(1) + 'px)';
     });
   }
 
@@ -432,7 +411,7 @@ html, body {
     W    = window.innerWidth;
     H    = window.innerHeight;
     DIAG = Math.hypot(W, H);
-    [darkCvs, ghostCvs, bloomCvs, grainCvs].forEach(c => {
+    [darkCvs, bloomCvs, grainCvs].forEach(c => {
       c.width  = W;
       c.height = H;
     });
@@ -448,7 +427,6 @@ html, body {
     if (!hintDone) { hintEl.style.opacity = '0'; hintDone = true; }
   });
 
-  // Scroll down → closer → larger imageB → tighter beam
   document.addEventListener('wheel', e => {
     tdepth = Math.max(0, Math.min(1, tdepth + e.deltaY * 0.0008));
     e.preventDefault();
@@ -470,16 +448,7 @@ html, body {
   const lerp = (a, b, t) => a + (b - a) * t;
   const fi   = (f, dt) => 1 - Math.pow(1 - f, dt * 60);
 
-  // ── DARKNESS + SPOTLIGHT ──────────────────────────────────
-  //
-  // Physical model:
-  //   distFactor = 0 (close): spotR ≈ ctrlR → hard circle exactly under imageB
-  //   distFactor = 1 (far):   spotR = ctrlR + large spread → wide soft cone
-  //
-  // The gradient transition band (ctrlR → spotR) is narrow when close
-  // and wide when far. Edge sharpness emerges naturally from this geometry.
-  //
-  // bt (breakT 0→1): iris expands + darkness collapses during reveal.
+  // ── Darkness ──────────────────────────────────────────────
   function drawDarkness(x, y, ctrlR, spotR, t, bt) {
     dCtx.clearRect(0, 0, W, H);
 
@@ -495,17 +464,14 @@ html, body {
 
     dCtx.globalCompositeOperation = 'destination-out';
 
-    // Iris expansion during break
-    const irisExpand = bt > 0 ? 1 + bt * bt * 14 : 1;
+    const irisExpand  = bt > 0 ? 1 + bt * bt * 14 : 1;
     const activeSpotR = spotR * irisExpand;
 
-    // Hard clear under imageB — the flashlight contact area
     dCtx.beginPath();
     dCtx.arc(x, y, ctrlR, 0, Math.PI * 2);
     dCtx.fillStyle = 'rgba(0,0,0,1)';
     dCtx.fill();
 
-    // Beam projection beyond imageB edge — organic drift on outer radius only
     const s       = t * 0.001;
     const breathe = 1 + 0.020 * Math.sin(s * 0.74);
     const a1x = Math.sin(s * 0.59) * 4.8 + Math.cos(s * 1.02) * 2.2;
@@ -515,7 +481,6 @@ html, body {
     const a3x = Math.cos(s * 0.43 + 0.4) * 3.0;
     const a3y = Math.sin(s * 0.55 + 1.7) * 3.8;
 
-    // Primary cone — full clear at inner edge, strong across most of beam
     const g1 = dCtx.createRadialGradient(
       x, y, ctrlR,
       x + a1x * 0.07, y + a1y * 0.07, activeSpotR * breathe
@@ -530,7 +495,6 @@ html, body {
     dCtx.fillStyle = g1;
     dCtx.fillRect(0, 0, W, H);
 
-    // Secondary: pushes residual darkness lower
     const g2 = dCtx.createRadialGradient(
       x, y, ctrlR,
       x + a2x * 0.12, y + a2y * 0.12, activeSpotR * 0.82 * breathe
@@ -543,7 +507,6 @@ html, body {
     dCtx.fillStyle = g2;
     dCtx.fillRect(0, 0, W, H);
 
-    // Tertiary: organic edge irregularity
     const g3 = dCtx.createRadialGradient(
       x, y, ctrlR,
       x + a3x * 0.09, y + a3y * 0.09,
@@ -556,7 +519,6 @@ html, body {
     dCtx.fillStyle = g3;
     dCtx.fillRect(0, 0, W, H);
 
-    // Slight center dimming — projected feel, not screen-lit
     dCtx.globalCompositeOperation = 'source-over';
     const gc = dCtx.createRadialGradient(x, y, 0, x, y, ctrlR * 0.7);
     gc.addColorStop(0.0, 'rgba(4,4,7,0.10)');
@@ -564,7 +526,6 @@ html, body {
     dCtx.fillStyle = gc;
     dCtx.fillRect(0, 0, W, H);
 
-    // Flicker: collapse spotlight by painting darkness back over cleared area
     if (fk < 0.999) {
       dCtx.globalCompositeOperation = 'source-over';
       dCtx.fillStyle = `rgba(4,4,7,${((1 - fk) * 0.95).toFixed(3)})`;
@@ -572,24 +533,17 @@ html, body {
     }
   }
 
-  // ── EDGE SOFTNESS ─────────────────────────────────────────
-  // Not a bloom haze — just a narrow optical softness at the beam boundary.
-  // Scales with distFactor: zero when close (hard edge), subtle when far.
-  // No wide ambient glow. No amber haze.
+  // ── Bloom ─────────────────────────────────────────────────
   function drawBloom(x, y, ctrlR, spotR, t, bt, distFactor) {
     bCtx.clearRect(0, 0, W, H);
-
-    // No edge softness when close or during reveal
     if (distFactor < 0.08 || bt > 0.5) return;
 
-    const s      = t * 0.001;
-    const breathe = 1 + 0.016 * Math.sin(s * 0.74 + 0.4);
-    // Softness proportional to distance — far = wider cone edge
+    const s        = t * 0.001;
+    const breathe  = 1 + 0.016 * Math.sin(s * 0.74 + 0.4);
     const strength = distFactor * 0.38 * fk;
+    const edgeIn   = spotR * 0.88 * breathe;
+    const edgeOut  = spotR * 1.10 * breathe;
 
-    // Narrow ring exactly at the beam boundary
-    const edgeIn  = spotR * 0.88 * breathe;
-    const edgeOut = spotR * 1.10 * breathe;
     const edge = bCtx.createRadialGradient(x, y, edgeIn, x, y, edgeOut);
     edge.addColorStop(0.00, 'rgba(0,0,0,0)');
     edge.addColorStop(0.40, `rgba(248,242,230,${(strength * 0.50).toFixed(3)})`);
@@ -599,7 +553,7 @@ html, body {
     bCtx.fillRect(0, 0, W, H);
   }
 
-  // ── MAIN LOOP ─────────────────────────────────────────────
+  // ── Main loop ─────────────────────────────────────────────
   let lastTs = 0;
 
   function tick(ts) {
@@ -614,14 +568,11 @@ html, body {
     sy     = lerp(sy,     ty,     ep);
     sdepth = lerp(sdepth, tdepth, ed);
 
-    // ── State machine ──────────────────────────────────────
     if (state === ST.SPOTLIGHT && sdepth < REVEAL_THRESH) {
-      state  = ST.BREAKING;
-      breakT = 0;
+      state = ST.BREAKING; breakT = 0;
     } else if ((state === ST.REVEALED || state === ST.BREAKING) &&
                sdepth > REVEAL_THRESH + REVEAL_HYST) {
-      state  = ST.REBUILDING;
-      breakT = 1;
+      state = ST.REBUILDING; breakT = 1;
     }
 
     if (state === ST.BREAKING) {
@@ -636,8 +587,6 @@ html, body {
              : (state === ST.REVEALED)  ? 1
              : breakT;
 
-    // ── Flicker ────────────────────────────────────────────
-    // Only flicker in SPOTLIGHT state — not during reveal/rebuild
     if (state === ST.SPOTLIGHT) {
       fkTimer -= dt;
       if (fkTimer <= 0) {
@@ -653,13 +602,9 @@ html, body {
       fk = 1.0;
     }
 
-    // ── Flashlight physics ─────────────────────────────────
     const ctrlSize   = lerp(CTRL_MIN, CTRL_MAX, sdepth);
-    const ctrlR      = ctrlSize * 0.5;  // imageB element sizing only
-    const distFactor = 1 - sdepth;      // 1=far (wide), 0=close (tight)
-    // nozzleR: fixed small beam origin — does NOT grow when close.
-    // spotR grows only from distance (distFactor), so scrolling down
-    // (large imageB, small distFactor) keeps the beam tight.
+    const ctrlR      = ctrlSize * 0.5;
+    const distFactor = 1 - sdepth;
     const nozzleR    = 18;
     const beamSpread = distFactor * distFactor * DIAG * SPREAD_SCALE;
     const spotR      = nozzleR + beamSpread;
@@ -672,15 +617,13 @@ html, body {
       bCtx.clearRect(0, 0, W, H);
     }
 
-    // ── Ghost text signals ─────────────────────────────────
     updateGhosts(dt);
-    drawGhosts();
+    applyGhosts();
 
     if (fc % 2 === 0) refreshGrain();
     grainCvs.style.opacity = (1 - Math.min(1, bt * 2)).toFixed(3);
     drawGrain();
 
-    // ── imageB: physical body, collapses on break, rebuilds after ──
     let cScale = 1, cOpacity = 1;
     if (bt > 0) {
       if (bt < 0.28) {
