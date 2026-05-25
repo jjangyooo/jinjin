@@ -42,11 +42,19 @@ html, body {
   pointer-events: none;
 }
 
+/* Text ghost signals — poster words flickering through the dark */
+#textghosts {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
 /* Edge softness at beam boundary — screen blend, minimal */
 #bloom {
   position: fixed;
   inset: 0;
-  z-index: 3;
+  z-index: 4;
   pointer-events: none;
   mix-blend-mode: screen;
 }
@@ -55,7 +63,7 @@ html, body {
 #grain {
   position: fixed;
   inset: 0;
-  z-index: 4;
+  z-index: 5;
   pointer-events: none;
   mix-blend-mode: overlay;
   opacity: 0.18;
@@ -65,7 +73,7 @@ html, body {
 #vignette {
   position: fixed;
   inset: 0;
-  z-index: 5;
+  z-index: 6;
   pointer-events: none;
   background: radial-gradient(
     ellipse 78% 72% at 50% 50%,
@@ -86,7 +94,7 @@ html, body {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 6;
+  z-index: 7;
   pointer-events: none;
   will-change: transform;
 }
@@ -135,6 +143,7 @@ html, body {
 </div>
 
 <canvas id="darkness"></canvas>
+<canvas id="textghosts"></canvas>
 <canvas id="bloom"></canvas>
 <canvas id="grain"></canvas>
 <div id="vignette"></div>
@@ -150,16 +159,19 @@ html, body {
 (function () {
   'use strict';
 
-  const darkCvs  = document.getElementById('darkness');
-  const bloomCvs = document.getElementById('bloom');
-  const grainCvs = document.getElementById('grain');
-  const ctrlEl   = document.getElementById('controller');
-  const hintEl   = document.getElementById('hint');
-  const introEl  = document.getElementById('intro');
+  const darkCvs   = document.getElementById('darkness');
+  const ghostCvs  = document.getElementById('textghosts');
+  const bloomCvs  = document.getElementById('bloom');
+  const grainCvs  = document.getElementById('grain');
+  const ctrlEl    = document.getElementById('controller');
+  const hintEl    = document.getElementById('hint');
+  const introEl   = document.getElementById('intro');
+  const posterImg = document.querySelector('#poster img');
 
-  const dCtx = darkCvs.getContext('2d');
-  const bCtx = bloomCvs.getContext('2d');
-  const gCtx = grainCvs.getContext('2d');
+  const dCtx  = darkCvs.getContext('2d');
+  const ghCtx = ghostCvs.getContext('2d');
+  const bCtx  = bloomCvs.getContext('2d');
+  const gCtx  = grainCvs.getContext('2d');
 
   // ── Flashlight distance model ─────────────────────────────
   //
@@ -258,12 +270,169 @@ html, body {
         gCtx.drawImage(gTile, px, py);
   }
 
+  // ── Ghost text regions ────────────────────────────────────
+  // Fractions of poster natural dimensions (x, y from top-left of poster).
+  // 34 regions: 3 header + 9 left col + 11 mid col + 9 right col + 2 footer
+  const GHOST_REGIONS = [
+    { x: 0.06, y: 0.040, w: 0.88, h: 0.092 }, // COMA NOVA
+    { x: 0.04, y: 0.122, w: 0.92, h: 0.172 }, // SPOTLIGHT
+    { x: 0.22, y: 0.290, w: 0.56, h: 0.040 }, // Second Edition Exhibition
+    // Left column
+    { x: 0.04, y: 0.335, w: 0.23, h: 0.038 },
+    { x: 0.04, y: 0.373, w: 0.23, h: 0.038 },
+    { x: 0.04, y: 0.411, w: 0.23, h: 0.038 },
+    { x: 0.04, y: 0.449, w: 0.23, h: 0.038 },
+    { x: 0.04, y: 0.487, w: 0.23, h: 0.038 },
+    { x: 0.04, y: 0.525, w: 0.23, h: 0.038 },
+    { x: 0.04, y: 0.563, w: 0.23, h: 0.038 },
+    { x: 0.04, y: 0.601, w: 0.23, h: 0.038 },
+    { x: 0.04, y: 0.639, w: 0.23, h: 0.038 },
+    // Mid column
+    { x: 0.32, y: 0.335, w: 0.33, h: 0.038 },
+    { x: 0.32, y: 0.373, w: 0.33, h: 0.038 },
+    { x: 0.32, y: 0.411, w: 0.33, h: 0.038 },
+    { x: 0.32, y: 0.449, w: 0.33, h: 0.038 },
+    { x: 0.32, y: 0.487, w: 0.33, h: 0.038 },
+    { x: 0.32, y: 0.525, w: 0.33, h: 0.038 },
+    { x: 0.32, y: 0.563, w: 0.33, h: 0.038 },
+    { x: 0.32, y: 0.601, w: 0.33, h: 0.038 },
+    { x: 0.32, y: 0.639, w: 0.33, h: 0.038 },
+    { x: 0.32, y: 0.677, w: 0.33, h: 0.038 },
+    { x: 0.32, y: 0.715, w: 0.33, h: 0.038 },
+    // Right column
+    { x: 0.67, y: 0.335, w: 0.27, h: 0.038 },
+    { x: 0.67, y: 0.373, w: 0.27, h: 0.038 },
+    { x: 0.67, y: 0.411, w: 0.27, h: 0.038 },
+    { x: 0.67, y: 0.449, w: 0.27, h: 0.038 },
+    { x: 0.67, y: 0.487, w: 0.27, h: 0.038 },
+    { x: 0.67, y: 0.525, w: 0.27, h: 0.038 },
+    { x: 0.67, y: 0.563, w: 0.27, h: 0.038 },
+    { x: 0.67, y: 0.601, w: 0.27, h: 0.038 },
+    { x: 0.67, y: 0.639, w: 0.27, h: 0.038 },
+    // Footer
+    { x: 0.09, y: 0.785, w: 0.82, h: 0.065 },
+    { x: 0.05, y: 0.855, w: 0.90, h: 0.065 },
+  ];
+
+  // Per-region animation state
+  // ph: 0=idle, 1=fade-in, 2=hold, 3=fade-out
+  const ghostStates = GHOST_REGIONS.map((_, i) => ({
+    ph: 0, phT: 0, timer: Math.random() * 5,
+    op: 0, blur: 0, ox: 0, oy: 0,
+    peak: 0, upD: 0, holdD: 0, downD: 0,
+    blurStart: 0, blurEnd: 0,
+  }));
+
+  function calcPosterRect() {
+    const iw = posterImg.naturalWidth;
+    const ih = posterImg.naturalHeight;
+    if (!iw || !ih) return null;
+    const scale = Math.min(W / iw, H / ih);
+    const pw = iw * scale;
+    const ph = ih * scale;
+    return { x: (W - pw) * 0.5, y: (H - ph) * 0.5, w: pw, h: ph };
+  }
+
+  function updateGhosts(dt) {
+    // During reveal/rebuild, quickly fade out any active ghosts
+    if (state !== ST.SPOTLIGHT) {
+      ghostStates.forEach(g => {
+        if (g.ph !== 0) {
+          g.op = Math.max(0, g.op - dt * 10);
+          if (g.op <= 0) { g.ph = 0; g.op = 0; }
+        }
+      });
+      return;
+    }
+
+    let activeCount = ghostStates.reduce((n, g) => n + (g.ph !== 0 ? 1 : 0), 0);
+
+    ghostStates.forEach(g => {
+      if (g.ph === 0) {
+        g.timer -= dt;
+        if (g.timer <= 0) {
+          g.timer = 1.5 + Math.random() * 6.5;
+          if (activeCount < 4 && Math.random() < 0.30) {
+            g.ph        = 1;
+            g.phT       = 0;
+            g.peak      = 0.32 + Math.random() * 0.42;
+            g.upD       = 0.012 + Math.random() * 0.015;
+            g.holdD     = 0.025 + Math.random() * 0.065;
+            g.downD     = 0.035 + Math.random() * 0.075;
+            g.ox        = (Math.random() - 0.5) * 4;
+            g.oy        = (Math.random() - 0.5) * 3;
+            g.blurStart = 1.2 + Math.random() * 1.4;
+            g.blurEnd   = 0.5 + Math.random() * 1.0;
+            activeCount++;
+          }
+        }
+        return;
+      }
+
+      g.phT += dt;
+
+      if (g.ph === 1) {
+        const t = Math.min(1, g.phT / g.upD);
+        g.op   = t * g.peak;
+        g.blur = g.blurStart + (0.15 - g.blurStart) * t;
+        if (t >= 1) { g.ph = 2; g.phT = 0; }
+      } else if (g.ph === 2) {
+        g.op   = g.peak;
+        g.blur = 0.15;
+        if (g.phT >= g.holdD) { g.ph = 3; g.phT = 0; }
+      } else if (g.ph === 3) {
+        const t = Math.min(1, g.phT / g.downD);
+        g.op   = g.peak * (1 - t);
+        g.blur = 0.15 + (g.blurEnd - 0.15) * t;
+        if (t >= 1) {
+          g.ph = 0; g.op = 0; g.blur = 0;
+          g.timer = 1.5 + Math.random() * 6.5;
+          activeCount--;
+        }
+      }
+    });
+  }
+
+  function drawGhosts() {
+    ghCtx.clearRect(0, 0, W, H);
+    if (state !== ST.SPOTLIGHT) return;
+    if (!posterImg.complete || !posterImg.naturalWidth) return;
+
+    const pr = calcPosterRect();
+    if (!pr) return;
+
+    ghostStates.forEach((g, i) => {
+      if (g.ph === 0 || g.op < 0.004) return;
+
+      const reg = GHOST_REGIONS[i];
+      const rx  = pr.x + reg.x * pr.w;
+      const ry  = pr.y + reg.y * pr.h;
+      const rw  = reg.w * pr.w;
+      const rh  = reg.h * pr.h;
+
+      ghCtx.save();
+      ghCtx.globalAlpha = g.op;
+      if (g.blur > 0.05) ghCtx.filter = `blur(${g.blur.toFixed(2)}px)`;
+
+      // Clip to the region rectangle (with small pad for blur overflow)
+      const pad = Math.ceil(g.blur * 2) + 2;
+      ghCtx.beginPath();
+      ghCtx.rect(rx - pad + g.ox, ry - pad + g.oy, rw + pad * 2, rh + pad * 2);
+      ghCtx.clip();
+
+      // Draw full poster image offset by jitter — clip reveals only this region
+      ghCtx.drawImage(posterImg, pr.x + g.ox, pr.y + g.oy, pr.w, pr.h);
+
+      ghCtx.restore();
+    });
+  }
+
   // ── Resize ────────────────────────────────────────────────
   function resize() {
     W    = window.innerWidth;
     H    = window.innerHeight;
     DIAG = Math.hypot(W, H);
-    [darkCvs, bloomCvs, grainCvs].forEach(c => {
+    [darkCvs, ghostCvs, bloomCvs, grainCvs].forEach(c => {
       c.width  = W;
       c.height = H;
     });
@@ -502,6 +671,10 @@ html, body {
       dCtx.clearRect(0, 0, W, H);
       bCtx.clearRect(0, 0, W, H);
     }
+
+    // ── Ghost text signals ─────────────────────────────────
+    updateGhosts(dt);
+    drawGhosts();
 
     if (fc % 2 === 0) refreshGrain();
     grainCvs.style.opacity = (1 - Math.min(1, bt * 2)).toFixed(3);
