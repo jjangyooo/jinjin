@@ -317,7 +317,7 @@ html, body {
   // Per-region animation state
   // ph: 0=idle, 1=fade-in, 2=hold, 3=fade-out
   const ghostStates = GHOST_REGIONS.map((_, i) => ({
-    ph: 0, phT: 0, timer: Math.random() * 5,
+    ph: 0, phT: 0, timer: Math.random() * 2,
     op: 0, blur: 0, ox: 0, oy: 0,
     peak: 0, upD: 0, holdD: 0, downD: 0,
     blurStart: 0, blurEnd: 0,
@@ -351,18 +351,18 @@ html, body {
       if (g.ph === 0) {
         g.timer -= dt;
         if (g.timer <= 0) {
-          g.timer = 1.5 + Math.random() * 6.5;
-          if (activeCount < 4 && Math.random() < 0.30) {
+          g.timer = 0.8 + Math.random() * 3.0;
+          if (activeCount < 3 && Math.random() < 0.60) {
             g.ph        = 1;
             g.phT       = 0;
-            g.peak      = 0.32 + Math.random() * 0.42;
-            g.upD       = 0.012 + Math.random() * 0.015;
-            g.holdD     = 0.025 + Math.random() * 0.065;
-            g.downD     = 0.035 + Math.random() * 0.075;
+            g.peak      = 0.75 + Math.random() * 0.25;
+            g.upD       = 0.06 + Math.random() * 0.10;
+            g.holdD     = 0.12 + Math.random() * 0.22;
+            g.downD     = 0.15 + Math.random() * 0.30;
             g.ox        = (Math.random() - 0.5) * 4;
             g.oy        = (Math.random() - 0.5) * 3;
-            g.blurStart = 1.2 + Math.random() * 1.4;
-            g.blurEnd   = 0.5 + Math.random() * 1.0;
+            g.blurStart = 2.5 + Math.random() * 2.5;
+            g.blurEnd   = 1.5 + Math.random() * 2.0;
             activeCount++;
           }
         }
@@ -386,7 +386,7 @@ html, body {
         g.blur = 0.15 + (g.blurEnd - 0.15) * t;
         if (t >= 1) {
           g.ph = 0; g.op = 0; g.blur = 0;
-          g.timer = 1.5 + Math.random() * 6.5;
+          g.timer = 0.8 + Math.random() * 3.0;
           activeCount--;
         }
       }
@@ -402,7 +402,7 @@ html, body {
     if (!pr) return;
 
     ghostStates.forEach((g, i) => {
-      if (g.ph === 0 || g.op < 0.004) return;
+      if (g.ph === 0 || g.op < 0.01) return;
 
       const reg = GHOST_REGIONS[i];
       const rx  = pr.x + reg.x * pr.w;
@@ -414,8 +414,8 @@ html, body {
       ghCtx.globalAlpha = g.op;
       if (g.blur > 0.05) ghCtx.filter = `blur(${g.blur.toFixed(2)}px)`;
 
-      // Clip to the region rectangle (with small pad for blur overflow)
-      const pad = Math.ceil(g.blur * 2) + 2;
+      // Clip to the region rectangle (with pad for blur overflow)
+      const pad = Math.ceil(g.blur * 3) + 4;
       ghCtx.beginPath();
       ghCtx.rect(rx - pad + g.ox, ry - pad + g.oy, rw + pad * 2, rh + pad * 2);
       ghCtx.clip();
