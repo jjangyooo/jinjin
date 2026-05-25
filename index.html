@@ -40,7 +40,7 @@ html, body {
   pointer-events: none;
 }
 
-/* Ghost word divs are injected at z-index 3 by JS */
+/* Ghost word divs injected at z-index 3 by JS */
 
 #bloom {
   position: fixed;
@@ -122,7 +122,7 @@ html, body {
 <body>
 
 <div id="poster">
-  <img src="imageA.png" alt="">
+  <img id="posterImg" src="imageA.png" alt="">
 </div>
 
 <canvas id="darkness"></canvas>
@@ -141,13 +141,13 @@ html, body {
 (function () {
   'use strict';
 
-  const darkCvs  = document.getElementById('darkness');
-  const bloomCvs = document.getElementById('bloom');
-  const grainCvs = document.getElementById('grain');
-  const ctrlEl   = document.getElementById('controller');
-  const hintEl   = document.getElementById('hint');
-  const introEl  = document.getElementById('intro');
-  const posterImg = document.querySelector('#poster img');
+  const darkCvs   = document.getElementById('darkness');
+  const bloomCvs  = document.getElementById('bloom');
+  const grainCvs  = document.getElementById('grain');
+  const ctrlEl    = document.getElementById('controller');
+  const hintEl    = document.getElementById('hint');
+  const introEl   = document.getElementById('intro');
+  const posterImg = document.getElementById('posterImg');
 
   const dCtx = darkCvs.getContext('2d');
   const bCtx = bloomCvs.getContext('2d');
@@ -173,7 +173,7 @@ html, body {
   let hintDone = false;
   let fc = 0;
 
-  // ── Flicker system ────────────────────────────────────────
+  // ── Flicker ───────────────────────────────────────────────
   let fk      = 1.0;
   let fkSeq   = null;
   let fkTimer = 1.5 + Math.random() * 2.5;
@@ -232,7 +232,6 @@ html, body {
   }
 
   // ── Ghost text regions ────────────────────────────────────
-  // x, y, w, h as fractions of the poster's rendered rectangle
   const GHOST_REGIONS = [
     { x: 0.06, y: 0.040, w: 0.88, h: 0.092 }, // COMA NOVA
     { x: 0.04, y: 0.122, w: 0.92, h: 0.172 }, // SPOTLIGHT
@@ -274,34 +273,43 @@ html, body {
     { x: 0.05, y: 0.855, w: 0.90, h: 0.065 },
   ];
 
-  // Create one DOM div per region.
-  // Each div is an overflow:hidden crop window showing imageA.png at exactly
-  // the right position via background-image + background-size + background-position.
-  // JS animates opacity, filter, transform — no canvas drawImage involved.
+  // Each ghost = overflow:hidden outer div + full-size inner <img>
+  // Outer div = crop window positioned at the region's screen coords.
+  // Inner img = full poster scaled to poster's actual rendered size,
+  //             shifted so the correct region aligns with the outer div.
   const ghostEls = GHOST_REGIONS.map(() => {
-    const el = document.createElement('div');
-    el.style.cssText = [
-      'position:fixed',
-      'overflow:hidden',
-      'pointer-events:none',
-      'z-index:3',
-      'opacity:0',
-      'background-image:url(imageA.png)',
-      'background-repeat:no-repeat',
-      'will-change:opacity,filter,transform',
-    ].join(';');
-    document.body.appendChild(el);
-    return el;
+    const outer = document.createElement('div');
+    outer.style.position      = 'fixed';
+    outer.style.overflow      = 'hidden';
+    outer.style.pointerEvents = 'none';
+    outer.style.zIndex        = '3';
+    outer.style.opacity       = '0';
+    outer.style.willChange    = 'opacity, transform';
+
+    const inner = document.createElement('img');
+    inner.src                 = 'imageA.png';
+    inner.draggable           = false;
+    inner.style.position      = 'absolute';
+    inner.style.display       = 'block';
+    inner.style.maxWidth      = 'none';
+    inner.style.pointerEvents = 'none';
+    inner.style.userSelect    = 'none';
+
+    outer.appendChild(inner);
+    document.body.appendChild(outer);
+    return { outer, inner };
   });
 
-  // Per-region animation state. ph: 0=idle 1=up 2=hold 3=down
+  // ph: 0=idle 1=fade-in 2=hold 3=fade-out
+  // timer starts at 999 — held until initGhosts() is called
   const ghostStates = GHOST_REGIONS.map(() => ({
-    ph: 0, phT: 0,
-    timer: Math.random() * 2,
+    ph: 0, phT: 0, timer: 999,
     op: 0, blur: 0, ox: 0, oy: 0,
     peak: 0, upD: 0, holdD: 0, downD: 0,
     blurStart: 0, blurEnd: 0,
   }));
+
+  let posterRect = null;
 
   function calcPosterRect() {
     const iw = posterImg.naturalWidth;
@@ -313,36 +321,53 @@ html, body {
     return { x: (W - pw) * 0.5, y: (H - ph) * 0.5, w: pw, h: ph };
   }
 
+  // Called once: after image load confirmed + intro fully faded (~2.9s)
+  function initGhosts() {
+    posterRect = calcPosterRect();
+    ghostStates.forEach(g => {
+      g.timer = 0.2 + Math.random() * 2.0; // stagger: 0.2-2.2s after init
+    });
+  }
+
+  function scheduleInit() {
+    const delay = 2900; // ms — after intro finishes fading
+    if (posterImg.complete && posterImg.naturalWidth > 0) {
+      setTimeout(initGhosts, delay);
+    } else {
+      posterImg.addEventListener('load', () => setTimeout(initGhosts, delay), { once: true });
+    }
+  }
+
   function updateGhosts(dt) {
     if (state !== ST.SPOTLIGHT) {
       ghostStates.forEach(g => {
         if (g.ph !== 0) {
-          g.op = Math.max(0, g.op - dt * 12);
+          g.op = Math.max(0, g.op - dt * 10);
           if (g.op <= 0) { g.ph = 0; g.op = 0; }
         }
       });
       return;
     }
 
-    let activeCount = ghostStates.reduce((n, g) => n + (g.ph !== 0 ? 1 : 0), 0);
+    let active = ghostStates.reduce((n, g) => n + (g.ph !== 0 ? 1 : 0), 0);
 
     ghostStates.forEach(g => {
       if (g.ph === 0) {
         g.timer -= dt;
         if (g.timer <= 0) {
-          g.timer = 0.8 + Math.random() * 3.0;
-          if (activeCount < 3 && Math.random() < 0.60) {
+          g.timer = 1.0 + Math.random() * 3.0;
+          if (active < 3 && Math.random() < 0.65) {
             g.ph        = 1;
             g.phT       = 0;
-            g.peak      = 0.75 + Math.random() * 0.25;
-            g.upD       = 0.06 + Math.random() * 0.10;
-            g.holdD     = 0.12 + Math.random() * 0.22;
-            g.downD     = 0.15 + Math.random() * 0.30;
+            g.peak      = 0.80 + Math.random() * 0.20;
+            g.upD       = 0.08 + Math.random() * 0.12;
+            g.holdD     = 0.20 + Math.random() * 0.30;
+            g.downD     = 0.18 + Math.random() * 0.28;
             g.ox        = (Math.random() - 0.5) * 4;
             g.oy        = (Math.random() - 0.5) * 3;
-            g.blurStart = 2.5 + Math.random() * 2.5;
+            g.blurStart = 3.0 + Math.random() * 2.0;
             g.blurEnd   = 1.5 + Math.random() * 2.0;
-            activeCount++;
+            active++;
           }
         }
         return;
@@ -353,56 +378,54 @@ html, body {
       if (g.ph === 1) {
         const t = Math.min(1, g.phT / g.upD);
         g.op   = t * g.peak;
-        g.blur = g.blurStart + (0.15 - g.blurStart) * t;
+        g.blur = g.blurStart + (0.1 - g.blurStart) * t;
         if (t >= 1) { g.ph = 2; g.phT = 0; }
       } else if (g.ph === 2) {
         g.op   = g.peak;
-        g.blur = 0.15;
+        g.blur = 0.1;
         if (g.phT >= g.holdD) { g.ph = 3; g.phT = 0; }
       } else if (g.ph === 3) {
         const t = Math.min(1, g.phT / g.downD);
         g.op   = g.peak * (1 - t);
-        g.blur = 0.15 + (g.blurEnd - 0.15) * t;
+        g.blur = 0.1 + (g.blurEnd - 0.1) * t;
         if (t >= 1) {
           g.ph = 0; g.op = 0; g.blur = 0;
-          g.timer = 0.8 + Math.random() * 3.0;
-          activeCount--;
+          g.timer = 1.0 + Math.random() * 3.0;
+          active--;
         }
       }
     });
   }
 
   function applyGhosts() {
-    const pr = calcPosterRect();
+    const pr = posterRect;
 
     ghostStates.forEach((g, i) => {
-      const el  = ghostEls[i];
+      const { outer, inner } = ghostEls[i];
       const reg = GHOST_REGIONS[i];
 
-      const hide = (state !== ST.SPOTLIGHT) || g.ph === 0 || g.op < 0.01;
-      if (hide) {
-        el.style.opacity = '0';
+      if (state !== ST.SPOTLIGHT || g.ph === 0 || g.op < 0.005 || !pr) {
+        outer.style.opacity = '0';
         return;
       }
 
-      const rx = (pr ? pr.x + reg.x * pr.w : 0);
-      const ry = (pr ? pr.y + reg.y * pr.h : 0);
-      const rw = (pr ? reg.w * pr.w : 0);
-      const rh = (pr ? reg.h * pr.h : 0);
+      const rx = pr.x + reg.x * pr.w;
+      const ry = pr.y + reg.y * pr.h;
+      const rw = reg.w * pr.w;
+      const rh = reg.h * pr.h;
 
-      if (!pr || rw < 1 || rh < 1) { el.style.opacity = '0'; return; }
+      outer.style.left      = rx.toFixed(1) + 'px';
+      outer.style.top       = ry.toFixed(1) + 'px';
+      outer.style.width     = rw.toFixed(1) + 'px';
+      outer.style.height    = rh.toFixed(1) + 'px';
+      outer.style.opacity   = g.op.toFixed(3);
+      outer.style.filter    = g.blur > 0.15 ? 'blur(' + g.blur.toFixed(1) + 'px)' : 'none';
+      outer.style.transform = 'translate(' + g.ox.toFixed(1) + 'px,' + g.oy.toFixed(1) + 'px)';
 
-      el.style.left   = rx + 'px';
-      el.style.top    = ry + 'px';
-      el.style.width  = rw + 'px';
-      el.style.height = rh + 'px';
-
-      el.style.backgroundSize     = pr.w + 'px ' + pr.h + 'px';
-      el.style.backgroundPosition = (-reg.x * pr.w) + 'px ' + (-reg.y * pr.h) + 'px';
-
-      el.style.opacity   = g.op.toFixed(3);
-      el.style.filter    = g.blur > 0.08 ? 'blur(' + g.blur.toFixed(2) + 'px)' : 'none';
-      el.style.transform = 'translate(' + g.ox.toFixed(1) + 'px,' + g.oy.toFixed(1) + 'px)';
+      inner.style.width  = pr.w.toFixed(1) + 'px';
+      inner.style.height = pr.h.toFixed(1) + 'px';
+      inner.style.left   = (-reg.x * pr.w).toFixed(1) + 'px';
+      inner.style.top    = (-reg.y * pr.h).toFixed(1) + 'px';
     });
   }
 
@@ -416,6 +439,7 @@ html, body {
       c.height = H;
     });
     if (tx === undefined) { tx = sx = W * 0.5; ty = sy = H * 0.5; }
+    posterRect = calcPosterRect();
     refreshGrain();
   }
   window.addEventListener('resize', resize);
@@ -650,6 +674,7 @@ html, body {
   }
 
   resize();
+  scheduleInit();
   requestAnimationFrame(ts => { lastTs = ts; requestAnimationFrame(tick); });
 }());
 </script>
