@@ -15,7 +15,6 @@ html, body {
   cursor: none;
 }
 
-/* imageA.png: fullscreen poster, never altered */
 #poster {
   position: fixed;
   inset: 0;
@@ -34,7 +33,6 @@ html, body {
   -webkit-user-drag: none;
 }
 
-/* Darkness canvas */
 #darkness {
   position: fixed;
   inset: 0;
@@ -42,7 +40,6 @@ html, body {
   pointer-events: none;
 }
 
-/* Edge softness at beam boundary — screen blend, minimal */
 #bloom {
   position: fixed;
   inset: 0;
@@ -51,7 +48,6 @@ html, body {
   mix-blend-mode: screen;
 }
 
-/* Film grain */
 #grain {
   position: fixed;
   inset: 0;
@@ -61,7 +57,6 @@ html, body {
   opacity: 0.18;
 }
 
-/* Edge vignette */
 #vignette {
   position: fixed;
   inset: 0;
@@ -76,12 +71,6 @@ html, body {
   );
 }
 
-/*
-  imageB.png: physical flashlight/projector body.
-  multiply blend: visible only where spotlight reveals the bright poster beneath.
-  Corners fall into darkness and disappear — the lit area reads as circular.
-  No glow, no emission, no invert.
-*/
 #controller {
   position: fixed;
   top: 0;
@@ -161,29 +150,12 @@ html, body {
   const bCtx = bloomCvs.getContext('2d');
   const gCtx = grainCvs.getContext('2d');
 
-  // ── Flashlight distance model ─────────────────────────
-  //
-  // sdepth 0→1 maps "scroll up (far)" → "scroll down (close)"
-  //
-  // CLOSE (sdepth high, large imageB):
-  //   flashlight pressed against surface.
-  //   visible circle ≈ imageB size only. almost no spread.
-  //
-  // FAR (sdepth low, small imageB):
-  //   flashlight pulled back.
-  //   cone expands. wide soft light covers large area.
-  //
-  // Beam radius formula: spotR = nozzleR + distFactor² × DIAG × SPREAD_SCALE
-  // distFactor = 1 − sdepth: 0 when close, 1 when far.
-  // nozzleR is fixed (18px) so scrolling down never expands the beam.
-
-  const CTRL_MIN    = 76;    // px — imageB at far distance (small)
-  const CTRL_MAX    = 192;   // px — imageB at close distance (~2.5× = ~200% of original)
-  const SPREAD_SCALE = 0.50; // controls how wide the far beam gets
+  const CTRL_MIN    = 76;
+  const CTRL_MAX    = 192;
+  const SPREAD_SCALE = 0.50;
   const EASE_POS    = 0.17;
   const EASE_DEPTH  = 0.09;
 
-  // ── Reveal state machine ──────────────────────────
   const ST = { SPOTLIGHT: 0, BREAKING: 1, REVEALED: 2, REBUILDING: 3 };
   const REVEAL_THRESH  = 0.19;
   const REVEAL_HYST    = 0.05;
@@ -197,6 +169,36 @@ html, body {
   let sx, sy, sdepth = 0.50;
   let hintDone = false;
   let fc = 0;
+
+  // ── Flicker system ────────────────────────────────
+  let fk      = 1.0;
+  let fkSeq   = null;
+  let fkTimer = 5 + Math.random() * 6;
+
+  function fkMake() {
+    const blinks = Math.random() < 0.40 ? 2 : 1;
+    const kf = [{ t: 0, v: 1.0 }];
+    let c = 0.010 + Math.random() * 0.008;
+    for (let i = 0; i < blinks; i++) {
+      kf.push({ t: c, v: 0.04 + Math.random() * 0.10 });
+      c += 0.022 + Math.random() * 0.030;
+      kf.push({ t: c, v: 0.88 + Math.random() * 0.12 });
+      c += 0.010 + Math.random() * 0.014;
+      if (i < blinks - 1) {
+        kf.push({ t: c, v: 0.05 + Math.random() * 0.08 });
+        c += 0.016 + Math.random() * 0.020;
+      }
+    }
+    kf.push({ t: c, v: 1.0 });
+    return { kf, dur: c, t: 0 };
+  }
+
+  function fkEval(seq) {
+    for (let i = 0; i < seq.kf.length - 1; i++) {
+      if (seq.t < seq.kf[i + 1].t) return seq.kf[i].v;
+    }
+    return 1.0;
+  }
 
   // ── Film grain tile ───────────────────────────────
   const GS    = 256;
@@ -226,7 +228,6 @@ html, body {
         gCtx.drawImage(gTile, px, py);
   }
 
-  // ── Resize ──────────────────────────────────────
   function resize() {
     W    = window.innerWidth;
     H    = window.innerHeight;
@@ -240,14 +241,12 @@ html, body {
   }
   window.addEventListener('resize', resize);
 
-  // ── Input ─────────────────────────────────────────
   document.addEventListener('mousemove', e => {
     tx = e.clientX;
     ty = e.clientY;
     if (!hintDone) { hintEl.style.opacity = '0'; hintDone = true; }
   });
 
-  // Scroll down → closer → larger imageB → tighter beam
   document.addEventListener('wheel', e => {
     tdepth = Math.max(0, Math.min(1, tdepth + e.deltaY * 0.0008));
     e.preventDefault();
@@ -269,7 +268,6 @@ html, body {
   const lerp = (a, b, t) => a + (b - a) * t;
   const fi   = (f, dt) => 1 - Math.pow(1 - f, dt * 60);
 
-  // ── DARKNESS + SPOTLIGHT ──────────────────────────
   function drawDarkness(x, y, ctrlR, spotR, t, bt) {
     dCtx.clearRect(0, 0, W, H);
 
@@ -285,17 +283,14 @@ html, body {
 
     dCtx.globalCompositeOperation = 'destination-out';
 
-    // Iris expansion during break
     const irisExpand = bt > 0 ? 1 + bt * bt * 14 : 1;
     const activeSpotR = spotR * irisExpand;
 
-    // Hard clear at nozzle contact point
     dCtx.beginPath();
     dCtx.arc(x, y, ctrlR, 0, Math.PI * 2);
     dCtx.fillStyle = 'rgba(0,0,0,1)';
     dCtx.fill();
 
-    // Beam projection — organic drift on outer radius only
     const s       = t * 0.001;
     const breathe = 1 + 0.020 * Math.sin(s * 0.74);
     const a1x = Math.sin(s * 0.59) * 4.8 + Math.cos(s * 1.02) * 2.2;
@@ -341,16 +336,21 @@ html, body {
     dCtx.fillStyle = g3;
     dCtx.fillRect(0, 0, W, H);
 
-    // Slight center dimming
     dCtx.globalCompositeOperation = 'source-over';
     const gc = dCtx.createRadialGradient(x, y, 0, x, y, ctrlR * 0.7);
     gc.addColorStop(0.0, 'rgba(4,4,7,0.10)');
     gc.addColorStop(1.0, 'rgba(4,4,7,0.00)');
     dCtx.fillStyle = gc;
     dCtx.fillRect(0, 0, W, H);
+
+    // Flicker: paint darkness back over cleared area
+    if (fk < 0.999) {
+      dCtx.globalCompositeOperation = 'source-over';
+      dCtx.fillStyle = `rgba(4,4,7,${((1 - fk) * 0.95).toFixed(3)})`;
+      dCtx.fillRect(0, 0, W, H);
+    }
   }
 
-  // ── EDGE SOFTNESS ───────────────────────────────
   function drawBloom(x, y, ctrlR, spotR, t, bt, distFactor) {
     bCtx.clearRect(0, 0, W, H);
 
@@ -358,7 +358,7 @@ html, body {
 
     const s      = t * 0.001;
     const breathe = 1 + 0.016 * Math.sin(s * 0.74 + 0.4);
-    const strength = distFactor * 0.38;
+    const strength = distFactor * 0.38 * fk;
 
     const edgeIn  = spotR * 0.88 * breathe;
     const edgeOut = spotR * 1.10 * breathe;
@@ -371,7 +371,6 @@ html, body {
     bCtx.fillRect(0, 0, W, H);
   }
 
-  // ── MAIN LOOP ─────────────────────────────────────
   let lastTs = 0;
 
   function tick(ts) {
@@ -386,7 +385,6 @@ html, body {
     sy     = lerp(sy,     ty,     ep);
     sdepth = lerp(sdepth, tdepth, ed);
 
-    // ── State machine ──────────────────────────────
     if (state === ST.SPOTLIGHT && sdepth < REVEAL_THRESH) {
       state  = ST.BREAKING;
       breakT = 0;
@@ -408,13 +406,25 @@ html, body {
              : (state === ST.REVEALED)  ? 1
              : breakT;
 
-    // ── Flashlight physics ───────────────────────────
+    // ── Flicker (SPOTLIGHT state only) ────────────────────
+    if (state === ST.SPOTLIGHT) {
+      fkTimer -= dt;
+      if (fkTimer <= 0) {
+        if (fkSeq === null && Math.random() < 0.72) fkSeq = fkMake();
+        fkTimer = 3.5 + Math.random() * 7.0;
+      }
+    }
+    if (fkSeq !== null) {
+      fkSeq.t += dt;
+      fk = fkEval(fkSeq);
+      if (fkSeq.t >= fkSeq.dur) { fk = 1.0; fkSeq = null; }
+    } else if (state !== ST.SPOTLIGHT) {
+      fk = 1.0;
+    }
+
     const ctrlSize   = lerp(CTRL_MIN, CTRL_MAX, sdepth);
-    const ctrlR      = ctrlSize * 0.5;  // imageB element sizing only
-    const distFactor = 1 - sdepth;      // 1=far (wide), 0=close (tight)
-    // nozzleR: fixed small beam origin — does NOT grow when close.
-    // spotR grows only from distance (distFactor), so scrolling down
-    // (large imageB, small distFactor) keeps the beam tight.
+    const ctrlR      = ctrlSize * 0.5;
+    const distFactor = 1 - sdepth;
     const nozzleR    = 18;
     const beamSpread = distFactor * distFactor * DIAG * SPREAD_SCALE;
     const spotR      = nozzleR + beamSpread;
@@ -431,7 +441,6 @@ html, body {
     grainCvs.style.opacity = (1 - Math.min(1, bt * 2)).toFixed(3);
     drawGrain();
 
-    // ── imageB: physical body, collapses on break, rebuilds after ──
     let cScale = 1, cOpacity = 1;
     if (bt > 0) {
       if (bt < 0.28) {
@@ -448,7 +457,7 @@ html, body {
       cScale   = reappear;
     }
 
-    ctrlEl.style.opacity         = cOpacity.toFixed(3);
+    ctrlEl.style.opacity         = (cOpacity * fk).toFixed(3);
     ctrlEl.style.transform       = `translate3d(${(sx - ctrlR).toFixed(1)}px,${(sy - ctrlR).toFixed(1)}px,0) scale(${cScale.toFixed(3)})`;
     ctrlEl.style.transformOrigin = '50% 50%';
     ctrlEl.style.width           = ctrlSize.toFixed(0) + 'px';
