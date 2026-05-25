@@ -173,19 +173,19 @@ html, body {
   // ── Flicker system ────────────────────────────────
   let fk      = 1.0;
   let fkSeq   = null;
-  let fkTimer = 5 + Math.random() * 6;
+  let fkTimer = 1.5 + Math.random() * 2.5;
 
   function fkMake() {
     const blinks = Math.random() < 0.40 ? 2 : 1;
     const kf = [{ t: 0, v: 1.0 }];
     let c = 0.010 + Math.random() * 0.008;
     for (let i = 0; i < blinks; i++) {
-      kf.push({ t: c, v: 0.04 + Math.random() * 0.10 });
+      kf.push({ t: c, v: 0.01 + Math.random() * 0.04 });
       c += 0.022 + Math.random() * 0.030;
       kf.push({ t: c, v: 0.88 + Math.random() * 0.12 });
       c += 0.010 + Math.random() * 0.014;
       if (i < blinks - 1) {
-        kf.push({ t: c, v: 0.05 + Math.random() * 0.08 });
+        kf.push({ t: c, v: 0.02 + Math.random() * 0.04 });
         c += 0.016 + Math.random() * 0.020;
       }
     }
@@ -300,38 +300,43 @@ html, body {
     const a3x = Math.cos(s * 0.43 + 0.4) * 3.0;
     const a3y = Math.sin(s * 0.55 + 1.7) * 3.8;
 
+    // Primary cone — full clear at inner edge, strong across most of beam
     const g1 = dCtx.createRadialGradient(
       x, y, ctrlR,
       x + a1x * 0.07, y + a1y * 0.07, activeSpotR * breathe
     );
-    g1.addColorStop(0.00, 'rgba(0,0,0,0.96)');
-    g1.addColorStop(0.22, 'rgba(0,0,0,0.76)');
-    g1.addColorStop(0.50, 'rgba(0,0,0,0.38)');
-    g1.addColorStop(0.76, 'rgba(0,0,0,0.09)');
-    g1.addColorStop(0.92, 'rgba(0,0,0,0.02)');
+    g1.addColorStop(0.00, 'rgba(0,0,0,1.00)');
+    g1.addColorStop(0.18, 'rgba(0,0,0,0.96)');
+    g1.addColorStop(0.40, 'rgba(0,0,0,0.88)');
+    g1.addColorStop(0.62, 'rgba(0,0,0,0.65)');
+    g1.addColorStop(0.80, 'rgba(0,0,0,0.32)');
+    g1.addColorStop(0.92, 'rgba(0,0,0,0.08)');
     g1.addColorStop(1.00, 'rgba(0,0,0,0.00)');
     dCtx.fillStyle = g1;
     dCtx.fillRect(0, 0, W, H);
 
+    // Secondary: pushes residual darkness lower
     const g2 = dCtx.createRadialGradient(
       x, y, ctrlR,
       x + a2x * 0.12, y + a2y * 0.12, activeSpotR * 0.82 * breathe
     );
-    g2.addColorStop(0.00, 'rgba(0,0,0,0.36)');
-    g2.addColorStop(0.44, 'rgba(0,0,0,0.14)');
-    g2.addColorStop(0.80, 'rgba(0,0,0,0.03)');
+    g2.addColorStop(0.00, 'rgba(0,0,0,0.72)');
+    g2.addColorStop(0.35, 'rgba(0,0,0,0.48)');
+    g2.addColorStop(0.65, 'rgba(0,0,0,0.20)');
+    g2.addColorStop(0.88, 'rgba(0,0,0,0.05)');
     g2.addColorStop(1.00, 'rgba(0,0,0,0.00)');
     dCtx.fillStyle = g2;
     dCtx.fillRect(0, 0, W, H);
 
+    // Tertiary: organic edge irregularity
     const g3 = dCtx.createRadialGradient(
       x, y, ctrlR,
       x + a3x * 0.09, y + a3y * 0.09,
       activeSpotR * 0.88 * (1 + 0.014 * Math.cos(s * 0.91))
     );
-    g3.addColorStop(0.00, 'rgba(0,0,0,0.16)');
-    g3.addColorStop(0.55, 'rgba(0,0,0,0.06)');
-    g3.addColorStop(0.90, 'rgba(0,0,0,0.01)');
+    g3.addColorStop(0.00, 'rgba(0,0,0,0.40)');
+    g3.addColorStop(0.45, 'rgba(0,0,0,0.18)');
+    g3.addColorStop(0.80, 'rgba(0,0,0,0.04)');
     g3.addColorStop(1.00, 'rgba(0,0,0,0.00)');
     dCtx.fillStyle = g3;
     dCtx.fillRect(0, 0, W, H);
@@ -343,7 +348,6 @@ html, body {
     dCtx.fillStyle = gc;
     dCtx.fillRect(0, 0, W, H);
 
-    // Flicker: paint darkness back over cleared area
     if (fk < 0.999) {
       dCtx.globalCompositeOperation = 'source-over';
       dCtx.fillStyle = `rgba(4,4,7,${((1 - fk) * 0.95).toFixed(3)})`;
@@ -411,7 +415,7 @@ html, body {
       fkTimer -= dt;
       if (fkTimer <= 0) {
         if (fkSeq === null && Math.random() < 0.72) fkSeq = fkMake();
-        fkTimer = 3.5 + Math.random() * 7.0;
+        fkTimer = 1.5 + Math.random() * 3.5;
       }
     }
     if (fkSeq !== null) {
