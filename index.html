@@ -210,12 +210,12 @@ html, body {
     let c = 0.010 + Math.random() * 0.008;
     for (let i = 0; i < blinks; i++) {
       kf.push({ t: c, v: 0.01 + Math.random() * 0.04 }); // near-black cut
-      c += 0.022 + Math.random() * 0.030;
+      c += 0.060 + Math.random() * 0.090;
       kf.push({ t: c, v: 0.88 + Math.random() * 0.12 });
       c += 0.010 + Math.random() * 0.014;
       if (i < blinks - 1) {
         kf.push({ t: c, v: 0.02 + Math.random() * 0.04 });
-        c += 0.016 + Math.random() * 0.020;
+        c += 0.050 + Math.random() * 0.070;
       }
     }
     kf.push({ t: c, v: 1.0 });
