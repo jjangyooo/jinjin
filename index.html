@@ -19,10 +19,8 @@ html, body {
   justify-content: center;
 }
 
-/* ── POSTER CONTAINER ── */
 #poster-wrap {
   position: relative;
-  /* Maintain A3-ish portrait ratio */
   width: min(100vw, calc(100vh * 0.707));
   height: min(100vh, calc(100vw / 0.707));
   max-width: 860px;
@@ -35,45 +33,47 @@ html, body {
   background: #2B7A32;
   display: flex;
   flex-direction: column;
-  padding: 5% 6%;
-  font-family: 'Space Grotesk', 'Arial Narrow', Arial, sans-serif;
+  padding: 5.5% 6.5%;
+  font-family: 'Space Grotesk', Arial, sans-serif;
   overflow: hidden;
 }
 
-/* ── TAGLINE ── */
 .tagline {
-  font-size: clamp(9px, 1.5%, 13px);
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-size: clamp(8px, 1.35%, 13px);
+  font-weight: 400;
+  letter-spacing: 0.01em;
   color: #111;
-  text-transform: none;
   line-height: 1;
-  margin-bottom: 0.5%;
-  font-style: normal;
+  margin-bottom: 0.8%;
 }
 
-/* ── HEADLINE BLOCK ── */
 .headline {
-  font-size: clamp(52px, 11.5%, 100px);
+  font-size: clamp(44px, 10.2%, 90px);
   font-weight: 700;
   letter-spacing: -0.03em;
-  line-height: 0.90;
+  line-height: 0.91;
   color: #111;
-  text-transform: none;
   position: relative;
   z-index: 2;
   flex-shrink: 0;
+  pointer-events: none;
+  user-select: none;
 }
 
-/* ── 3D OBJECT AREA ── */
+.headline .num {
+  font-style: italic;
+  font-size: 108%;
+}
+
+/* Three.js canvas overlays the center of the poster */
 #canvas-wrap {
   position: absolute;
-  /* Positioned to overlay the center-left of the poster, like image1.png */
-  top: 18%;
-  left: -8%;
-  width: 90%;
-  height: 62%;
+  top: 14%;
+  left: -12%;
+  width: 100%;
+  height: 66%;
   z-index: 1;
+  pointer-events: none;
 }
 
 #three-canvas {
@@ -82,24 +82,24 @@ html, body {
   display: block;
 }
 
-/* ── BOTTOM SECTION ── */
 .bottom {
   margin-top: auto;
   position: relative;
   z-index: 2;
+  pointer-events: none;
+  user-select: none;
 }
 
-/* ── FORTO LOGO ── */
 .forto-logo {
   display: block;
   width: 100%;
-  margin-bottom: 1.5%;
+  margin-bottom: 2%;
 }
 
 .url-line {
-  font-size: clamp(8px, 1.3%, 12px);
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  font-size: clamp(7px, 1.25%, 11px);
+  font-weight: 400;
+  letter-spacing: 0.06em;
   color: #111;
   text-align: center;
 }
@@ -110,39 +110,48 @@ html, body {
 <div id="poster-wrap">
   <div id="poster">
 
-    <!-- Tagline -->
     <div class="tagline">A Next-Generation Space Travel Airline</div>
 
-    <!-- Headline -->
     <div class="headline">
       Nueu Rules<br>
       Into the<br>
-      <span style="color:#111;">Oddinary with</span><br>
-      <span style="font-style:italic;">42</span>
+      Oddinary with<br>
+      <span class="num">42</span>
     </div>
 
-    <!-- Three.js canvas -->
     <div id="canvas-wrap">
       <canvas id="three-canvas"></canvas>
     </div>
 
-    <!-- Bottom -->
     <div class="bottom">
-      <!-- FORTO SVG logo -->
-      <svg class="forto-logo" viewBox="0 0 800 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="FORTO">
-        <!-- F -->
-        <path d="M20 10 L20 130 L55 130 L55 80 L110 80 L110 50 L55 50 L55 40 L120 40 L120 10 Z" fill="#111"/>
+      <!--
+        FORTO logo — custom geometric letterforms reproduced as SVG paths.
+        The "F" has an arrow notch; letters are wide and heavy.
+      -->
+      <svg class="forto-logo" viewBox="0 0 820 148" xmlns="http://www.w3.org/2000/svg" aria-label="FORTO">
+        <!-- Arrow-F: normal F with bottom-left arrow cutout -->
+        <path d="
+          M10,8 L10,140 L52,140 L52,84 L116,84 L116,54 L52,54 L52,42 L128,42 L128,8 Z
+          M10,140 L10,108 L34,108 L10,140 Z
+        " fill="#111" fill-rule="evenodd"/>
         <!-- O -->
-        <path d="M175 10 C130 10 130 130 175 130 L225 130 C270 130 270 10 225 10 Z M175 40 L225 40 C245 40 245 100 225 100 L175 100 C155 100 155 40 175 40 Z" fill="#111"/>
+        <path d="
+          M178,8 C136,8 136,140 178,140 L232,140 C274,140 274,8 232,8 Z
+          M178,38 L232,38 C250,38 250,110 232,110 L178,110 C160,110 160,38 178,38 Z
+        " fill="#111" fill-rule="evenodd"/>
         <!-- R -->
-        <path d="M290 10 L290 130 L325 130 L325 80 L355 80 L390 130 L430 130 L392 76 C415 68 420 50 407 30 C397 14 375 10 290 10 Z M325 40 L370 40 C385 40 388 65 370 65 L325 65 Z" fill="#111"/>
-        <!-- T -->
-        <path d="M445 10 L445 40 L495 40 L495 130 L530 130 L530 40 L580 40 L580 10 Z" fill="#111"/>
-        <!-- O2 -->
-        <path d="M635 10 C590 10 590 130 635 130 L685 130 C730 130 730 10 685 10 Z M635 40 L685 40 C705 40 705 100 685 100 L635 100 C615 100 615 40 635 40 Z" fill="#111"/>
-        <!-- Stylized 4 arrow on F -->
-        <path d="M20 130 L20 105 L0 105 L0 130 Z" fill="#111"/>
-        <path d="M0 105 L20 80 L0 80 Z" fill="#111"/>
+        <path d="
+          M300,8 L300,140 L342,140 L342,88 L374,88 L413,140 L462,140 L419,82
+          C443,74 450,53 436,31 C425,14 402,8 300,8 Z
+          M342,38 L386,38 C402,38 404,68 386,68 L342,68 Z
+        " fill="#111" fill-rule="evenodd"/>
+        <!-- T (with no serifs, wide crossbar) -->
+        <path d="M474,8 L474,42 L528,42 L528,140 L570,140 L570,42 L624,42 L624,8 Z" fill="#111"/>
+        <!-- O2 (mirrored from first O) -->
+        <path d="
+          M668,8 C626,8 626,140 668,140 L722,140 C764,140 764,8 722,8 Z
+          M668,38 L722,38 C740,38 740,110 722,110 L668,110 C650,110 650,38 668,38 Z
+        " fill="#111" fill-rule="evenodd"/>
       </svg>
       <div class="url-line">www.fortonorules.co.kr</div>
     </div>
@@ -161,38 +170,30 @@ html, body {
 <script type="module">
 import * as THREE from 'three';
 
-// ─────────────────────────────────────────────
-// STAGE 1 PLACEHOLDER: simple rotating box
-// Will be replaced with full geometry in Stage 2
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// STAGE 2: Full 3D cube geometry with per-face subdivision line patterns
+//
+// The cube has 6 faces. Each face gets one of 3 line patterns from Reference.png:
+//
+//   Pattern A (face +Z, -Z):  horizontal cut + quarter-arc from top-right corner
+//   Pattern B (face +X, -X):  vertical center cut + two arcs from top apex
+//   Pattern C (face +Y, -Y):  horizontal cut + diagonal + concave arc
+//
+// Lines are drawn as 3D geometry (LineMesh) sitting just above each face surface
+// so they read as structural cuts, not texture overlays.
+// ─────────────────────────────────────────────────────────────────────────────
 
-const canvas  = document.getElementById('three-canvas');
-const wrap    = document.getElementById('canvas-wrap');
-
-const renderer = new THREE.WebGLRenderer({
-  canvas,
-  antialias: true,
-  alpha: true,
-});
+const canvas   = document.getElementById('three-canvas');
+const wrap     = document.getElementById('canvas-wrap');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 0);
 
 const scene  = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-camera.position.set(0, 0, 4.5);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+camera.position.set(0, 0.3, 5.5);
 
-// Temp placeholder mesh
-const geo  = new THREE.BoxGeometry(1.8, 1.8, 1.8);
-const mat  = new THREE.MeshBasicMaterial({ color: 0xF2F2F2, side: THREE.FrontSide });
-const mesh = new THREE.Mesh(geo, mat);
-
-const edgesGeo = new THREE.EdgesGeometry(geo);
-const edgesMat = new THREE.LineBasicMaterial({ color: 0x222222, linewidth: 1.5 });
-const edges    = new THREE.LineSegments(edgesGeo, edgesMat);
-
-const group = new THREE.Group();
-group.add(mesh);
-group.add(edges);
-scene.add(group);
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function resize() {
   const w = wrap.clientWidth;
@@ -202,26 +203,203 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 
-resize();
-window.addEventListener('resize', resize);
+// ── Materials ────────────────────────────────────────────────────────────────
+
+const faceMat = new THREE.MeshBasicMaterial({ color: 0xF2F2F2, side: THREE.FrontSide });
+const lineMat = new THREE.LineBasicMaterial({ color: 0x222222, linewidth: 2 });
+
+// ── Cube geometry ─────────────────────────────────────────────────────────────
+
+const S = 1.6; // half-size
+
+// Build a cube as 6 individual face meshes so we can attach lines per face
+const cube = new THREE.Group();
+
+// face helpers
+function makeFace(verts) {
+  // verts: array of [x,y,z] in order forming a quad (two triangles)
+  const geo = new THREE.BufferGeometry();
+  const v = new Float32Array(verts.flat());
+  geo.setAttribute('position', new THREE.BufferAttribute(v, 3));
+  geo.setIndex([0,1,2, 0,2,3]);
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, faceMat);
+}
+
+// 6 faces of the cube — consistent winding for front-face culling
+const faces = {
+  // +Z
+  front: makeFace([[-S,-S,S],[S,-S,S],[S,S,S],[-S,S,S]]),
+  // -Z
+  back:  makeFace([[S,-S,-S],[-S,-S,-S],[-S,S,-S],[S,S,-S]]),
+  // +X
+  right: makeFace([[S,-S,S],[S,-S,-S],[S,S,-S],[S,S,S]]),
+  // -X
+  left:  makeFace([[-S,-S,-S],[-S,-S,S],[-S,S,S],[-S,S,-S]]),
+  // +Y
+  top:   makeFace([[-S,S,S],[S,S,S],[S,S,-S],[-S,S,-S]]),
+  // -Y
+  bottom:makeFace([[S,-S,S],[-S,-S,S],[-S,-S,-S],[S,-S,-S]]),
+};
+
+Object.values(faces).forEach(f => cube.add(f));
+
+// ── Per-face subdivision lines ─────────────────────────────────────────────
+
+function lineOnFace(points3D) {
+  const geo = new THREE.BufferGeometry().setFromPoints(
+    points3D.map(p => new THREE.Vector3(...p))
+  );
+  return new THREE.Line(geo, lineMat);
+}
+
+const OFFSET = 0.002; // lift lines slightly off the face surface
+
+// Arc helper: returns N points of a circle arc in local 2D, then mapped to 3D
+function arc2d(cx, cy, r, startAngle, endAngle, segments, mapFn) {
+  const pts = [];
+  for (let i = 0; i <= segments; i++) {
+    const a = startAngle + (endAngle - startAngle) * (i / segments);
+    const x = cx + r * Math.cos(a);
+    const y = cy + r * Math.sin(a);
+    pts.push(mapFn(x, y));
+  }
+  return pts;
+}
+
+// ── Pattern A — front face (+Z): horizontal line + quarter-arc top-right ──
+{
+  const z = S + OFFSET;
+  const lineGroup = new THREE.Group();
+
+  // Horizontal cut at y=0.2*S (upper third)
+  lineGroup.add(lineOnFace([[-S, 0.2*S, z],[S, 0.2*S, z]]));
+
+  // Diagonal from top-left to mid-right
+  lineGroup.add(lineOnFace([[-S, S, z],[S, 0.2*S, z]]));
+
+  // Quarter-arc from bottom-left corner curving to right-mid
+  const arcPts = arc2d(S, -S, 2*S, Math.PI, Math.PI*0.5, 40, (x,y) => [x, y, z]);
+  lineGroup.add(lineOnFace(arcPts));
+
+  cube.add(lineGroup);
+}
+
+// ── Pattern B — right face (+X): vertical center cut + two arcs from top ──
+{
+  const x = S + OFFSET;
+  const lineGroup = new THREE.Group();
+
+  // Vertical center cut
+  lineGroup.add(lineOnFace([[x, -S, 0],[x, S, 0]]));
+
+  // Left arc from top sweeping down-left
+  const arcL = arc2d(0, S, S*1.4, Math.PI, Math.PI*1.5, 40, (z, y) => [x, y, -z]);
+  lineGroup.add(lineOnFace(arcL));
+
+  // Right arc from top sweeping down-right (mirrored)
+  const arcR = arc2d(0, S, S*1.4, 0, Math.PI*0.5, 40, (z, y) => [x, y, z]);
+  lineGroup.add(lineOnFace(arcR));
+
+  cube.add(lineGroup);
+}
+
+// ── Pattern C — top face (+Y): diagonal + gentle concave arc ──
+{
+  const y = S + OFFSET;
+  const lineGroup = new THREE.Group();
+
+  // Horizontal cut
+  lineGroup.add(lineOnFace([[-S, y, -0.1*S],[S, y, -0.1*S]]));
+
+  // Diagonal from top-left to bottom-right
+  lineGroup.add(lineOnFace([[-S, y, -S],[S, y, S]]));
+
+  // Concave arc spanning the lower section
+  const arcPts = arc2d(0, 0, S*1.6, Math.PI*1.1, Math.PI*1.9, 50, (x, z) => [x, y, z]);
+  lineGroup.add(lineOnFace(arcPts));
+
+  cube.add(lineGroup);
+}
+
+// ── Pattern A mirrored — back face (-Z) ──
+{
+  const z = -S - OFFSET;
+  const lineGroup = new THREE.Group();
+  lineGroup.add(lineOnFace([[S, 0.2*S, z],[-S, 0.2*S, z]]));
+  lineGroup.add(lineOnFace([[S, S, z],[-S, 0.2*S, z]]));
+  const arcPts = arc2d(-S, -S, 2*S, 0, Math.PI*0.5, 40, (x,y) => [x, y, z]);
+  lineGroup.add(lineOnFace(arcPts));
+  cube.add(lineGroup);
+}
+
+// ── Pattern B mirrored — left face (-X) ──
+{
+  const x = -S - OFFSET;
+  const lineGroup = new THREE.Group();
+  lineGroup.add(lineOnFace([[x, -S, 0],[x, S, 0]]));
+  const arcL = arc2d(0, S, S*1.4, Math.PI, Math.PI*1.5, 40, (z, y) => [x, y, z]);
+  lineGroup.add(lineOnFace(arcL));
+  const arcR = arc2d(0, S, S*1.4, 0, Math.PI*0.5, 40, (z, y) => [x, y, -z]);
+  lineGroup.add(lineOnFace(arcR));
+  cube.add(lineGroup);
+}
+
+// ── Pattern C mirrored — bottom face (-Y) ──
+{
+  const y = -S - OFFSET;
+  const lineGroup = new THREE.Group();
+  lineGroup.add(lineOnFace([[-S, y, -0.1*S],[S, y, -0.1*S]]));
+  lineGroup.add(lineOnFace([[-S, y, S],[S, y, -S]]));
+  const arcPts = arc2d(0, 0, S*1.6, Math.PI*1.1, Math.PI*1.9, 50, (x, z) => [x, y, z]);
+  lineGroup.add(lineOnFace(arcPts));
+  cube.add(lineGroup);
+}
+
+// Cube outline edges
+const outlineGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(S*2, S*2, S*2));
+const outline    = new THREE.LineSegments(outlineGeo, lineMat);
+cube.add(outline);
+
+scene.add(cube);
+
+// ── Mouse parallax ────────────────────────────────────────────────────────
 
 let mouseX = 0, mouseY = 0;
+let smoothX = 0, smoothY = 0;
+
 document.addEventListener('mousemove', e => {
-  mouseX = (e.clientX / window.innerWidth  - 0.5) * 2;
-  mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+  mouseX = (e.clientX / window.innerWidth  - 0.5);
+  mouseY = (e.clientY / window.innerHeight - 0.5);
 });
 
+// ── Animation loop ────────────────────────────────────────────────────────
+
 let t = 0;
-function animate() {
+let lastTime = 0;
+
+function animate(ts) {
   requestAnimationFrame(animate);
-  t += 0.005;
-  group.rotation.y = t;
-  group.rotation.x = 0.3 + mouseY * 0.06;
-  group.rotation.z = mouseX * 0.04;
+
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+
+  t += dt;
+
+  // Smooth mouse
+  smoothX += (mouseX - smoothX) * 0.04;
+  smoothY += (mouseY - smoothY) * 0.04;
+
+  // Slow auto-rotation
+  cube.rotation.y = t * 0.22 + smoothX * 0.18;
+  cube.rotation.x = 0.25    + smoothY * 0.14;
+
   renderer.render(scene, camera);
 }
 
-animate();
+resize();
+window.addEventListener('resize', resize);
+requestAnimationFrame(ts => { lastTime = ts; requestAnimationFrame(animate); });
 </script>
 
 </body>
