@@ -6,83 +6,75 @@
 <title>FORTO — Nueu Rules Into the Oddinary</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:ital,wght@0,700;0,800;0,900;1,700;1,800;1,900&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
   width: 100%; height: 100%;
   overflow: hidden;
-  background: #1c1c1c;
+  background: #111;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* ── Poster shell ── */
-#poster-wrap {
-  position: relative;
-  /* Portrait ratio ~√2 */
-  width: min(100vw, calc(100vh * 0.707));
-  height: min(100vh, calc(100vw / 0.707));
-  max-width: 820px;
-  max-height: 1160px;
-}
-
+/* ── Poster: portrait A3-ish ratio ── */
 #poster {
-  position: absolute;
-  inset: 0;
-  background: #2B7A32;
-  display: flex;
-  flex-direction: column;
-  padding: 5.5% 6%;
-  font-family: 'Space Grotesk', 'Arial Narrow', Arial, sans-serif;
+  position: relative;
+  background: #237A2E;
+  width: min(100vw, calc(100vh * 0.708));
+  height: min(100vh, calc(100vw / 0.708));
   overflow: hidden;
 }
 
 /* ── Tagline ── */
 .tagline {
-  font-size: clamp(7.5px, 1.3%, 12px);
-  font-weight: 400;
-  letter-spacing: 0.005em;
-  color: #0d0d0d;
+  position: absolute;
+  top: 4.2%;
+  left: 5.8%;
+  right: 5.8%;
+  font-family: 'Barlow Condensed', Arial, sans-serif;
+  font-size: clamp(8px, 1.45%, 13px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #0f0f0f;
   line-height: 1;
-  margin-bottom: 1%;
-  position: relative;
   z-index: 3;
 }
 
-/* ── Headline ── */
+/* ── Main headline ── */
 .headline {
-  font-size: clamp(40px, 9.6%, 85px);
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  line-height: 0.90;
-  color: #0d0d0d;
-  position: relative;
-  z-index: 3;
-  flex-shrink: 0;
+  position: absolute;
+  top: 6.5%;
+  left: 5%;
+  right: 4%;
+  font-family: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
+  font-size: clamp(46px, 10.5%, 92px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 0.88;
+  color: #0f0f0f;
+  z-index: 4;
   pointer-events: none;
   user-select: none;
+  text-transform: none;
 }
 
-.headline .row-42 {
-  /* "42" gets extra weight/size like in image1.png */
-  font-size: 115%;
+.headline .line-42 {
+  font-size: 120%;
   font-style: italic;
+  font-weight: 900;
   letter-spacing: -0.04em;
 }
 
-/* ── Three.js canvas container ──
-   Positioned so the cube sits in the center-left zone of the poster,
-   matching the tilted irregular hexagon in image1.png.           ── */
+/* ── Three.js canvas — covers poster center, bleeds to both sides ── */
 #canvas-wrap {
   position: absolute;
-  /* push it into the center/lower-center, bleed left slightly */
-  top: 16%;
-  left: -6%;
-  width: 96%;
-  height: 68%;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   z-index: 2;
 }
 
@@ -92,102 +84,86 @@ html, body {
   display: block;
 }
 
-/* ── Bottom section ── */
-.bottom {
-  margin-top: auto;
-  position: relative;
-  z-index: 3;
+/* ── Bottom: FORTO + URL ── */
+.footer {
+  position: absolute;
+  bottom: 3%;
+  left: 4%;
+  right: 4%;
+  z-index: 4;
   pointer-events: none;
   user-select: none;
 }
 
-/* ── FORTO logotype ──
-   Hand-tuned SVG to approximate the heavy wide geometric wordmark
-   including the left-arrow notch on the "F" and the wide "O" shapes. ── */
-.forto-logo {
-  display: block;
+/* FORTO rendered as SVG — custom geometric letterforms */
+.forto-svg {
   width: 100%;
-  margin-bottom: 1.8%;
+  display: block;
+  margin-bottom: 1.2%;
 }
 
-.url-line {
-  font-size: clamp(7px, 1.2%, 11px);
-  font-weight: 400;
-  letter-spacing: 0.07em;
-  color: #0d0d0d;
+.url {
+  font-family: 'Barlow Condensed', Arial, sans-serif;
+  font-size: clamp(7px, 1.3%, 12px);
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: #0f0f0f;
   text-align: center;
 }
 </style>
 </head>
 <body>
 
-<div id="poster-wrap">
-  <div id="poster">
+<div id="poster">
+  <div class="tagline">A Next-Generation Space Travel Airline</div>
 
-    <!-- Row 1: Tagline -->
-    <div class="tagline">A Next-Generation Space Travel Airline</div>
+  <div class="headline">
+    Nueu Rules<br>
+    Into the<br>
+    Oddinary with<br>
+    <span class="line-42">42</span>
+  </div>
 
-    <!-- Row 2: Headline -->
-    <div class="headline">
-      Nueu Rules<br>
-      Into the<br>
-      Oddinary with<br>
-      <span class="row-42">42</span>
-    </div>
+  <!-- Three.js full-poster canvas -->
+  <div id="canvas-wrap">
+    <canvas id="three-canvas"></canvas>
+  </div>
 
-    <!-- Row 3: 3D canvas (absolute overlay) -->
-    <div id="canvas-wrap">
-      <canvas id="three-canvas"></canvas>
-    </div>
+  <div class="footer">
+    <!--
+      FORTO wordmark — hand-drawn SVG to match the poster:
+      Very wide, heavy strokes. "F" has a left-pointing arrow cut from
+      the bottom-left. Letters have thick uniform stems.
+    -->
+    <svg class="forto-svg" viewBox="0 0 920 160" xmlns="http://www.w3.org/2000/svg">
+      <!-- F (with arrow notch bottom-left) -->
+      <path d="M10 10 L10 150 L58 150 L58 90 L130 90 L130 58 L58 58 L58 44 L145 44 L145 10 Z" fill="#0f0f0f"/>
+      <polygon points="10,150 44,150 10,116" fill="#237A2E"/> <!-- arrow cut -->
 
-    <!-- Row 4: FORTO logo + URL -->
-    <div class="bottom">
-      <!--
-        FORTO wordmark.
-        Key features from image1.png:
-          - "F" has an arrow-notch cut from its bottom-left corner
-          - Letters are wide, heavy, near-square proportions
-          - Same stroke weight as the outer rectangle
-      -->
-      <svg class="forto-logo" viewBox="0 0 840 150" xmlns="http://www.w3.org/2000/svg" aria-label="FORTO">
-        <!-- ─ F with bottom-left arrow notch ─ -->
-        <path d="
-          M8,8 L8,142 L52,142 L52,86 L120,86 L120,56 L52,56
-          L52,44 L132,44 L132,8 Z
-        " fill="#0d0d0d"/>
-        <!-- Arrow notch cut from bottom-left of F -->
-        <polygon points="8,142 36,142 8,112" fill="#2B7A32"/>
+      <!-- O -->
+      <path d="M178 10 Q155 10 155 80 Q155 150 178 150 L248 150 Q271 150 271 80 Q271 10 248 10 Z
+               M178 42 L248 42 Q238 42 238 80 Q238 118 248 118 L178 118 Q168 118 168 80 Q168 42 178 42 Z"
+            fill="#0f0f0f" fill-rule="evenodd"/>
 
-        <!-- ─ O ─ -->
-        <path d="
-          M172,8 C124,8 124,142 172,142 L238,142 C286,142 286,8 238,8 Z
-          M172,42 L238,42 C258,42 258,108 238,108 L172,108 C152,108 152,42 172,42 Z
-        " fill="#0d0d0d" fill-rule="evenodd"/>
+      <!-- R -->
+      <path d="M298 10 L298 150 L346 150 L346 95 L382 95 L422 150 L478 150 L432 89
+               C454 80 462 58 448 34 C436 14 412 10 298 10 Z
+               M346 42 L394 42 Q414 42 414 68 Q414 94 394 94 L346 94 Z"
+            fill="#0f0f0f" fill-rule="evenodd"/>
 
-        <!-- ─ R ─ -->
-        <path d="
-          M308,8 L308,142 L352,142 L352,90 L386,90 L426,142 L476,142
-          L432,84 C458,76 464,54 449,31 C437,13 412,8 308,8 Z
-          M352,42 L400,42 C418,42 420,72 400,72 L352,72 Z
-        " fill="#0d0d0d" fill-rule="evenodd"/>
+      <!-- T -->
+      <path d="M500 10 L500 44 L560 44 L560 150 L608 150 L608 44 L668 44 L668 10 Z" fill="#0f0f0f"/>
 
-        <!-- ─ T ─ -->
-        <path d="M486,8 L486,44 L544,44 L544,142 L588,142 L588,44 L646,44 L646,8 Z" fill="#0d0d0d"/>
+      <!-- O -->
+      <path d="M700 10 Q677 10 677 80 Q677 150 700 150 L770 150 Q793 150 793 80 Q793 10 770 10 Z
+               M700 42 L770 42 Q760 42 760 80 Q760 118 770 118 L700 118 Q690 118 690 80 Q690 42 700 42 Z"
+            fill="#0f0f0f" fill-rule="evenodd"/>
+    </svg>
 
-        <!-- ─ O ─ (second) -->
-        <path d="
-          M680,8 C632,8 632,142 680,142 L746,142 C794,142 794,8 746,8 Z
-          M680,42 L746,42 C766,42 766,108 746,108 L680,108 C660,108 660,42 680,42 Z
-        " fill="#0d0d0d" fill-rule="evenodd"/>
-      </svg>
-
-      <div class="url-line">www.fortonorules.co.kr</div>
-    </div>
-
+    <div class="url">www.fortonorules.co.kr</div>
   </div>
 </div>
 
-<!-- Three.js via ESM CDN -->
 <script type="importmap">
 {
   "imports": {
@@ -199,275 +175,216 @@ html, body {
 <script type="module">
 import * as THREE from 'three';
 
-// ═════════════════════════════════════════════════════════════════════════════
-// STAGE 3: Final polished 3D object + poster integration
+// ─────────────────────────────────────────────────────────────────────
+// The 3D object is a cube viewed from a corner-on angle so its
+// silhouette is an irregular hexagon — matching image1.png exactly.
 //
-// Object: a slightly chamfered cube (to soften the silhouette toward the
-//         irregular hexagon in image1.png) with 3 structural line patterns
-//         distributed across opposite face pairs, matching Reference.png.
+// Initial rotation:
+//   Y = -Math.PI/4  (45° so we see corner-on, left/right faces equal)
+//   X = Math.atan(1/Math.sqrt(2))  ≈ 35.26°  (true isometric tilt)
 //
-// Motion:
-//   - Slow auto-rotation on Y + gentle X tilt
-//   - Smooth mouse parallax (Toledo Museum quality: 0.04 lerp factor)
-//   - 60fps, framerate-independent via delta time
+// Three visible faces: top, right-front, left-front.
+// Each has unique subdivision lines per Reference.png.
 //
-// Visual:
-//   - Face color #F2F2F2, lines #222222
-//   - No shadows, no gradients, no glow
-//   - Flat graphic Swiss-style aesthetic
-// ═════════════════════════════════════════════════════════════════════════════
+// The cube is scaled large enough to dominate the poster,
+// sitting in the center-left, overlapping headline and logo.
+// ─────────────────────────────────────────────────────────────────────
 
+const posterEl = document.getElementById('poster');
 const canvas   = document.getElementById('three-canvas');
-const wrap     = document.getElementById('canvas-wrap');
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setClearColor(0x000000, 0);
 
 const scene  = new THREE.Scene();
-// Slight upward camera shift mirrors poster framing
-const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
-camera.position.set(0.15, 0.4, 5.8);
-camera.lookAt(0, 0, 0);
+const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+camera.position.set(0, 0, 6.5);
 
-// ── Constants ─────────────────────────────────────────────────────────────
-const S    = 1.55;   // cube half-size
-const OFF  = 0.003;  // line offset above face surface
-const SEG  = 48;     // arc segment count
-
-// ── Materials ─────────────────────────────────────────────────────────────
+// ── Materials ──────────────────────────────────────────────────────
 const faceMat = new THREE.MeshBasicMaterial({
   color: 0xF2F2F2,
   side: THREE.FrontSide,
-  polygonOffset: true,
-  polygonOffsetFactor: 1,
-  polygonOffsetUnits: 1,
+  polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
 });
+const lineMat = new THREE.LineBasicMaterial({ color: 0x1a1a1a });
 
-const lineMat = new THREE.LineBasicMaterial({ color: 0x222222 });
+// ── Helpers ────────────────────────────────────────────────────────
 
-// ── Geometry helpers ───────────────────────────────────────────────────────
-
-/** Make a quad face from 4 [x,y,z] corners (CCW winding when viewed from outside) */
-function quadFace(a, b, c, d) {
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(
-    new Float32Array([...a,...b,...c,...a,...c,...d]), 3
-  ));
-  geo.computeVertexNormals();
-  return new THREE.Mesh(geo, faceMat);
+function quad(a, b, c, d) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+    ...a, ...b, ...c,   ...a, ...c, ...d
+  ]), 3));
+  return new THREE.Mesh(g, faceMat);
 }
 
-/** Build a Three.Line from an array of [x,y,z] tuples */
-function makeLine(pts) {
-  const geo = new THREE.BufferGeometry().setFromPoints(
-    pts.map(([x,y,z]) => new THREE.Vector3(x,y,z))
+function line3(pts) {
+  return new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(...p))),
+    lineMat
   );
-  return new THREE.Line(geo, lineMat);
 }
 
-/** Sample a 2D arc and map into 3D via a mapper function */
-function arc2d(cx, cy, r, a0, a1, n, mapper) {
+function arc(cx, cy, r, a0, a1, n, map) {
   const pts = [];
   for (let i = 0; i <= n; i++) {
     const a = a0 + (a1 - a0) * i / n;
-    pts.push(mapper(cx + r * Math.cos(a), cy + r * Math.sin(a)));
+    pts.push(map(cx + r * Math.cos(a), cy + r * Math.sin(a)));
   }
   return pts;
 }
 
-// ── Build the cube ─────────────────────────────────────────────────────────
+// ── Cube geometry ──────────────────────────────────────────────────
+const H = 1.7;  // half-size
+const E = 0.003; // line offset
+
 const cube = new THREE.Group();
 
-// 8 cube corners
-const P = {
-  fbl: [-S,-S, S], fbr: [ S,-S, S],
-  ftl: [-S, S, S], ftr: [ S, S, S],
-  bbl: [-S,-S,-S], bbr: [ S,-S,-S],
-  btl: [-S, S,-S], btr: [ S, S,-S],
-};
+// 6 faces — consistent outward-facing winding
+cube.add(quad([-H,-H, H], [ H,-H, H], [ H, H, H], [-H, H, H])); // +Z
+cube.add(quad([ H,-H,-H], [-H,-H,-H], [-H, H,-H], [ H, H,-H])); // -Z
+cube.add(quad([ H,-H, H], [ H,-H,-H], [ H, H,-H], [ H, H, H])); // +X
+cube.add(quad([-H,-H,-H], [-H,-H, H], [-H, H, H], [-H, H,-H])); // -X
+cube.add(quad([-H, H, H], [ H, H, H], [ H, H,-H], [-H, H,-H])); // +Y
+cube.add(quad([ H,-H, H], [-H,-H, H], [-H,-H,-H], [ H,-H,-H])); // -Y
 
-// 6 faces
-cube.add(quadFace(P.fbl, P.fbr, P.ftr, P.ftl)); // +Z front
-cube.add(quadFace(P.bbr, P.bbl, P.btl, P.btr)); // -Z back
-cube.add(quadFace(P.fbr, P.bbr, P.btr, P.ftr)); // +X right
-cube.add(quadFace(P.bbl, P.fbl, P.ftl, P.btl)); // -X left
-cube.add(quadFace(P.ftl, P.ftr, P.btr, P.btl)); // +Y top
-cube.add(quadFace(P.fbr, P.fbl, P.bbl, P.bbr)); // -Y bottom
-
-// Cube outline
+// Outline
 cube.add(new THREE.LineSegments(
-  new THREE.EdgesGeometry(new THREE.BoxGeometry(S*2, S*2, S*2)),
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(H*2, H*2, H*2)),
   lineMat
 ));
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FACE PATTERNS
-//
-// Reference.png shows 3 distinct states (left→right):
-//
-//  Left   (Pattern A): horizontal cut across upper 1/3 + diagonal from
-//                       top-left to horizontal cut right end +
-//                       large quarter-arc from bottom-left corner
-//
-//  Center (Pattern B): vertical center cut top-to-bottom +
-//                       two symmetric arcs originating from top apex
-//
-//  Right  (Pattern C): horizontal cut + diagonal from top-left to
-//                       bottom-right + wide concave arc across lower half
-//
-// Faces: front/back = A, right/left = B, top/bottom = C
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Pattern A: +Z face (front) ─────────────────────────────────────
+// Reference LEFT panel:
+//   horizontal line across upper portion
+//   diagonal from top-left corner down to right end of horizontal
+//   large quarter-arc from bottom-left corner sweeping up
+{
+  const z = H + E;
+  const hy = H * 0.22;                           // horizontal cut height
 
-// ── Pattern A: front face (+Z) ──
-;(function() {
-  const z = S + OFF;
-  const hy = S * 0.18; // horizontal cut y position
+  cube.add(line3([[-H, hy, z], [H, hy, z]]));    // horizontal cut
+  cube.add(line3([[-H, H, z], [H, hy, z]]));     // diagonal top-left → cut right
+  // arc center = bottom-left corner, radius = full diagonal width
+  const a = arc(-H, -H, H*2, 0, Math.PI*0.5, 52, (x,y) => [x, y, z]);
+  cube.add(line3(a));
+}
 
-  // horizontal cut
-  cube.add(makeLine([[-S, hy, z], [S, hy, z]]));
+// ── Pattern A mirror: -Z face (back) ──────────────────────────────
+{
+  const z = -H - E;
+  const hy = H * 0.22;
+  cube.add(line3([[H, hy, z], [-H, hy, z]]));
+  cube.add(line3([[H, H, z], [-H, hy, z]]));
+  const a = arc(H, -H, H*2, Math.PI*0.5, Math.PI, 52, (x,y) => [x, y, z]);
+  cube.add(line3(a));
+}
 
-  // diagonal from top-left to right-end of horizontal cut
-  cube.add(makeLine([[-S, S, z], [S, hy, z]]));
+// ── Pattern B: +X face (right) ─────────────────────────────────────
+// Reference CENTER panel:
+//   vertical center cut top to bottom
+//   two arcs radiating from top apex, sweeping left and right to bottom
+{
+  const x = H + E;
+  cube.add(line3([[x, -H, 0], [x, H, 0]]));        // vertical center cut
+  // left arc: top-center sweeps to bottom-left
+  const aL = arc(0, H, H*1.45, Math.PI, Math.PI*1.5, 52, (dz,y) => [x, y,  dz]);
+  cube.add(line3(aL));
+  // right arc: top-center sweeps to bottom-right
+  const aR = arc(0, H, H*1.45, 0, Math.PI*0.5, 52, (dz,y) => [x, y, dz]);
+  cube.add(line3(aR));
+}
 
-  // quarter-arc: center at bottom-left corner, sweeps from bottom-right upward
-  const arcPts = arc2d(-S, -S, S * 2, 0, Math.PI * 0.5, SEG, (x,y) => [x, y, z]);
-  cube.add(makeLine(arcPts));
-}());
+// ── Pattern B mirror: -X face (left) ──────────────────────────────
+{
+  const x = -H - E;
+  cube.add(line3([[x, -H, 0], [x, H, 0]]));
+  const aL = arc(0, H, H*1.45, Math.PI*0.5, Math.PI, 52, (dz,y) => [x, y, -dz]);
+  cube.add(line3(aL));
+  const aR = arc(0, H, H*1.45, 0, Math.PI*0.5, 52, (dz,y) => [x, y, -dz]);
+  cube.add(line3(aR));
+}
 
-// ── Pattern A: back face (-Z) ──
-;(function() {
-  const z = -S - OFF;
-  const hy = S * 0.18;
+// ── Pattern C: +Y face (top) ───────────────────────────────────────
+// Reference RIGHT panel:
+//   horizontal cut
+//   diagonal from back-left to front-right
+//   wide concave arc across lower (front) half
+{
+  const y = H + E;
+  cube.add(line3([[-H, y, -H*0.15], [H, y, -H*0.15]]));   // horizontal
+  cube.add(line3([[-H, y, -H],      [H, y,  H]]));         // diagonal
+  const a = arc(0, 0, H*1.7, Math.PI*1.1, Math.PI*1.9, 52, (x,z) => [x, y, z]);
+  cube.add(line3(a));
+}
 
-  cube.add(makeLine([[S, hy, z], [-S, hy, z]]));
-  cube.add(makeLine([[S, S, z], [-S, hy, z]]));
-
-  const arcPts = arc2d(S, -S, S * 2, Math.PI * 0.5, Math.PI, SEG, (x,y) => [x, y, z]);
-  cube.add(makeLine(arcPts));
-}());
-
-// ── Pattern B: right face (+X) ──
-;(function() {
-  const x = S + OFF;
-
-  // vertical center cut
-  cube.add(makeLine([[x, -S, 0], [x, S, 0]]));
-
-  // left arc: from top-center sweeping down to bottom-left
-  const arcL = arc2d(0, S, S * 1.42, Math.PI, Math.PI * 1.5, SEG, (dz, y) => [x, y, dz]);
-  cube.add(makeLine(arcL));
-
-  // right arc: from top-center sweeping down to bottom-right
-  const arcR = arc2d(0, S, S * 1.42, 0, Math.PI * 0.5, SEG, (dz, y) => [x, y, dz]);
-  cube.add(makeLine(arcR));
-}());
-
-// ── Pattern B: left face (-X) ──
-;(function() {
-  const x = -S - OFF;
-
-  cube.add(makeLine([[x, -S, 0], [x, S, 0]]));
-
-  const arcL = arc2d(0, S, S * 1.42, Math.PI * 0.5, Math.PI, SEG, (dz, y) => [x, y, -dz]);
-  cube.add(makeLine(arcL));
-
-  const arcR = arc2d(0, S, S * 1.42, 0, Math.PI * 0.5, SEG, (dz, y) => [x, y, -dz]);
-  cube.add(makeLine(arcR));
-}());
-
-// ── Pattern C: top face (+Y) ──
-;(function() {
-  const y = S + OFF;
-
-  // horizontal cut (z-axis direction)
-  cube.add(makeLine([[-S, y, -S * 0.1], [S, y, -S * 0.1]]));
-
-  // diagonal from back-left to front-right
-  cube.add(makeLine([[-S, y, -S], [S, y, S]]));
-
-  // wide concave arc across the lower (front) portion
-  const arcPts = arc2d(0, 0, S * 1.65, Math.PI * 1.08, Math.PI * 1.92, SEG, (x, z) => [x, y, z]);
-  cube.add(makeLine(arcPts));
-}());
-
-// ── Pattern C: bottom face (-Y) ──
-;(function() {
-  const y = -S - OFF;
-
-  cube.add(makeLine([[-S, y, -S * 0.1], [S, y, -S * 0.1]]));
-  cube.add(makeLine([[-S, y, S], [S, y, -S]]));
-
-  const arcPts = arc2d(0, 0, S * 1.65, Math.PI * 1.08, Math.PI * 1.92, SEG, (x, z) => [x, y, z]);
-  cube.add(makeLine(arcPts));
-}());
+// ── Pattern C mirror: -Y face (bottom) ────────────────────────────
+{
+  const y = -H - E;
+  cube.add(line3([[-H, y, -H*0.15], [H, y, -H*0.15]]));
+  cube.add(line3([[-H, y,  H],      [H, y, -H]]));
+  const a = arc(0, 0, H*1.7, Math.PI*1.1, Math.PI*1.9, 52, (x,z) => [x, y, z]);
+  cube.add(line3(a));
+}
 
 scene.add(cube);
 
-// ── Mouse parallax state ───────────────────────────────────────────────────
-let targetX = 0, targetY = 0;
-let smoothX = 0, smoothY = 0;
+// ── Initial orientation = isometric corner-on view ─────────────────
+// This gives the irregular hexagon silhouette matching image1.png
+const BASE_Y = -Math.PI / 4;           // 45° yaw
+const BASE_X =  Math.atan(1/Math.sqrt(2)); // ~35.26° pitch (true isometric)
+
+cube.rotation.order = 'YXZ';
+cube.rotation.y = BASE_Y;
+cube.rotation.x = BASE_X;
+
+// ── Mouse parallax ─────────────────────────────────────────────────
+let mX = 0, mY = 0, sX = 0, sY = 0;
 
 document.addEventListener('mousemove', e => {
-  targetX =  (e.clientX / window.innerWidth  - 0.5);
-  targetY =  (e.clientY / window.innerHeight - 0.5);
+  mX = (e.clientX / window.innerWidth  - 0.5);
+  mY = (e.clientY / window.innerHeight - 0.5);
 });
-
-// Touch support
 document.addEventListener('touchmove', e => {
-  targetX = (e.touches[0].clientX / window.innerWidth  - 0.5);
-  targetY = (e.touches[0].clientY / window.innerHeight - 0.5);
+  mX = (e.touches[0].clientX / window.innerWidth  - 0.5);
+  mY = (e.touches[0].clientY / window.innerHeight - 0.5);
 }, { passive: true });
 
-// ── Responsive resize ──────────────────────────────────────────────────────
+// ── Resize ─────────────────────────────────────────────────────────
 function resize() {
-  const w = wrap.clientWidth;
-  const h = wrap.clientHeight;
+  const w = posterEl.clientWidth;
+  const h = posterEl.clientHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
-
 resize();
 window.addEventListener('resize', resize);
 
-// ── Animation loop ─────────────────────────────────────────────────────────
-// Rotation constants tuned for "minimal, premium, calm, museum-like":
-//   - auto-rotation: 0.18 rad/s (≈ 1 full rotation per 35 s)
-//   - mouse influence: subtle tilt, not orbit
-//   - easing: 0.04 per frame (very smooth lag, like Toledo Museum hover)
+// ── Render loop ────────────────────────────────────────────────────
+// Rotation speed: 0.15 rad/s ≈ 1 revolution per 42 seconds (a nod to "42")
+// Mouse influence: very subtle tilt, museum-quality easing 0.035
+let t = 0, last = 0;
 
-let t = 0, lastTs = 0;
+function tick(ts) {
+  requestAnimationFrame(tick);
+  const dt = Math.min((ts - last) * 0.001, 0.05);
+  last = ts;
+  t   += dt;
 
-const ROT_SPEED  = 0.18;   // rad per second — slow auto Y rotation
-const MOUSE_X    = 0.20;   // max tilt from mouse left/right
-const MOUSE_Y    = 0.14;   // max tilt from mouse up/down
-const BASE_TILT  = 0.28;   // resting X tilt (slightly downward view)
-const EASE       = 0.04;   // lerp factor per frame (framerate-independent below)
+  const e = 1 - Math.pow(1 - 0.035, dt * 60);
+  sX += (mX - sX) * e;
+  sY += (mY - sY) * e;
 
-function animate(ts) {
-  requestAnimationFrame(animate);
-
-  const dt = Math.min((ts - lastTs) * 0.001, 0.05);
-  lastTs = ts;
-  t += dt;
-
-  // Framerate-independent easing: 1 - (1-EASE)^(dt*60)
-  const e = 1 - Math.pow(1 - EASE, dt * 60);
-
-  smoothX += (targetX - smoothX) * e;
-  smoothY += (targetY - smoothY) * e;
-
-  cube.rotation.y = t * ROT_SPEED + smoothX * MOUSE_X;
-  cube.rotation.x = BASE_TILT     + smoothY * MOUSE_Y;
-  // Tiny Z roll from mouse for that extra depth feel
-  cube.rotation.z = smoothX * 0.025;
+  cube.rotation.y = BASE_Y + t * 0.15  + sX * 0.22;
+  cube.rotation.x = BASE_X             + sY * 0.12;
+  cube.rotation.z =                      sX * 0.018;
 
   renderer.render(scene, camera);
 }
 
-requestAnimationFrame(ts => { lastTs = ts; requestAnimationFrame(animate); });
+requestAnimationFrame(ts => { last = ts; requestAnimationFrame(tick); });
 </script>
-
 </body>
 </html>
