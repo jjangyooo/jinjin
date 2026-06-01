@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SPOTLIGHT — Second Edition Exhibition</title>
+<title>SPOTLIGHT — Coma Nova</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
@@ -13,22 +13,18 @@
 html, body {
   width: 100%; height: 100%;
   overflow: hidden;
-  background: #050508;
-  cursor: none;
+  background: #060606;
 }
 
-/* ── POSTER LAYER ── */
+/* ── POSTER LAYER ─────────────────────────────────────── */
 #poster {
   position: fixed;
   inset: 0;
-  background: #f0ece6;
+  background: #060606;
   display: flex;
   justify-content: center;
   align-items: stretch;
   z-index: 1;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
 }
 
 #poster-inner {
@@ -37,152 +33,126 @@ html, body {
   padding: clamp(26px, 4.5vw, 64px) clamp(22px, 3.5vw, 58px);
   display: flex;
   flex-direction: column;
-  color: #0a0a0a;
   font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
 }
 
-.p-title {
-  font-size: clamp(62px, 12.4vw, 186px);
+/* ── WORD FLASH SYSTEM ──────────────────────────────────
+   All words are invisible by default (color matches bg).
+   Adding .lit makes them instantly visible — NO transition. */
+.word {
+  color: #060606;
+  /* Intentionally NO transition property — hard cuts only */
+}
+.word.lit {
+  color: #ddd5c6;
+}
+.word.bright.lit {
+  color: #ece5d8;
+}
+
+/* ── POSTER TYPOGRAPHY ─────────────────────────────────── */
+.p-artist {
+  font-size: clamp(26px, 5.2vw, 76px);
   font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 0.86;
+  letter-spacing: -0.02em;
+  line-height: 0.92;
   text-transform: uppercase;
-  margin-bottom: 0.12em;
+  margin-bottom: 0.06em;
+}
+
+.p-title {
+  font-size: clamp(72px, 14.2vw, 212px);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 0.83;
+  text-transform: uppercase;
+  margin-bottom: 0.14em;
 }
 
 .p-sub {
-  font-size: clamp(10px, 1.25vw, 16px);
+  font-size: clamp(9px, 1.15vw, 14px);
   font-weight: 700;
-  letter-spacing: 0.07em;
-  margin-bottom: clamp(18px, 3.4vw, 50px);
-  font-family: 'Playfair Display', Georgia, serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: clamp(18px, 3.4vw, 52px);
 }
 
 .p-body {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0 clamp(8px, 1.8vw, 24px);
+  gap: 0 clamp(8px, 1.8vw, 26px);
   flex: 1;
   align-content: start;
 }
 
-.p-col p {
+.p-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.p-col .word {
+  display: block;
   font-size: clamp(11px, 1.75vw, 22px);
   font-weight: 700;
-  line-height: 1.11;
+  line-height: 1.12;
   text-transform: uppercase;
   letter-spacing: 0.01em;
-  font-family: 'Playfair Display', Georgia, serif;
 }
 
 .p-footer {
   margin-top: auto;
-  padding-top: clamp(16px, 3vw, 46px);
-  border-top: 2px solid #0a0a0a;
+  padding-top: clamp(14px, 2.8vw, 42px);
+  border-top: 1px solid rgba(200, 185, 160, 0.12);
 }
 
 .p-venue {
-  font-size: clamp(10px, 1.5vw, 19px);
+  font-size: clamp(9px, 1.3vw, 16px);
   font-weight: 700;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.05em;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 0.06em;
 }
 
 .p-venue-lg {
-  font-size: clamp(32px, 6.8vw, 100px);
+  font-size: clamp(30px, 6.4vw, 94px);
   font-weight: 900;
   letter-spacing: -0.03em;
   line-height: 0.86;
   text-transform: uppercase;
+  margin-top: 0.1em;
 }
 
-/* ── DARKNESS CANVAS ── */
-#mask-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  pointer-events: none;
+.p-date {
+  font-size: clamp(8px, 1.1vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-top: 0.5em;
 }
 
-/* ── BLOOM CANVAS ── */
-#bloom-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 11;
-  pointer-events: none;
-  mix-blend-mode: screen;
-}
-
-/* ── FILM GRAIN ── */
+/* ── GRAIN CANVAS ──────────────────────────────────────── */
 #grain-canvas {
   position: fixed;
   inset: 0;
-  z-index: 12;
+  z-index: 5;
   pointer-events: none;
-  mix-blend-mode: overlay;
-  opacity: 0.22;
+  mix-blend-mode: screen;
+  opacity: 0.18;
 }
 
-/* ── EDGE VIGNETTE ── */
+/* ── EDGE VIGNETTE ─────────────────────────────────────── */
 #vignette {
   position: fixed;
   inset: 0;
-  z-index: 14;
+  z-index: 6;
   pointer-events: none;
   background: radial-gradient(
-    ellipse 72% 68% at 50% 50%,
-    transparent 30%,
-    rgba(3,3,6,0.32) 58%,
-    rgba(3,3,6,0.65) 78%,
-    rgba(3,3,6,0.92) 100%
+    ellipse 76% 72% at 50% 50%,
+    transparent 32%,
+    rgba(3, 3, 3, 0.28) 58%,
+    rgba(3, 3, 3, 0.66) 78%,
+    rgba(3, 3, 3, 0.92) 100%
   );
-}
-
-/* ── ORB ── */
-#orb {
-  position: fixed;
-  top: 0; left: 0;
-  z-index: 20;
-  border-radius: 50%;
-  pointer-events: none;
-  will-change: transform;
-  background: radial-gradient(circle at 33% 30%,
-    #252525 0%,
-    #0d0d0d 38%,
-    #020202 74%,
-    #000 100%
-  );
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.028),
-    0 10px 56px rgba(0,0,0,0.98),
-    inset 0 1px 4px rgba(255,255,255,0.042);
-}
-
-/* ── INTRO: projector warm-up ── */
-#intro {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: #050508;
-  pointer-events: none;
-  transition: opacity 3.2s cubic-bezier(0.42, 0, 0.18, 1);
-}
-
-/* ── HINT ── */
-#hint {
-  position: fixed;
-  bottom: 22px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 30;
-  color: rgba(255,255,255,0.13);
-  font-family: Georgia, serif;
-  font-size: 9.5px;
-  letter-spacing: 0.30em;
-  text-transform: uppercase;
-  pointer-events: none;
-  transition: opacity 2s ease;
-  white-space: nowrap;
 }
 </style>
 </head>
@@ -190,366 +160,190 @@ html, body {
 
 <div id="poster">
   <div id="poster-inner">
-    <div class="p-title">SPOT<br>LIGHT</div>
-    <div class="p-sub">Second Edition Exhibition</div>
+
+    <!-- Artist name -->
+    <div class="p-artist">
+      <span class="word bright" id="w-coma">COMA</span><!--
+      --><span class="word bright" id="w-nova-top">&thinsp;NOVA</span>
+    </div>
+
+    <!-- Main title: SPOTLIGHT (two-line split) -->
+    <div class="p-title">
+      <span class="word bright" id="w-spot">SPOT</span><br>
+      <span class="word bright" id="w-light">LIGHT</span>
+    </div>
+
+    <!-- Subtitle -->
+    <div class="p-sub">
+      <span class="word" id="w-second">Second</span><!--
+      --><span class="word" id="w-edition">&nbsp;Edition</span><!--
+      --><span class="word" id="w-exhibition">&nbsp;Exhibition</span>
+    </div>
+
+    <!-- Body: 3 columns, each line individually flashable -->
     <div class="p-body">
+
       <div class="p-col">
-        <p>Digital Dark<br>Patterns<br>Silent<br>Influence<br>Obscured<br>Patterns<br>Intent<br>You<br>Think You<br>Choose Now<br>Attention</p>
+        <span class="word">Digital Dark</span>
+        <span class="word">Patterns</span>
+        <span class="word">Silent</span>
+        <span class="word">Influence</span>
+        <span class="word">Obscured</span>
+        <span class="word">Patterns</span>
+        <span class="word">Intent</span>
+        <span class="word">You</span>
+        <span class="word">Think You</span>
+        <span class="word">Choose Now</span>
+        <span class="word">Attention</span>
       </div>
+
       <div class="p-col">
-        <p>Behavioral<br>Design Sub&#8209;<br>conscious<br>Perception<br>Attention<br>Cognition<br>Control<br>Framework<br>To Show<br>Is To Hide<br>Half Seen,<br>Fully Guided</p>
+        <span class="word">Behavioral</span>
+        <span class="word">Design Sub&#8209;</span>
+        <span class="word">Conscious</span>
+        <span class="word">Perception</span>
+        <span class="word">Attention</span>
+        <span class="word">Cognition</span>
+        <span class="word">Control</span>
+        <span class="word">Framework</span>
+        <span class="word">To Show</span>
+        <span class="word">Is To Hide</span>
+        <span class="word">Half Seen,</span>
+        <span class="word">Fully Guided</span>
       </div>
+
       <div class="p-col">
-        <p>Interface<br>Control<br>Responses<br>Are&#8212;&#8212;<br>Prebuilt<br>Limited<br>Options<br>Your Input<br>Expected<br>Decision</p>
+        <span class="word">Interface</span>
+        <span class="word">Control</span>
+        <span class="word">Responses</span>
+        <span class="word">Are&#8212;&#8212;</span>
+        <span class="word">Prebuilt</span>
+        <span class="word">Limited</span>
+        <span class="word">No Option</span>
+        <span class="word">Your Inputs</span>
+        <span class="word">Expected</span>
+        <span class="word">Decision</span>
       </div>
+
     </div>
+
+    <!-- Footer -->
     <div class="p-footer">
-      <div class="p-venue">Coma Nova &#8212; October 18, 2026</div>
-      <div class="p-venue-lg">Coma<br>Nova</div>
+      <div class="p-venue">
+        <span class="word" id="w-gallery">Sejong Art Gallery</span>
+      </div>
+      <div class="p-venue-lg">
+        <span class="word bright" id="w-coma-lg">Coma</span><br>
+        <span class="word bright" id="w-nova-lg">Nova</span>
+      </div>
+      <div class="p-date">
+        <span class="word" id="w-date">COMA NOVA &#8212; OCTOBER 30, 2026</span>
+      </div>
     </div>
+
   </div>
 </div>
 
-<canvas id="mask-canvas"></canvas>
-<canvas id="bloom-canvas"></canvas>
 <canvas id="grain-canvas"></canvas>
 <div id="vignette"></div>
-<div id="orb"></div>
-<div id="intro"></div>
-<div id="hint">Move cursor &ensp;&middot;&ensp; Scroll to adjust depth</div>
 
 <script>
 (function () {
-  'use strict';
+'use strict';
 
-  const mCvs    = document.getElementById('mask-canvas');
-  const bCvs    = document.getElementById('bloom-canvas');
-  const gCvs    = document.getElementById('grain-canvas');
-  const orbEl   = document.getElementById('orb');
-  const hintEl  = document.getElementById('hint');
-  const introEl = document.getElementById('intro');
-  const posterEl= document.getElementById('poster');
-  const innerEl = document.getElementById('poster-inner');
+// ── Film Grain ─────────────────────────────────────────────────────
+const gCvs = document.getElementById('grain-canvas');
+const gCtx = gCvs.getContext('2d');
+let W = 0, H = 0;
 
-  const mCtx = mCvs.getContext('2d');
-  const bCtx = bCvs.getContext('2d');
-  const gCtx = gCvs.getContext('2d');
+const GSIZ = 320;
+const gOff = Object.assign(document.createElement('canvas'), { width: GSIZ, height: GSIZ });
+const gOffCtx = gOff.getContext('2d');
+let grainTick = 0;
 
-  // ── Constants ──────────────────────────────────────────────
-  const EASE_POS   = 0.18;   // per spec: 0.16–0.22
-  const EASE_DEPTH = 0.10;   // depth responds faster now
-  const ORB_MIN    = 42;     // px diameter at max spread
-  const ORB_MAX    = 218;    // px diameter at max tight
-  const SPOT_FAR   = 0.70;   // screen diagonal fraction, far
-  const SPOT_NEAR  = 0.11;   // screen diagonal fraction, close
-
-  // ── Dimensions ────────────────────────────────────────────
-  let W = 0, H = 0, DIAG = 0;
-
-  // ── State ─────────────────────────────────────────────────
-  // Start at 0.62 → spotlight is dramatic but reveals enough to intrigue
-  let tx, ty, tdep = 0.62;
-  let dx, dy, ddep = 0.62;
-  let hintFaded = false;
-  let frameCount = 0;
-
-  // ── Grain (offscreen noise tile, 320×320) ─────────────────
-  const GS     = 320;
-  const grainC = document.createElement('canvas');
-  grainC.width = grainC.height = GS;
-  const grainX = grainC.getContext('2d');
-  const grainD = grainX.createImageData(GS, GS);
-
-  function refreshGrain() {
-    const d = grainD.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const v  = Math.random() * 255 | 0;
-      d[i]   = Math.min(255, v + 9);   // warm tint: R+9
-      d[i+1] = v;
-      d[i+2] = Math.max(0,  v - 7);   // B-7
-      d[i+3] = 30;
-    }
-    grainX.putImageData(grainD, 0, 0);
+function makeGrain() {
+  const id = gOffCtx.createImageData(GSIZ, GSIZ);
+  const d = id.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v = Math.random() * 255 | 0;
+    d[i]   = Math.min(255, v + 9);
+    d[i+1] = v;
+    d[i+2] = Math.max(0,   v - 7);
+    d[i+3] = 255;
   }
+  gOffCtx.putImageData(id, 0, 0);
+}
 
-  function drawGrain() {
-    gCtx.clearRect(0, 0, W, H);
-    const ox = Math.random() * GS | 0;
-    const oy = Math.random() * GS | 0;
-    for (let px = -ox; px < W; px += GS) {
-      for (let py = -oy; py < H; py += GS) {
-        gCtx.drawImage(grainC, px, py);
-      }
+function drawGrain() {
+  if (++grainTick % 2 === 0) makeGrain();
+  gCtx.clearRect(0, 0, W, H);
+  for (let y = 0; y < H; y += GSIZ) {
+    for (let x = 0; x < W; x += GSIZ) {
+      const ox = Math.random() * 24 | 0;
+      const oy = Math.random() * 24 | 0;
+      gCtx.drawImage(gOff,
+        ox, oy, GSIZ - ox, GSIZ - oy,
+        x,  y,  GSIZ - ox, GSIZ - oy
+      );
     }
   }
+}
 
-  // ── Asset loading ─────────────────────────────────────────
-  function tryLoad(src, onSuccess) {
-    const img = new Image();
-    img.onload  = onSuccess;
-    img.onerror = () => {};
-    img.src     = src;
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  gCvs.width  = W;
+  gCvs.height = H;
+}
+
+// ── Subliminal Flash Scheduler ─────────────────────────────────────
+const allWords  = Array.from(document.querySelectorAll('.word'));
+const MAX_LIT   = 3;
+let   litCount  = 0;
+
+function rnd(lo, hi) { return lo + Math.random() * (hi - lo); }
+
+function flashStream() {
+  if (litCount >= MAX_LIT) {
+    setTimeout(flashStream, 80 + rnd(0, 120));
+    return;
   }
 
-  tryLoad('poster.png', () => {
-    posterEl.style.backgroundImage    = "url('poster.png')";
-    posterEl.style.backgroundSize     = 'contain';
-    posterEl.style.backgroundPosition = 'center';
-    innerEl.style.visibility          = 'hidden';
-  });
+  const pool = allWords.filter(w => !w.classList.contains('lit'));
+  if (!pool.length) { setTimeout(flashStream, 160); return; }
 
-  tryLoad('orb.png', () => {
-    orbEl.style.background   = "url('orb.png') center/contain no-repeat";
-    orbEl.style.borderRadius = '50%';
-    orbEl.style.boxShadow    = '0 10px 56px rgba(0,0,0,0.98)';
-  });
+  const word = pool[Math.floor(Math.random() * pool.length)];
+  word.classList.add('lit');
+  litCount++;
 
-  // ── Intro ─────────────────────────────────────────────────
-  // Page opens fully dark. Brief pause then fades like an analog
-  // projector lamp reaching operating temperature.
+  // Hold: 80 – 440 ms (subliminal threshold range)
   setTimeout(() => {
-    introEl.style.opacity = '0';
-    introEl.addEventListener('transitionend', () => introEl.remove(), { once: true });
-  }, 180);
+    word.classList.remove('lit');
+    litCount--;
+  }, rnd(80, 440));
 
-  // ── Resize ────────────────────────────────────────────────
-  function resize() {
-    W    = window.innerWidth;
-    H    = window.innerHeight;
-    DIAG = Math.hypot(W, H);
-    mCvs.width = bCvs.width = gCvs.width  = W;
-    mCvs.height= bCvs.height= gCvs.height = H;
-    if (!tx) { tx = dx = W * 0.5; ty = dy = H * 0.5; }
-    refreshGrain();
-  }
+  // Next flash in this stream: 200 – 1000 ms
+  setTimeout(flashStream, rnd(200, 1000));
+}
 
-  window.addEventListener('resize', resize);
+// ── Main Loop ──────────────────────────────────────────────────────
+function loop() {
+  drawGrain();
+  requestAnimationFrame(loop);
+}
 
-  // ── Input ─────────────────────────────────────────────────
-  document.addEventListener('mousemove', e => {
-    tx = e.clientX;
-    ty = e.clientY;
-    if (!hintFaded) { hintEl.style.opacity = '0'; hintFaded = true; }
-  });
+// ── Boot ───────────────────────────────────────────────────────────
+resize();
+window.addEventListener('resize', resize);
+makeGrain();
 
-  document.addEventListener('wheel', e => {
-    tdep = Math.min(1, Math.max(0, tdep + e.deltaY * 0.0007));
-    e.preventDefault();
-  }, { passive: false });
+// Three independent streams, staggered to avoid synchrony
+flashStream();
+setTimeout(flashStream, rnd(220, 420));
+setTimeout(flashStream, rnd(550, 850));
 
-  document.addEventListener('touchmove', e => {
-    tx = e.touches[0].clientX;
-    ty = e.touches[0].clientY;
-    e.preventDefault();
-  }, { passive: false });
+loop();
 
-  setTimeout(() => { hintEl.style.opacity = '0'; }, 5000);
-
-  // ── Math helpers ──────────────────────────────────────────
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const fi   = (f, dt) => 1 - Math.pow(1 - f, dt * 60); // framerate-independent factor
-
-  // ── MASK: darkness + organic spotlight punch ───────────────
-  function drawMask(x, y, orbR, spotR, ts) {
-    mCtx.clearRect(0, 0, W, H);
-
-    // Near-black base
-    mCtx.globalCompositeOperation = 'source-over';
-    mCtx.fillStyle = 'rgba(5,5,8,0.985)';
-    mCtx.fillRect(0, 0, W, H);
-
-    // Punch the spotlight hole
-    mCtx.globalCompositeOperation = 'destination-out';
-
-    const s = ts * 0.001;
-
-    // Breathing scale + 3-axis organic drift
-    const breathe = 1 + 0.028 * Math.sin(s * 0.82);
-    const ox1 = Math.sin(s * 0.71) * 4.8 + Math.cos(s * 1.19) * 3.1;
-    const oy1 = Math.cos(s * 0.57) * 6.0 + Math.sin(s * 1.07) * 2.8;
-    const ox2 = Math.sin(s * 0.93 + 1.8) * 5.4 + Math.cos(s * 0.63 + 0.6) * 2.6;
-    const oy2 = Math.cos(s * 0.76 + 1.1) * 4.1 + Math.sin(s * 1.16 + 2.2) * 3.4;
-    const ox3 = Math.cos(s * 0.51 + 0.9) * 3.6;
-    const oy3 = Math.sin(s * 0.65 + 2.0) * 4.1;
-
-    // Primary cone — sharp theatrical falloff
-    const g1 = mCtx.createRadialGradient(
-      x + ox1 * 0.20, y + oy1 * 0.20, orbR * 0.08,
-      x + ox1 * 0.06, y + oy1 * 0.06, spotR * breathe
-    );
-    g1.addColorStop(0.00, 'rgba(0,0,0,1.00)');
-    g1.addColorStop(0.52, 'rgba(0,0,0,0.96)');  // stays bright in center
-    g1.addColorStop(0.72, 'rgba(0,0,0,0.76)');  // transition starts here
-    g1.addColorStop(0.84, 'rgba(0,0,0,0.40)');
-    g1.addColorStop(0.92, 'rgba(0,0,0,0.12)');
-    g1.addColorStop(0.97, 'rgba(0,0,0,0.02)');
-    g1.addColorStop(1.00, 'rgba(0,0,0,0.00)');
-    mCtx.fillStyle = g1;
-    mCtx.fillRect(0, 0, W, H);
-
-    // Secondary layer — irregular edge
-    const g2 = mCtx.createRadialGradient(
-      x + ox2 * 0.42, y + oy2 * 0.42, orbR * 0.05,
-      x + ox2 * 0.15, y + oy2 * 0.15, spotR * 0.80 * breathe
-    );
-    g2.addColorStop(0.00, 'rgba(0,0,0,0.46)');
-    g2.addColorStop(0.46, 'rgba(0,0,0,0.24)');
-    g2.addColorStop(0.76, 'rgba(0,0,0,0.08)');
-    g2.addColorStop(1.00, 'rgba(0,0,0,0.00)');
-    mCtx.fillStyle = g2;
-    mCtx.fillRect(0, 0, W, H);
-
-    // Tertiary layer — further organic imperfection
-    const g3 = mCtx.createRadialGradient(
-      x + ox3 * 0.36, y + oy3 * 0.36, orbR * 0.04,
-      x + ox3 * 0.12, y + oy3 * 0.12,
-      spotR * 0.88 * (1 + 0.02 * Math.cos(s * 1.04))
-    );
-    g3.addColorStop(0.00, 'rgba(0,0,0,0.26)');
-    g3.addColorStop(0.54, 'rgba(0,0,0,0.12)');
-    g3.addColorStop(0.86, 'rgba(0,0,0,0.03)');
-    g3.addColorStop(1.00, 'rgba(0,0,0,0.00)');
-    mCtx.fillStyle = g3;
-    mCtx.fillRect(0, 0, W, H);
-
-    // Restore — apply soft center dimming
-    // (restrains the hotspot; makes center feel "projected" not screen-lit)
-    mCtx.globalCompositeOperation = 'source-over';
-    const gc = mCtx.createRadialGradient(x, y, 0, x, y, orbR * 2.8);
-    gc.addColorStop(0.0, 'rgba(5,5,8,0.22)');
-    gc.addColorStop(0.4, 'rgba(5,5,8,0.10)');
-    gc.addColorStop(1.0, 'rgba(5,5,8,0.00)');
-    mCtx.fillStyle = gc;
-    mCtx.fillRect(0, 0, W, H);
-  }
-
-  // ── BLOOM: warm cinematic optical glow ────────────────────
-  // All gradients positioned at / beyond the dark-light boundary.
-  // mix-blend-mode:screen (on canvas CSS) makes them glow on darkness.
-  function drawBloom(x, y, orbR, spotR, ts) {
-    bCtx.clearRect(0, 0, W, H);
-
-    const s       = ts * 0.001;
-    const breathe = 1 + 0.024 * Math.sin(s * 0.82 + 0.5);
-    const flicker = 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(s * 1.31) * Math.cos(s * 0.86));
-
-    // Corona — peaks right at the transition boundary
-    const cIn  = spotR * 0.60 * breathe;
-    const cOut = spotR * 1.12 * breathe;
-    const corona = bCtx.createRadialGradient(x, y, cIn, x, y, cOut);
-    corona.addColorStop(0.00, 'rgba(0,0,0,0)');
-    corona.addColorStop(0.26, `rgba(255,244,214,${(0.52 * flicker).toFixed(3)})`);
-    corona.addColorStop(0.50, `rgba(248,233,196,${(0.36 * flicker).toFixed(3)})`);
-    corona.addColorStop(0.72, `rgba(234,218,180,${(0.18 * flicker).toFixed(3)})`);
-    corona.addColorStop(1.00, 'rgba(0,0,0,0)');
-    bCtx.fillStyle = corona;
-    bCtx.fillRect(0, 0, W, H);
-
-    // Wide outer halo — fully in the dark zone
-    const halo = bCtx.createRadialGradient(
-      x, y, spotR * 0.75 * breathe,
-      x, y, spotR * 1.50 * breathe
-    );
-    halo.addColorStop(0.00, 'rgba(0,0,0,0)');
-    halo.addColorStop(0.20, `rgba(255,246,216,${(0.30 * flicker).toFixed(3)})`);
-    halo.addColorStop(0.48, `rgba(242,226,190,${(0.18 * flicker).toFixed(3)})`);
-    halo.addColorStop(0.76, `rgba(218,202,164,${(0.08 * flicker).toFixed(3)})`);
-    halo.addColorStop(1.00, 'rgba(0,0,0,0)');
-    bCtx.fillStyle = halo;
-    bCtx.fillRect(0, 0, W, H);
-
-    // Horizontal lens streak — anamorphic, asymmetric
-    // Starts at the dark/light boundary, not at center
-    const sOffY  = -spotR * 0.052;
-    const sLen   = spotR * 0.98;
-    const sHalf  = Math.max(orbR * 1.3, 24);
-
-    bCtx.save();
-    bCtx.translate(x, y + sOffY);
-    bCtx.scale(1, sHalf / sLen);
-    bCtx.translate(-x, -(y + sOffY));
-    const st1 = bCtx.createRadialGradient(
-      x, y + sOffY, spotR * 0.56,
-      x, y + sOffY, sLen
-    );
-    st1.addColorStop(0.00, 'rgba(0,0,0,0)');
-    st1.addColorStop(0.16, `rgba(255,253,238,${(0.42 * flicker).toFixed(3)})`);
-    st1.addColorStop(0.44, `rgba(248,240,216,${(0.22 * flicker).toFixed(3)})`);
-    st1.addColorStop(0.76, `rgba(230,216,186,${(0.09 * flicker).toFixed(3)})`);
-    st1.addColorStop(1.00, 'rgba(0,0,0,0)');
-    bCtx.fillStyle = st1;
-    bCtx.fillRect(0, 0, W, H);
-    bCtx.restore();
-
-    // Vertical ghost streak — faint, offset right
-    const vOffX  = spotR * 0.074;
-    const vLen   = spotR * 0.72;
-    const vHalf  = Math.max(orbR * 0.58, 15);
-
-    bCtx.save();
-    bCtx.translate(x + vOffX, y);
-    bCtx.scale(vHalf / vLen, 1);
-    bCtx.translate(-(x + vOffX), -y);
-    const st2 = bCtx.createRadialGradient(
-      x + vOffX, y, spotR * 0.48,
-      x + vOffX, y, vLen
-    );
-    st2.addColorStop(0.00, 'rgba(0,0,0,0)');
-    st2.addColorStop(0.22, `rgba(255,250,226,${(0.22 * flicker).toFixed(3)})`);
-    st2.addColorStop(0.56, `rgba(240,228,202,${(0.11 * flicker).toFixed(3)})`);
-    st2.addColorStop(1.00, 'rgba(0,0,0,0)');
-    bCtx.fillStyle = st2;
-    bCtx.fillRect(0, 0, W, H);
-    bCtx.restore();
-
-    // Slow optical pulse — flicker at the very edge of the beam
-    const pulse = Math.abs(Math.sin(s * 0.43)) * Math.abs(Math.cos(s * 0.67));
-    const edgeR1 = spotR * 0.78;
-    const edgeR2 = spotR * 1.02;
-    const edge   = bCtx.createRadialGradient(x, y, edgeR1, x, y, edgeR2);
-    edge.addColorStop(0.0, 'rgba(0,0,0,0)');
-    edge.addColorStop(0.5, `rgba(255,248,226,${(0.18 * pulse).toFixed(3)})`);
-    edge.addColorStop(1.0, 'rgba(0,0,0,0)');
-    bCtx.fillStyle = edge;
-    bCtx.fillRect(0, 0, W, H);
-  }
-
-  // ── MAIN LOOP ─────────────────────────────────────────────
-  let lastTs = 0;
-
-  function frame(ts) {
-    const dt = Math.min((ts - lastTs) / 1000, 0.05);
-    lastTs = ts;
-    frameCount++;
-
-    const ep = fi(EASE_POS,   dt);
-    const ed = fi(EASE_DEPTH, dt);
-
-    dx   = lerp(dx,   tx,   ep);
-    dy   = lerp(dy,   ty,   ep);
-    ddep = lerp(ddep, tdep, ed);
-
-    const orbDiam = lerp(ORB_MIN, ORB_MAX, ddep);
-    const orbR    = orbDiam * 0.5;
-    const spotR   = DIAG * lerp(SPOT_FAR, SPOT_NEAR, ddep);
-
-    drawMask(dx, dy, orbR, spotR, ts);
-    drawBloom(dx, dy, orbR, spotR, ts);
-
-    // Refresh grain every 2 frames → 30fps rolling film grain feel
-    if (frameCount % 2 === 0) refreshGrain();
-    drawGrain();
-
-    // Orb: GPU transform only — no layout thrash
-    orbEl.style.transform = `translate3d(${(dx - orbR).toFixed(2)}px,${(dy - orbR).toFixed(2)}px,0)`;
-    orbEl.style.width     = orbDiam.toFixed(1) + 'px';
-    orbEl.style.height    = orbDiam.toFixed(1) + 'px';
-
-    requestAnimationFrame(frame);
-  }
-
-  resize();
-  requestAnimationFrame(ts => { lastTs = ts; requestAnimationFrame(frame); });
 }());
 </script>
 </body>
