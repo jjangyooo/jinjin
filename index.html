@@ -13,13 +13,14 @@
 html, body {
   width: 100%; height: 100%;
   overflow: hidden;
-  background: #050508;
+  background: #040406;
   cursor: none;
 }
 
-/* ── SHARED LAYOUT ────────────────────────────────────────
-   Both #poster and #hints use .p-inner and the same
-   typography classes so they are pixel-identical in layout. */
+/* ════════════════════════════════════════════════════════
+   SHARED LAYOUT — poster + hints use identical classes
+   so both layers are pixel-perfectly aligned.
+   ════════════════════════════════════════════════════════ */
 
 #poster,
 #hints {
@@ -39,7 +40,6 @@ html, body {
   font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
 }
 
-/* ── TYPOGRAPHY ────────────────────────────────────────── */
 .p-overtitle {
   font-size: clamp(28px, 5.6vw, 82px);
   font-weight: 900;
@@ -93,7 +93,7 @@ html, body {
   padding-top: clamp(14px, 2.6vw, 40px);
 }
 
-.p-footer-rule {
+.p-rule {
   height: 2px;
   margin-bottom: clamp(10px, 1.8vw, 28px);
 }
@@ -106,21 +106,25 @@ html, body {
   text-transform: uppercase;
 }
 
-/* ── POSTER LAYER (z-1) ─────────────────────────────────
-   Full IMAGE_A — white background, black text.
-   Always fully rendered beneath the dark overlay. */
+/* ════════════════════════════════════════════════════════
+   LAYER 1 — IMAGE_A poster
+   Untouched: white background, black typography.
+   Always fully rendered. This is the final revealed state.
+   ════════════════════════════════════════════════════════ */
 #poster {
   background: #f0ece6;
   z-index: 1;
 }
 
 #poster .p-inner { color: #0a0a0a; }
+#poster .p-rule  { background: #0a0a0a; }
 
-#poster .p-footer-rule { background: #0a0a0a; }
-
-/* ── DARK OVERLAY CANVAS (z-10) ─────────────────────────
-   Near-black canvas that covers everything.
-   Mouse position punches a spotlight hole (destination-out). */
+/* ════════════════════════════════════════════════════════
+   LAYER 10 — Darkness canvas
+   Solid opaque black fill drawn every frame.
+   Spotlight hole is punched via destination-out.
+   No alpha leakage → poster is completely hidden.
+   ════════════════════════════════════════════════════════ */
 #mask-canvas {
   position: fixed;
   inset: 0;
@@ -128,103 +132,86 @@ html, body {
   pointer-events: none;
 }
 
-/* ── HINT LAYER (z-15) ──────────────────────────────────
-   Same layout as poster. White text. Transparent background.
-   Above the dark overlay → white text visible in darkness.
-   Over spotlight area → white text on cream bg → invisible.
-   This is the subliminal flash / signal layer. */
+/* ════════════════════════════════════════════════════════
+   LAYER 15 — Hint / signal layer
+   Identical layout to poster. Transparent background.
+   White text flashes randomly as subliminal signals.
+
+   In darkness  → white text on black canvas = visible
+   In spotlight → white text on cream poster  = invisible
+   (natural colour physics, no clipping needed)
+   ════════════════════════════════════════════════════════ */
 #hints {
   z-index: 15;
   background: transparent;
   pointer-events: none;
 }
 
+/* All text invisible by default */
 #hints .p-inner { color: transparent; }
+#hints .p-rule  { background: transparent; }
 
-#hints .hw {
+.hw {
   color: #ffffff;
   opacity: 0;
-  /* NO transition — hard cut is the entire point */
+  /* Hard cut — NO transition */
 }
-
-#hints .hw.lit {
+.hw.lit {
   opacity: 1;
 }
 
-#hints .p-footer-rule { background: transparent; }
-
-/* ── GRAIN CANVAS (z-20) ─────────────────────────────── */
-#grain-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  pointer-events: none;
-  mix-blend-mode: screen;
-  opacity: 0.20;
-}
-
-/* ── VIGNETTE (z-22) ─────────────────────────────────── */
-#vignette {
-  position: fixed;
-  inset: 0;
-  z-index: 22;
-  pointer-events: none;
-  background: radial-gradient(
-    ellipse 75% 72% at 50% 50%,
-    transparent 30%,
-    rgba(3,3,6,0.25) 56%,
-    rgba(3,3,6,0.62) 76%,
-    rgba(3,3,6,0.92) 100%
-  );
-}
-
-/* ── CUSTOM CURSOR (orb) ─────────────────────────────── */
+/* ════════════════════════════════════════════════════════
+   CURSOR ORB (z-20)
+   ════════════════════════════════════════════════════════ */
 #orb {
   position: fixed;
   top: 0; left: 0;
-  z-index: 30;
+  z-index: 20;
   border-radius: 50%;
   pointer-events: none;
   will-change: transform;
-  background: radial-gradient(circle at 35% 32%,
-    #282828 0%, #0e0e0e 40%, #020202 75%, #000 100%
+  background: radial-gradient(
+    circle at 35% 32%,
+    #1e1e1e 0%,
+    #0a0a0a 42%,
+    #010101 78%,
+    #000 100%
   );
   box-shadow:
-    0 0 0 1px rgba(255,255,255,0.025),
-    0 8px 48px rgba(0,0,0,0.98),
-    inset 0 1px 3px rgba(255,255,255,0.038);
+    0 0 0 1px rgba(255,255,255,0.022),
+    inset 0 1px 3px rgba(255,255,255,0.032);
 }
 
-/* ── SCROLL HINT ─────────────────────────────────────── */
-#hint {
+/* ════════════════════════════════════════════════════════
+   SCROLL HINT (z-25)
+   ════════════════════════════════════════════════════════ */
+#scroll-hint {
   position: fixed;
-  bottom: 20px;
+  bottom: 22px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 25;
-  color: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.09);
   font-family: Georgia, serif;
   font-size: 9px;
   letter-spacing: 0.28em;
   text-transform: uppercase;
   pointer-events: none;
   white-space: nowrap;
+  transition: opacity 1.6s ease;
 }
 </style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════
-     LAYER 1: IMAGE_A — Full poster, always rendered
-     White/cream background, black text. This is the "truth".
-     ═══════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════════════════
+     LAYER 1 — IMAGE_A (always fully rendered beneath darkness)
+     ════════════════════════════════════════════════════════ -->
 <div id="poster">
   <div class="p-inner">
-
     <div class="p-overtitle">COMA NOVA</div>
     <div class="p-title">SPOTLIGHT</div>
     <div class="p-sub">Second Edition Exhibition</div>
-
     <div class="p-body">
       <div class="p-col">
         <span>Digital Dark</span>
@@ -262,36 +249,27 @@ html, body {
         <span>Expected</span>
       </div>
     </div>
-
     <div class="p-footer">
-      <div class="p-footer-rule"></div>
+      <div class="p-rule"></div>
       <div class="p-footer-line">Sejong Art Gallery</div>
       <div class="p-footer-line">Coma Nova &#8212; October 30, 2026</div>
     </div>
-
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════
-     LAYER 10: Dark mask canvas — covers the poster.
-     Spotlight hole punched via destination-out at mouse pos.
-     ═══════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════════════════
+     LAYER 10 — Darkness + spotlight
+     ════════════════════════════════════════════════════════ -->
 <canvas id="mask-canvas"></canvas>
 
-<!-- ═══════════════════════════════════════════════════════
-     LAYER 15: Hint / signal layer
-     Identical layout to poster. White text.
-     Words flash randomly as subliminal signals.
-     In darkness → white text visible.
-     In spotlight → white on cream = invisible (natural).
-     ═══════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════════════════
+     LAYER 15 — Hint layer (same layout, white text)
+     ════════════════════════════════════════════════════════ -->
 <div id="hints">
   <div class="p-inner">
-
-    <div class="p-overtitle"><span class="hw" id="hw-comanova">COMA NOVA</span></div>
-    <div class="p-title"><span class="hw" id="hw-spotlight">SPOTLIGHT</span></div>
-    <div class="p-sub"><span class="hw" id="hw-sub">Second Edition Exhibition</span></div>
-
+    <div class="p-overtitle"><span class="hw">COMA NOVA</span></div>
+    <div class="p-title"><span class="hw">SPOTLIGHT</span></div>
+    <div class="p-sub"><span class="hw">Second Edition Exhibition</span></div>
     <div class="p-body">
       <div class="p-col">
         <span class="hw">Digital Dark</span>
@@ -329,146 +307,100 @@ html, body {
         <span class="hw">Expected</span>
       </div>
     </div>
-
     <div class="p-footer">
-      <div class="p-footer-rule"></div>
+      <div class="p-rule"></div>
       <div class="p-footer-line"><span class="hw">Sejong Art Gallery</span></div>
       <div class="p-footer-line"><span class="hw">Coma Nova &#8212; October 30, 2026</span></div>
     </div>
-
   </div>
 </div>
 
-<!-- UI chrome -->
-<canvas id="grain-canvas"></canvas>
-<div id="vignette"></div>
 <div id="orb"></div>
-<div id="hint">Move cursor &ensp;&middot;&ensp; Scroll to focus</div>
+<div id="scroll-hint">Move cursor &ensp;&middot;&ensp; Scroll to focus</div>
 
 <script>
 (function () {
 'use strict';
 
-// ── Canvas / DOM refs ──────────────────────────────────────────────
-const mCvs   = document.getElementById('mask-canvas');
-const gCvs   = document.getElementById('grain-canvas');
-const orbEl  = document.getElementById('orb');
-const hintEl = document.getElementById('hint');
-const mCtx   = mCvs.getContext('2d');
-const gCtx   = gCvs.getContext('2d');
+const mCvs      = document.getElementById('mask-canvas');
+const orbEl     = document.getElementById('orb');
+const hintEl    = document.getElementById('scroll-hint');
+const mCtx      = mCvs.getContext('2d');
 
-// ── Spotlight constants ────────────────────────────────────────────
-const EASE_POS   = 0.14;
-const EASE_DEP   = 0.08;
-const SPOT_FAR   = 0.68;   // fraction of screen diagonal at scroll=0
-const SPOT_NEAR  = 0.10;   // fraction of screen diagonal at scroll=1
-const ORB_MIN    = 38;
-const ORB_MAX    = 200;
+// ── Spotlight parameters ───────────────────────────────────────────
+const EASE_POS  = 0.14;
+const EASE_DEP  = 0.08;
+const SPOT_FAR  = 0.66;   // spotlight radius as fraction of diagonal, scroll=0
+const SPOT_NEAR = 0.10;   // spotlight radius, scroll=1
+const ORB_MIN   = 36;
+const ORB_MAX   = 190;
 
 // ── State ─────────────────────────────────────────────────────────
 let W = 0, H = 0, DIAG = 0;
-let mx = 0, my = 0;       // raw mouse
-let sx = 0, sy = 0;       // smoothed spotlight centre
-let tdep = 0.55;          // target depth (0=far, 1=near)
-let dep  = 0.55;          // smoothed depth
+let mx, my;               // raw mouse target
+let sx, sy;               // smoothed spotlight centre
+let tdep = 0.50;          // target depth
+let dep  = 0.50;          // smoothed depth
 
 // ── Resize ────────────────────────────────────────────────────────
 function resize() {
   W = window.innerWidth;
   H = window.innerHeight;
-  DIAG = Math.sqrt(W * W + H * H);
-  mCvs.width  = gCvs.width  = W;
-  mCvs.height = gCvs.height = H;
-  sx = W / 2; sy = H / 2;
-  mx = W / 2; my = H / 2;
+  DIAG = Math.sqrt(W*W + H*H);
+  mCvs.width  = W;
+  mCvs.height = H;
+  if (mx === undefined) { mx = W/2; my = H/2; sx = W/2; sy = H/2; }
 }
 
+window.addEventListener('resize', resize);
+resize();
+
 // ── Input ─────────────────────────────────────────────────────────
-let hintFade = 1;
+let hintGone = false;
 document.addEventListener('mousemove', e => {
   mx = e.clientX;
   my = e.clientY;
-  if (hintFade > 0) { hintFade = 0; hintEl.style.opacity = '0'; }
+  if (!hintGone) { hintGone = true; hintEl.style.opacity = '0'; }
 });
 
 document.addEventListener('wheel', e => {
   tdep = Math.min(1, Math.max(0, tdep + e.deltaY * 0.0012));
 }, { passive: true });
 
-// ── Film grain ────────────────────────────────────────────────────
-const GSIZ = 320;
-const gOff = Object.assign(document.createElement('canvas'), { width: GSIZ, height: GSIZ });
-const gOCtx = gOff.getContext('2d');
-let gTick = 0;
-
-function makeGrain() {
-  const id = gOCtx.createImageData(GSIZ, GSIZ);
-  const d = id.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const v = Math.random() * 255 | 0;
-    d[i]   = Math.min(255, v + 8);
-    d[i+1] = v;
-    d[i+2] = Math.max(0, v - 6);
-    d[i+3] = 255;
-  }
-  gOCtx.putImageData(id, 0, 0);
-}
-
-function drawGrain() {
-  if (++gTick % 2 === 0) makeGrain();
-  gCtx.clearRect(0, 0, W, H);
-  for (let y = 0; y < H; y += GSIZ) {
-    for (let x = 0; x < W; x += GSIZ) {
-      const ox = Math.random() * 20 | 0;
-      const oy = Math.random() * 20 | 0;
-      gCtx.drawImage(gOff,
-        ox, oy, GSIZ - ox, GSIZ - oy,
-        x,  y,  GSIZ - ox, GSIZ - oy);
-    }
-  }
-}
-
-// ── Draw dark mask with spotlight hole ────────────────────────────
+// ── Draw darkness with spotlight hole ────────────────────────────
 function drawMask() {
   const spotR = DIAG * (SPOT_FAR + (SPOT_NEAR - SPOT_FAR) * dep);
   const orbD  = ORB_MIN + (ORB_MAX - ORB_MIN) * dep;
 
-  // Fill near-black
+  // ① Solid opaque black — completely hides poster, zero leakage
   mCtx.globalCompositeOperation = 'source-over';
-  mCtx.fillStyle = 'rgba(5, 5, 8, 0.972)';
+  mCtx.fillStyle = '#040406';
   mCtx.fillRect(0, 0, W, H);
 
-  // Punch spotlight hole
+  // ② Punch transparent spotlight hole (reveals poster layer below)
   mCtx.globalCompositeOperation = 'destination-out';
 
-  // Main cone — soft-edged
-  const g0 = mCtx.createRadialGradient(sx, sy, 0, sx, sy, spotR);
-  g0.addColorStop(0,    'rgba(0,0,0,1)');
-  g0.addColorStop(0.55, 'rgba(0,0,0,0.92)');
-  g0.addColorStop(0.80, 'rgba(0,0,0,0.42)');
-  g0.addColorStop(1,    'rgba(0,0,0,0)');
-  mCtx.fillStyle = g0;
-  mCtx.fillRect(0, 0, W, H);
-
-  // Centre punch — sharper core
-  const g1 = mCtx.createRadialGradient(sx, sy, 0, sx, sy, spotR * 0.38);
-  g1.addColorStop(0, 'rgba(0,0,0,0.28)');
-  g1.addColorStop(1, 'rgba(0,0,0,0)');
-  mCtx.fillStyle = g1;
+  const g = mCtx.createRadialGradient(sx, sy, 0, sx, sy, spotR);
+  g.addColorStop(0,    'rgba(0,0,0,1)');
+  g.addColorStop(0.50, 'rgba(0,0,0,0.94)');
+  g.addColorStop(0.76, 'rgba(0,0,0,0.52)');
+  g.addColorStop(1,    'rgba(0,0,0,0)');
+  mCtx.fillStyle = g;
   mCtx.fillRect(0, 0, W, H);
 
   mCtx.globalCompositeOperation = 'source-over';
 
-  // Position orb
+  // Position orb at spotlight centre
   const r = orbD / 2;
-  orbEl.style.width  = orbD + 'px';
-  orbEl.style.height = orbD + 'px';
+  orbEl.style.width     = orbD + 'px';
+  orbEl.style.height    = orbD + 'px';
   orbEl.style.transform = `translate3d(${sx - r}px,${sy - r}px,0)`;
 }
 
 // ── Subliminal flash scheduler ─────────────────────────────────────
-// .hw elements flash as white text above the dark mask.
-// In darkness → white visible.  In spotlight → white on cream = hidden.
+// Hint words (.hw) flash as white text ABOVE the dark canvas.
+// They are positioned identically to the underlying poster words.
+// Visible in dark → guides user. Invisible over spotlight (white-on-cream).
 const allHW   = Array.from(document.querySelectorAll('.hw'));
 const MAX_LIT = 3;
 let   litCount = 0;
@@ -477,7 +409,7 @@ function rnd(lo, hi) { return lo + Math.random() * (hi - lo); }
 
 function flashStream() {
   if (litCount >= MAX_LIT) {
-    setTimeout(flashStream, rnd(60, 130));
+    setTimeout(flashStream, rnd(60, 140));
     return;
   }
   const pool = allHW.filter(w => !w.classList.contains('lit'));
@@ -487,12 +419,11 @@ function flashStream() {
   el.classList.add('lit');
   litCount++;
 
-  // Hold: 80 – 420 ms — subliminal threshold
-  setTimeout(() => { el.classList.remove('lit'); litCount--; },
-             rnd(80, 420));
+  // Hold: 80 – 440 ms (subliminal / near-subliminal range)
+  setTimeout(() => { el.classList.remove('lit'); litCount--; }, rnd(80, 440));
 
-  // Next in this stream: 250 – 1100 ms
-  setTimeout(flashStream, rnd(250, 1100));
+  // Gap to next flash in this stream: 300 – 1200 ms
+  setTimeout(flashStream, rnd(300, 1200));
 }
 
 // ── Animation loop ─────────────────────────────────────────────────
@@ -501,7 +432,6 @@ function loop(ts) {
   const dt = Math.min((ts - last) / 16.667, 4);
   last = ts;
 
-  // Framerate-independent easing
   const ep = 1 - Math.pow(1 - EASE_POS, dt);
   const ed = 1 - Math.pow(1 - EASE_DEP, dt);
 
@@ -510,19 +440,14 @@ function loop(ts) {
   dep += (tdep - dep) * ed;
 
   drawMask();
-  drawGrain();
   requestAnimationFrame(loop);
 }
 
 // ── Boot ───────────────────────────────────────────────────────────
-resize();
-window.addEventListener('resize', resize);
-makeGrain();
-
-// Three staggered independent flash streams
+// Three independent flash streams, staggered
 flashStream();
-setTimeout(flashStream, rnd(200, 450));
-setTimeout(flashStream, rnd(550, 900));
+setTimeout(flashStream, rnd(200, 500));
+setTimeout(flashStream, rnd(600, 1000));
 
 requestAnimationFrame(loop);
 
