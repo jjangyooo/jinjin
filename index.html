@@ -13,74 +13,63 @@
 html, body {
   width: 100%; height: 100%;
   overflow: hidden;
-  background: #060606;
+  background: #050508;
+  cursor: none;
 }
 
-/* ── POSTER LAYER ─────────────────────────────────────── */
-#poster {
+/* ── SHARED LAYOUT ────────────────────────────────────────
+   Both #poster and #hints use .p-inner and the same
+   typography classes so they are pixel-identical in layout. */
+
+#poster,
+#hints {
   position: fixed;
   inset: 0;
-  background: #060606;
   display: flex;
   justify-content: center;
   align-items: stretch;
-  z-index: 1;
 }
 
-#poster-inner {
+.p-inner {
   width: min(100vw, calc(100vh * 0.707));
-  max-width: 860px;
-  padding: clamp(26px, 4.5vw, 64px) clamp(22px, 3.5vw, 58px);
+  max-width: 900px;
+  padding: clamp(22px, 4vw, 58px) clamp(20px, 3.2vw, 52px);
   display: flex;
   flex-direction: column;
   font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
 }
 
-/* ── WORD FLASH SYSTEM ──────────────────────────────────
-   All words are invisible by default (color matches bg).
-   Adding .lit makes them instantly visible — NO transition. */
-.word {
-  color: #060606;
-  /* Intentionally NO transition property — hard cuts only */
-}
-.word.lit {
-  color: #ddd5c6;
-}
-.word.bright.lit {
-  color: #ece5d8;
-}
-
-/* ── POSTER TYPOGRAPHY ─────────────────────────────────── */
-.p-artist {
-  font-size: clamp(26px, 5.2vw, 76px);
+/* ── TYPOGRAPHY ────────────────────────────────────────── */
+.p-overtitle {
+  font-size: clamp(28px, 5.6vw, 82px);
   font-weight: 900;
-  letter-spacing: -0.02em;
-  line-height: 0.92;
+  letter-spacing: -0.01em;
+  line-height: 1;
   text-transform: uppercase;
-  margin-bottom: 0.06em;
+  margin-bottom: 0;
 }
 
 .p-title {
-  font-size: clamp(72px, 14.2vw, 212px);
+  font-size: clamp(76px, 15.2vw, 220px);
   font-weight: 900;
   letter-spacing: -0.04em;
-  line-height: 0.83;
+  line-height: 0.84;
   text-transform: uppercase;
-  margin-bottom: 0.14em;
+  margin-bottom: 0.16em;
 }
 
 .p-sub {
-  font-size: clamp(9px, 1.15vw, 14px);
+  font-size: clamp(9px, 1.1vw, 14px);
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  margin-bottom: clamp(18px, 3.4vw, 52px);
+  margin-bottom: clamp(16px, 3.2vw, 50px);
 }
 
 .p-body {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0 clamp(8px, 1.8vw, 26px);
+  gap: 0 clamp(8px, 1.8vw, 28px);
   flex: 1;
   align-content: start;
 }
@@ -90,244 +79,437 @@ html, body {
   flex-direction: column;
 }
 
-.p-col .word {
+.p-col span {
   display: block;
   font-size: clamp(11px, 1.75vw, 22px);
   font-weight: 700;
-  line-height: 1.12;
+  line-height: 1.13;
   text-transform: uppercase;
   letter-spacing: 0.01em;
 }
 
 .p-footer {
   margin-top: auto;
-  padding-top: clamp(14px, 2.8vw, 42px);
-  border-top: 1px solid rgba(200, 185, 160, 0.12);
+  padding-top: clamp(14px, 2.6vw, 40px);
 }
 
-.p-venue {
-  font-size: clamp(9px, 1.3vw, 16px);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  margin-bottom: 0.06em;
+.p-footer-rule {
+  height: 2px;
+  margin-bottom: clamp(10px, 1.8vw, 28px);
 }
 
-.p-venue-lg {
-  font-size: clamp(30px, 6.4vw, 94px);
+.p-footer-line {
+  font-size: clamp(24px, 4.8vw, 70px);
   font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 0.86;
+  letter-spacing: -0.02em;
+  line-height: 0.96;
   text-transform: uppercase;
-  margin-top: 0.1em;
 }
 
-.p-date {
-  font-size: clamp(8px, 1.1vw, 14px);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  margin-top: 0.5em;
+/* ── POSTER LAYER (z-1) ─────────────────────────────────
+   Full IMAGE_A — white background, black text.
+   Always fully rendered beneath the dark overlay. */
+#poster {
+  background: #f0ece6;
+  z-index: 1;
 }
 
-/* ── GRAIN CANVAS ──────────────────────────────────────── */
+#poster .p-inner { color: #0a0a0a; }
+
+#poster .p-footer-rule { background: #0a0a0a; }
+
+/* ── DARK OVERLAY CANVAS (z-10) ─────────────────────────
+   Near-black canvas that covers everything.
+   Mouse position punches a spotlight hole (destination-out). */
+#mask-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* ── HINT LAYER (z-15) ──────────────────────────────────
+   Same layout as poster. White text. Transparent background.
+   Above the dark overlay → white text visible in darkness.
+   Over spotlight area → white text on cream bg → invisible.
+   This is the subliminal flash / signal layer. */
+#hints {
+  z-index: 15;
+  background: transparent;
+  pointer-events: none;
+}
+
+#hints .p-inner { color: transparent; }
+
+#hints .hw {
+  color: #ffffff;
+  opacity: 0;
+  /* NO transition — hard cut is the entire point */
+}
+
+#hints .hw.lit {
+  opacity: 1;
+}
+
+#hints .p-footer-rule { background: transparent; }
+
+/* ── GRAIN CANVAS (z-20) ─────────────────────────────── */
 #grain-canvas {
   position: fixed;
   inset: 0;
-  z-index: 5;
+  z-index: 20;
   pointer-events: none;
   mix-blend-mode: screen;
-  opacity: 0.18;
+  opacity: 0.20;
 }
 
-/* ── EDGE VIGNETTE ─────────────────────────────────────── */
+/* ── VIGNETTE (z-22) ─────────────────────────────────── */
 #vignette {
   position: fixed;
   inset: 0;
-  z-index: 6;
+  z-index: 22;
   pointer-events: none;
   background: radial-gradient(
-    ellipse 76% 72% at 50% 50%,
-    transparent 32%,
-    rgba(3, 3, 3, 0.28) 58%,
-    rgba(3, 3, 3, 0.66) 78%,
-    rgba(3, 3, 3, 0.92) 100%
+    ellipse 75% 72% at 50% 50%,
+    transparent 30%,
+    rgba(3,3,6,0.25) 56%,
+    rgba(3,3,6,0.62) 76%,
+    rgba(3,3,6,0.92) 100%
   );
+}
+
+/* ── CUSTOM CURSOR (orb) ─────────────────────────────── */
+#orb {
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 30;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+  background: radial-gradient(circle at 35% 32%,
+    #282828 0%, #0e0e0e 40%, #020202 75%, #000 100%
+  );
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.025),
+    0 8px 48px rgba(0,0,0,0.98),
+    inset 0 1px 3px rgba(255,255,255,0.038);
+}
+
+/* ── SCROLL HINT ─────────────────────────────────────── */
+#hint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  color: rgba(255,255,255,0.10);
+  font-family: Georgia, serif;
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  pointer-events: none;
+  white-space: nowrap;
 }
 </style>
 </head>
 <body>
 
+<!-- ═══════════════════════════════════════════════════════
+     LAYER 1: IMAGE_A — Full poster, always rendered
+     White/cream background, black text. This is the "truth".
+     ═══════════════════════════════════════════════════════ -->
 <div id="poster">
-  <div id="poster-inner">
+  <div class="p-inner">
 
-    <!-- Artist name -->
-    <div class="p-artist">
-      <span class="word bright" id="w-coma">COMA</span><!--
-      --><span class="word bright" id="w-nova-top">&thinsp;NOVA</span>
-    </div>
+    <div class="p-overtitle">COMA NOVA</div>
+    <div class="p-title">SPOTLIGHT</div>
+    <div class="p-sub">Second Edition Exhibition</div>
 
-    <!-- Main title: SPOTLIGHT (two-line split) -->
-    <div class="p-title">
-      <span class="word bright" id="w-spot">SPOT</span><br>
-      <span class="word bright" id="w-light">LIGHT</span>
-    </div>
-
-    <!-- Subtitle -->
-    <div class="p-sub">
-      <span class="word" id="w-second">Second</span><!--
-      --><span class="word" id="w-edition">&nbsp;Edition</span><!--
-      --><span class="word" id="w-exhibition">&nbsp;Exhibition</span>
-    </div>
-
-    <!-- Body: 3 columns, each line individually flashable -->
     <div class="p-body">
-
       <div class="p-col">
-        <span class="word">Digital Dark</span>
-        <span class="word">Patterns</span>
-        <span class="word">Silent</span>
-        <span class="word">Influence</span>
-        <span class="word">Obscured</span>
-        <span class="word">Patterns</span>
-        <span class="word">Intent</span>
-        <span class="word">You</span>
-        <span class="word">Think You</span>
-        <span class="word">Choose Now</span>
-        <span class="word">Attention</span>
+        <span>Digital Dark</span>
+        <span>Patterns</span>
+        <span>Silent</span>
+        <span>Influence</span>
+        <span>Obscured</span>
+        <span>Patterns</span>
+        <span>Intent</span>
+        <span>You</span>
+        <span>Think You</span>
       </div>
-
       <div class="p-col">
-        <span class="word">Behavioral</span>
-        <span class="word">Design Sub&#8209;</span>
-        <span class="word">Conscious</span>
-        <span class="word">Perception</span>
-        <span class="word">Attention</span>
-        <span class="word">Cognition</span>
-        <span class="word">Control</span>
-        <span class="word">Framework</span>
-        <span class="word">To Show</span>
-        <span class="word">Is To Hide</span>
-        <span class="word">Half Seen,</span>
-        <span class="word">Fully Guided</span>
+        <span>Behavioral</span>
+        <span>Design Sub&#8209;</span>
+        <span>Conscious</span>
+        <span>Perception</span>
+        <span>Attention</span>
+        <span>Cognition</span>
+        <span>Control</span>
+        <span>Framework</span>
+        <span>To Show</span>
+        <span>Is To Hide</span>
+        <span>Half Seen,</span>
       </div>
-
       <div class="p-col">
-        <span class="word">Interface</span>
-        <span class="word">Control</span>
-        <span class="word">Responses</span>
-        <span class="word">Are&#8212;&#8212;</span>
-        <span class="word">Prebuilt</span>
-        <span class="word">Limited</span>
-        <span class="word">No Option</span>
-        <span class="word">Your Inputs</span>
-        <span class="word">Expected</span>
-        <span class="word">Decision</span>
+        <span>Interface</span>
+        <span>Control</span>
+        <span>Responses</span>
+        <span>Are&#8212;&#8212;</span>
+        <span>Prebuilt</span>
+        <span>Limited</span>
+        <span>No Option</span>
+        <span>Your Inputs</span>
+        <span>Expected</span>
       </div>
-
     </div>
 
-    <!-- Footer -->
     <div class="p-footer">
-      <div class="p-venue">
-        <span class="word" id="w-gallery">Sejong Art Gallery</span>
-      </div>
-      <div class="p-venue-lg">
-        <span class="word bright" id="w-coma-lg">Coma</span><br>
-        <span class="word bright" id="w-nova-lg">Nova</span>
-      </div>
-      <div class="p-date">
-        <span class="word" id="w-date">COMA NOVA &#8212; OCTOBER 30, 2026</span>
-      </div>
+      <div class="p-footer-rule"></div>
+      <div class="p-footer-line">Sejong Art Gallery</div>
+      <div class="p-footer-line">Coma Nova &#8212; October 30, 2026</div>
     </div>
 
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════
+     LAYER 10: Dark mask canvas — covers the poster.
+     Spotlight hole punched via destination-out at mouse pos.
+     ═══════════════════════════════════════════════════════ -->
+<canvas id="mask-canvas"></canvas>
+
+<!-- ═══════════════════════════════════════════════════════
+     LAYER 15: Hint / signal layer
+     Identical layout to poster. White text.
+     Words flash randomly as subliminal signals.
+     In darkness → white text visible.
+     In spotlight → white on cream = invisible (natural).
+     ═══════════════════════════════════════════════════════ -->
+<div id="hints">
+  <div class="p-inner">
+
+    <div class="p-overtitle"><span class="hw" id="hw-comanova">COMA NOVA</span></div>
+    <div class="p-title"><span class="hw" id="hw-spotlight">SPOTLIGHT</span></div>
+    <div class="p-sub"><span class="hw" id="hw-sub">Second Edition Exhibition</span></div>
+
+    <div class="p-body">
+      <div class="p-col">
+        <span class="hw">Digital Dark</span>
+        <span class="hw">Patterns</span>
+        <span class="hw">Silent</span>
+        <span class="hw">Influence</span>
+        <span class="hw">Obscured</span>
+        <span class="hw">Patterns</span>
+        <span class="hw">Intent</span>
+        <span class="hw">You</span>
+        <span class="hw">Think You</span>
+      </div>
+      <div class="p-col">
+        <span class="hw">Behavioral</span>
+        <span class="hw">Design Sub&#8209;</span>
+        <span class="hw">Conscious</span>
+        <span class="hw">Perception</span>
+        <span class="hw">Attention</span>
+        <span class="hw">Cognition</span>
+        <span class="hw">Control</span>
+        <span class="hw">Framework</span>
+        <span class="hw">To Show</span>
+        <span class="hw">Is To Hide</span>
+        <span class="hw">Half Seen,</span>
+      </div>
+      <div class="p-col">
+        <span class="hw">Interface</span>
+        <span class="hw">Control</span>
+        <span class="hw">Responses</span>
+        <span class="hw">Are&#8212;&#8212;</span>
+        <span class="hw">Prebuilt</span>
+        <span class="hw">Limited</span>
+        <span class="hw">No Option</span>
+        <span class="hw">Your Inputs</span>
+        <span class="hw">Expected</span>
+      </div>
+    </div>
+
+    <div class="p-footer">
+      <div class="p-footer-rule"></div>
+      <div class="p-footer-line"><span class="hw">Sejong Art Gallery</span></div>
+      <div class="p-footer-line"><span class="hw">Coma Nova &#8212; October 30, 2026</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- UI chrome -->
 <canvas id="grain-canvas"></canvas>
 <div id="vignette"></div>
+<div id="orb"></div>
+<div id="hint">Move cursor &ensp;&middot;&ensp; Scroll to focus</div>
 
 <script>
 (function () {
 'use strict';
 
-// ── Film Grain ─────────────────────────────────────────────────────
-const gCvs = document.getElementById('grain-canvas');
-const gCtx = gCvs.getContext('2d');
-let W = 0, H = 0;
+// ── Canvas / DOM refs ──────────────────────────────────────────────
+const mCvs   = document.getElementById('mask-canvas');
+const gCvs   = document.getElementById('grain-canvas');
+const orbEl  = document.getElementById('orb');
+const hintEl = document.getElementById('hint');
+const mCtx   = mCvs.getContext('2d');
+const gCtx   = gCvs.getContext('2d');
 
+// ── Spotlight constants ────────────────────────────────────────────
+const EASE_POS   = 0.14;
+const EASE_DEP   = 0.08;
+const SPOT_FAR   = 0.68;   // fraction of screen diagonal at scroll=0
+const SPOT_NEAR  = 0.10;   // fraction of screen diagonal at scroll=1
+const ORB_MIN    = 38;
+const ORB_MAX    = 200;
+
+// ── State ─────────────────────────────────────────────────────────
+let W = 0, H = 0, DIAG = 0;
+let mx = 0, my = 0;       // raw mouse
+let sx = 0, sy = 0;       // smoothed spotlight centre
+let tdep = 0.55;          // target depth (0=far, 1=near)
+let dep  = 0.55;          // smoothed depth
+
+// ── Resize ────────────────────────────────────────────────────────
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  DIAG = Math.sqrt(W * W + H * H);
+  mCvs.width  = gCvs.width  = W;
+  mCvs.height = gCvs.height = H;
+  sx = W / 2; sy = H / 2;
+  mx = W / 2; my = H / 2;
+}
+
+// ── Input ─────────────────────────────────────────────────────────
+let hintFade = 1;
+document.addEventListener('mousemove', e => {
+  mx = e.clientX;
+  my = e.clientY;
+  if (hintFade > 0) { hintFade = 0; hintEl.style.opacity = '0'; }
+});
+
+document.addEventListener('wheel', e => {
+  tdep = Math.min(1, Math.max(0, tdep + e.deltaY * 0.0012));
+}, { passive: true });
+
+// ── Film grain ────────────────────────────────────────────────────
 const GSIZ = 320;
 const gOff = Object.assign(document.createElement('canvas'), { width: GSIZ, height: GSIZ });
-const gOffCtx = gOff.getContext('2d');
-let grainTick = 0;
+const gOCtx = gOff.getContext('2d');
+let gTick = 0;
 
 function makeGrain() {
-  const id = gOffCtx.createImageData(GSIZ, GSIZ);
+  const id = gOCtx.createImageData(GSIZ, GSIZ);
   const d = id.data;
   for (let i = 0; i < d.length; i += 4) {
     const v = Math.random() * 255 | 0;
-    d[i]   = Math.min(255, v + 9);
+    d[i]   = Math.min(255, v + 8);
     d[i+1] = v;
-    d[i+2] = Math.max(0,   v - 7);
+    d[i+2] = Math.max(0, v - 6);
     d[i+3] = 255;
   }
-  gOffCtx.putImageData(id, 0, 0);
+  gOCtx.putImageData(id, 0, 0);
 }
 
 function drawGrain() {
-  if (++grainTick % 2 === 0) makeGrain();
+  if (++gTick % 2 === 0) makeGrain();
   gCtx.clearRect(0, 0, W, H);
   for (let y = 0; y < H; y += GSIZ) {
     for (let x = 0; x < W; x += GSIZ) {
-      const ox = Math.random() * 24 | 0;
-      const oy = Math.random() * 24 | 0;
+      const ox = Math.random() * 20 | 0;
+      const oy = Math.random() * 20 | 0;
       gCtx.drawImage(gOff,
         ox, oy, GSIZ - ox, GSIZ - oy,
-        x,  y,  GSIZ - ox, GSIZ - oy
-      );
+        x,  y,  GSIZ - ox, GSIZ - oy);
     }
   }
 }
 
-function resize() {
-  W = window.innerWidth;
-  H = window.innerHeight;
-  gCvs.width  = W;
-  gCvs.height = H;
+// ── Draw dark mask with spotlight hole ────────────────────────────
+function drawMask() {
+  const spotR = DIAG * (SPOT_FAR + (SPOT_NEAR - SPOT_FAR) * dep);
+  const orbD  = ORB_MIN + (ORB_MAX - ORB_MIN) * dep;
+
+  // Fill near-black
+  mCtx.globalCompositeOperation = 'source-over';
+  mCtx.fillStyle = 'rgba(5, 5, 8, 0.972)';
+  mCtx.fillRect(0, 0, W, H);
+
+  // Punch spotlight hole
+  mCtx.globalCompositeOperation = 'destination-out';
+
+  // Main cone — soft-edged
+  const g0 = mCtx.createRadialGradient(sx, sy, 0, sx, sy, spotR);
+  g0.addColorStop(0,    'rgba(0,0,0,1)');
+  g0.addColorStop(0.55, 'rgba(0,0,0,0.92)');
+  g0.addColorStop(0.80, 'rgba(0,0,0,0.42)');
+  g0.addColorStop(1,    'rgba(0,0,0,0)');
+  mCtx.fillStyle = g0;
+  mCtx.fillRect(0, 0, W, H);
+
+  // Centre punch — sharper core
+  const g1 = mCtx.createRadialGradient(sx, sy, 0, sx, sy, spotR * 0.38);
+  g1.addColorStop(0, 'rgba(0,0,0,0.28)');
+  g1.addColorStop(1, 'rgba(0,0,0,0)');
+  mCtx.fillStyle = g1;
+  mCtx.fillRect(0, 0, W, H);
+
+  mCtx.globalCompositeOperation = 'source-over';
+
+  // Position orb
+  const r = orbD / 2;
+  orbEl.style.width  = orbD + 'px';
+  orbEl.style.height = orbD + 'px';
+  orbEl.style.transform = `translate3d(${sx - r}px,${sy - r}px,0)`;
 }
 
-// ── Subliminal Flash Scheduler ─────────────────────────────────────
-const allWords  = Array.from(document.querySelectorAll('.word'));
-const MAX_LIT   = 3;
-let   litCount  = 0;
+// ── Subliminal flash scheduler ─────────────────────────────────────
+// .hw elements flash as white text above the dark mask.
+// In darkness → white visible.  In spotlight → white on cream = hidden.
+const allHW   = Array.from(document.querySelectorAll('.hw'));
+const MAX_LIT = 3;
+let   litCount = 0;
 
 function rnd(lo, hi) { return lo + Math.random() * (hi - lo); }
 
 function flashStream() {
   if (litCount >= MAX_LIT) {
-    setTimeout(flashStream, 80 + rnd(0, 120));
+    setTimeout(flashStream, rnd(60, 130));
     return;
   }
+  const pool = allHW.filter(w => !w.classList.contains('lit'));
+  if (!pool.length) { setTimeout(flashStream, 200); return; }
 
-  const pool = allWords.filter(w => !w.classList.contains('lit'));
-  if (!pool.length) { setTimeout(flashStream, 160); return; }
-
-  const word = pool[Math.floor(Math.random() * pool.length)];
-  word.classList.add('lit');
+  const el = pool[Math.floor(Math.random() * pool.length)];
+  el.classList.add('lit');
   litCount++;
 
-  // Hold: 80 – 440 ms (subliminal threshold range)
-  setTimeout(() => {
-    word.classList.remove('lit');
-    litCount--;
-  }, rnd(80, 440));
+  // Hold: 80 – 420 ms — subliminal threshold
+  setTimeout(() => { el.classList.remove('lit'); litCount--; },
+             rnd(80, 420));
 
-  // Next flash in this stream: 200 – 1000 ms
-  setTimeout(flashStream, rnd(200, 1000));
+  // Next in this stream: 250 – 1100 ms
+  setTimeout(flashStream, rnd(250, 1100));
 }
 
-// ── Main Loop ──────────────────────────────────────────────────────
-function loop() {
+// ── Animation loop ─────────────────────────────────────────────────
+let last = 0;
+function loop(ts) {
+  const dt = Math.min((ts - last) / 16.667, 4);
+  last = ts;
+
+  // Framerate-independent easing
+  const ep = 1 - Math.pow(1 - EASE_POS, dt);
+  const ed = 1 - Math.pow(1 - EASE_DEP, dt);
+
+  sx  += (mx  - sx)  * ep;
+  sy  += (my  - sy)  * ep;
+  dep += (tdep - dep) * ed;
+
+  drawMask();
   drawGrain();
   requestAnimationFrame(loop);
 }
@@ -337,12 +519,12 @@ resize();
 window.addEventListener('resize', resize);
 makeGrain();
 
-// Three independent streams, staggered to avoid synchrony
+// Three staggered independent flash streams
 flashStream();
-setTimeout(flashStream, rnd(220, 420));
-setTimeout(flashStream, rnd(550, 850));
+setTimeout(flashStream, rnd(200, 450));
+setTimeout(flashStream, rnd(550, 900));
 
-loop();
+requestAnimationFrame(loop);
 
 }());
 </script>
