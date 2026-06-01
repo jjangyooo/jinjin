@@ -4,10 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SPOTLIGHT — Coma Nova</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
 <style>
+/* ── Matrix II OT (drop matrix-ii-ot.woff2 in this folder to activate) ── */
+@font-face {
+  font-family: 'Matrix II OT';
+  src: url('matrix-ii-ot.woff2') format('woff2'),
+       url('matrix-ii-ot.woff')  format('woff'),
+       url('matrix-ii-ot.otf')   format('opentype');
+  font-weight: 700;
+  font-style: normal;
+}
+
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
@@ -17,13 +24,11 @@ html, body {
   cursor: none;
 }
 
-/* ── POSTER WRAPPER ─────────────────────────────────────
-   Sized to match poster.webp aspect ratio (1420 × 2000).
-   Position and font-sizes updated by JS on resize.       */
+/* ── POSTER WRAPPER ──────────────────────────────────────
+   Dimensions set by JS to match poster.webp (1420×2000).  */
 #poster-wrapper,
 #hints-wrapper {
   position: fixed;
-  /* dimensions set by JS */
 }
 
 #poster-wrapper {
@@ -36,9 +41,7 @@ html, body {
   height: 100%;
 }
 
-/* ── DARKNESS CANVAS ────────────────────────────────────
-   Covers full viewport. Solid black fill + destination-out
-   spotlight punched from mouse position.                  */
+/* ── DARKNESS CANVAS ────────────────────────────────────── */
 #mask-canvas {
   position: fixed;
   inset: 0;
@@ -46,14 +49,17 @@ html, body {
   pointer-events: none;
 }
 
-/* ── HINTS WRAPPER ──────────────────────────────────────
-   Same position/size as poster-wrapper (set by JS).
-   Contains absolutely-positioned .hw spans.
-   z-15: above darkness → white text visible in dark,
-         white text on cream poster = invisible (natural). */
+/* ── HINTS WRAPPER ───────────────────────────────────────
+   mix-blend-mode: difference on the wrapper ensures hints
+   are visible in darkness but automatically disappear when
+   the spotlight reveals the white poster beneath.
+
+   Physics:  difference(white, dark≈0)  = 1  = white   ✓
+             difference(white, cream≈1) ≈ 0  = invisible ✓  */
 #hints-wrapper {
   z-index: 15;
   pointer-events: none;
+  mix-blend-mode: difference;
 }
 
 .hw {
@@ -61,24 +67,19 @@ html, body {
   color: #ffffff;
   opacity: 0;
   white-space: nowrap;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-weight: 900;
+  font-family: 'Matrix II OT', Georgia, 'Times New Roman', serif;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: -0.02em;
   line-height: 1;
-  /* Hard cut — NO transition */
+  letter-spacing: -0.01em;
+  /* NO transition — hard cut */
 }
 
 .hw.lit {
   opacity: 1;
 }
 
-.hw.body-text {
-  font-size: inherit; /* set by JS per row */
-  letter-spacing: 0.01em;
-}
-
-/* ── ORB CURSOR ─────────────────────────────────────── */
+/* ── ORB CURSOR ─────────────────────────────────────────── */
 #orb {
   position: fixed;
   top: 0; left: 0;
@@ -88,12 +89,10 @@ html, body {
   will-change: transform;
   background: radial-gradient(circle at 35% 32%,
     #1a1a1a 0%, #080808 42%, #010101 78%, #000 100%);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.02),
-    inset 0 1px 3px rgba(255,255,255,0.03);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.02);
 }
 
-/* ── SCROLL HINT ────────────────────────────────────── */
+/* ── SCROLL HINT ─────────────────────────────────────────── */
 #scroll-hint {
   position: fixed;
   bottom: 20px;
@@ -113,15 +112,15 @@ html, body {
 </head>
 <body>
 
-<!-- LAYER 1: IMAGE_A — actual poster file, untouched -->
+<!-- LAYER 1: IMAGE_A — actual poster file -->
 <div id="poster-wrapper">
   <img src="poster.webp" alt="SPOTLIGHT — Coma Nova">
 </div>
 
-<!-- LAYER 10: Darkness canvas with spotlight -->
+<!-- LAYER 10: Darkness + spotlight -->
 <canvas id="mask-canvas"></canvas>
 
-<!-- LAYER 15: Hint signals — white text at IMAGE_A word positions -->
+<!-- LAYER 15: Hint signals (mix-blend-mode: difference) -->
 <div id="hints-wrapper"></div>
 
 <div id="orb"></div>
@@ -131,53 +130,54 @@ html, body {
 (function () {
 'use strict';
 
-// ── Word data ────────────────────────────────────────────────────
-// Positions as % of poster image (1420 × 2000 px).
-// t = top%, l = left%, fs = font-size as % of wrapper height.
+// ── Word data ─────────────────────────────────────────────────────
+// Positions as % of poster image (1420 × 2000).
+// t = top%, l = left%,  fs = font-size as % of wrapper height.
+// center = true → full-width span, text-align:center (no l value needed).
 const WORDS = [
-  // Header
-  { t:  3.5, l: 18.0, fs: 5.8,  text: 'COMA NOVA'  },
-  { t:  9.5, l:  3.5, fs: 13.5, text: 'SPOTLIGHT'  },
-  { t: 24.8, l: 27.0, fs: 1.5,  text: 'Second Edition Exhibition' },
+  // ── Header ────────────────────────────────────────────────────
+  { t:  2.5, center: true,  fs:  6.0, text: 'COMA NOVA'  },
+  { t:  9.0, l:  3.5,       fs: 14.5, text: 'SPOTLIGHT'  },
+  { t: 24.0, center: true,  fs:  1.4, text: 'Second Edition Exhibition' },
 
-  // Col 1
-  { t: 28.5, l:  5.3, fs: 2.5, text: 'Digital Dark' },
-  { t: 31.2, l:  5.3, fs: 2.5, text: 'Patterns'     },
-  { t: 34.0, l:  5.3, fs: 2.5, text: 'Silent'        },
-  { t: 36.7, l:  5.3, fs: 2.5, text: 'Influence'     },
-  { t: 39.4, l:  5.3, fs: 2.5, text: 'Obscured'      },
-  { t: 42.1, l:  5.3, fs: 2.5, text: 'Patterns'      },
-  { t: 44.8, l:  5.3, fs: 2.5, text: 'Intent'        },
-  { t: 47.5, l:  5.3, fs: 2.5, text: 'You'           },
-  { t: 50.2, l:  5.3, fs: 2.5, text: 'Think You'     },
+  // ── Column 1 (left ≈ 5.3 %) ───────────────────────────────────
+  { t: 27.5, l:  5.3, fs: 2.55, text: 'Digital Dark' },
+  { t: 30.3, l:  5.3, fs: 2.55, text: 'Patterns'     },
+  { t: 33.1, l:  5.3, fs: 2.55, text: 'Silent'       },
+  { t: 35.9, l:  5.3, fs: 2.55, text: 'Influence'    },
+  { t: 38.7, l:  5.3, fs: 2.55, text: 'Obscured'     },
+  { t: 41.5, l:  5.3, fs: 2.55, text: 'Patterns'     },
+  { t: 44.3, l:  5.3, fs: 2.55, text: 'Intent'       },
+  { t: 47.1, l:  5.3, fs: 2.55, text: 'You'          },
+  { t: 49.9, l:  5.3, fs: 2.55, text: 'Think You'    },
 
-  // Col 2
-  { t: 28.5, l: 33.5, fs: 2.5, text: 'Behavioral'    },
-  { t: 31.2, l: 33.5, fs: 2.5, text: 'Design Sub‑' },
-  { t: 34.0, l: 33.5, fs: 2.5, text: 'Conscious'     },
-  { t: 36.7, l: 33.5, fs: 2.5, text: 'Perception'    },
-  { t: 39.4, l: 33.5, fs: 2.5, text: 'Attention'     },
-  { t: 42.1, l: 33.5, fs: 2.5, text: 'Cognition'     },
-  { t: 44.8, l: 33.5, fs: 2.5, text: 'Control'       },
-  { t: 47.5, l: 33.5, fs: 2.5, text: 'Framework'     },
-  { t: 50.2, l: 33.5, fs: 2.5, text: 'To Show'       },
-  { t: 52.9, l: 33.5, fs: 2.5, text: 'Is To Hide'    },
-  { t: 55.6, l: 33.5, fs: 2.5, text: 'Half Seen,'    },
+  // ── Column 2 (left ≈ 33.5 %) ──────────────────────────────────
+  { t: 27.5, l: 33.5, fs: 2.55, text: 'Behavioral'   },
+  { t: 30.3, l: 33.5, fs: 2.55, text: 'Design Sub‑' },
+  { t: 33.1, l: 33.5, fs: 2.55, text: 'Conscious'    },
+  { t: 35.9, l: 33.5, fs: 2.55, text: 'Perception'   },
+  { t: 38.7, l: 33.5, fs: 2.55, text: 'Attention'    },
+  { t: 41.5, l: 33.5, fs: 2.55, text: 'Cognition'    },
+  { t: 44.3, l: 33.5, fs: 2.55, text: 'Control'      },
+  { t: 47.1, l: 33.5, fs: 2.55, text: 'Framework'    },
+  { t: 49.9, l: 33.5, fs: 2.55, text: 'To Show'      },
+  { t: 52.7, l: 33.5, fs: 2.55, text: 'Is To Hide'   },
+  { t: 55.5, l: 33.5, fs: 2.55, text: 'Half Seen,'   },
 
-  // Col 3
-  { t: 28.5, l: 61.6, fs: 2.5, text: 'Interface'     },
-  { t: 31.2, l: 61.6, fs: 2.5, text: 'Control'       },
-  { t: 34.0, l: 61.6, fs: 2.5, text: 'Responses'     },
-  { t: 36.7, l: 61.6, fs: 2.5, text: 'Are——' },
-  { t: 39.4, l: 61.6, fs: 2.5, text: 'Prebuilt'      },
-  { t: 42.1, l: 61.6, fs: 2.5, text: 'Limited'       },
-  { t: 44.8, l: 61.6, fs: 2.5, text: 'No Option'     },
-  { t: 47.5, l: 61.6, fs: 2.5, text: 'Your Inputs'   },
-  { t: 50.2, l: 61.6, fs: 2.5, text: 'Expected'      },
+  // ── Column 3 (left ≈ 61.6 %) ──────────────────────────────────
+  { t: 27.5, l: 61.6, fs: 2.55, text: 'Interface'    },
+  { t: 30.3, l: 61.6, fs: 2.55, text: 'Control'      },
+  { t: 33.1, l: 61.6, fs: 2.55, text: 'Responses'    },
+  { t: 35.9, l: 61.6, fs: 2.55, text: 'Are——' },
+  { t: 38.7, l: 61.6, fs: 2.55, text: 'Prebuilt'     },
+  { t: 41.5, l: 61.6, fs: 2.55, text: 'Limited'      },
+  { t: 44.3, l: 61.6, fs: 2.55, text: 'No Option'    },
+  { t: 47.1, l: 61.6, fs: 2.55, text: 'Your Inputs'  },
+  { t: 49.9, l: 61.6, fs: 2.55, text: 'Expected'     },
 
-  // Footer
-  { t: 83.5, l: 14.0, fs: 5.5, text: 'Sejong Art Gallery' },
-  { t: 88.5, l:  9.0, fs: 5.5, text: 'Coma Nova — October 30, 2026' },
+  // ── Footer ────────────────────────────────────────────────────
+  { t: 83.5, center: true, fs: 5.0, text: 'Sejong Art Gallery'          },
+  { t: 88.8, center: true, fs: 5.0, text: 'Coma Nova — October 30, 2026' },
 ];
 
 // ── DOM refs ──────────────────────────────────────────────────────
@@ -193,8 +193,14 @@ const allHW = WORDS.map(w => {
   const el = document.createElement('span');
   el.className = 'hw';
   el.textContent = w.text;
-  el.style.top  = w.t + '%';
-  el.style.left = w.l + '%';
+  if (w.center) {
+    el.style.left      = '0';
+    el.style.width     = '100%';
+    el.style.textAlign = 'center';
+  } else {
+    el.style.left = w.l + '%';
+  }
+  el.style.top = w.t + '%';
   hintsWrapper.appendChild(el);
   return el;
 });
@@ -212,7 +218,7 @@ let mx, my, sx, sy;
 let tdep = 0.50, dep = 0.50;
 
 // ── Wrapper geometry ──────────────────────────────────────────────
-const POSTER_RATIO = 1420 / 2000; // width / height
+const POSTER_RATIO = 1420 / 2000; // poster.webp aspect ratio
 
 function layoutWrapper() {
   W = window.innerWidth;
@@ -221,14 +227,11 @@ function layoutWrapper() {
   mCvs.width  = W;
   mCvs.height = H;
 
-  // Calculate wrapper to fit within viewport, preserving aspect ratio
   let wW, wH;
   if (W / H < POSTER_RATIO) {
-    wW = W;
-    wH = W / POSTER_RATIO;
+    wW = W; wH = W / POSTER_RATIO;
   } else {
-    wH = H;
-    wW = H * POSTER_RATIO;
+    wH = H; wW = H * POSTER_RATIO;
   }
   const wL = (W - wW) / 2;
   const wT = (H - wH) / 2;
@@ -240,9 +243,9 @@ function layoutWrapper() {
     el.style.top    = wT + 'px';
   });
 
-  // Scale font sizes relative to wrapper height
-  allHW.forEach((el, i) => {
-    el.style.fontSize = (WORDS[i].fs / 100 * wH) + 'px';
+  // Scale font-sizes to wrapper height
+  WORDS.forEach((w, i) => {
+    allHW[i].style.fontSize = (w.fs / 100 * wH) + 'px';
   });
 
   if (mx === undefined) { mx = W / 2; my = H / 2; sx = W / 2; sy = H / 2; }
