@@ -17,118 +17,28 @@ html, body {
   cursor: none;
 }
 
-/* ════════════════════════════════════════════════════════
-   SHARED LAYOUT — poster + hints use identical classes
-   so both layers are pixel-perfectly aligned.
-   ════════════════════════════════════════════════════════ */
-
-#poster,
-#hints {
+/* ── POSTER WRAPPER ─────────────────────────────────────
+   Sized to match poster.webp aspect ratio (1420 × 2000).
+   Position and font-sizes updated by JS on resize.       */
+#poster-wrapper,
+#hints-wrapper {
   position: fixed;
-  inset: 0;
-  display: flex;
-  justify-content: center;
-  align-items: stretch;
+  /* dimensions set by JS */
 }
 
-.p-inner {
-  width: min(100vw, calc(100vh * 0.707));
-  max-width: 900px;
-  padding: clamp(22px, 4vw, 58px) clamp(20px, 3.2vw, 52px);
-  display: flex;
-  flex-direction: column;
-  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
-}
-
-.p-overtitle {
-  font-size: clamp(28px, 5.6vw, 82px);
-  font-weight: 900;
-  letter-spacing: -0.01em;
-  line-height: 1;
-  text-transform: uppercase;
-  text-align: center;
-  margin-bottom: 0;
-}
-
-.p-title {
-  font-size: clamp(76px, 15.2vw, 220px);
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 0.84;
-  text-transform: uppercase;
-  text-align: left;
-  margin-bottom: 0.16em;
-}
-
-.p-sub {
-  font-size: clamp(9px, 1.1vw, 14px);
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  text-align: center;
-  margin-bottom: clamp(16px, 3.2vw, 50px);
-}
-
-.p-body {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0 clamp(8px, 1.8vw, 28px);
-  flex: 1;
-  align-content: start;
-}
-
-.p-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.p-col span {
-  display: block;
-  font-size: clamp(11px, 1.75vw, 22px);
-  font-weight: 700;
-  line-height: 1.13;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
-}
-
-.p-footer {
-  margin-top: auto;
-  padding-top: clamp(14px, 2.6vw, 40px);
-}
-
-.p-rule {
-  height: 2px;
-  margin-bottom: clamp(10px, 1.8vw, 28px);
-}
-
-.p-footer-line {
-  font-size: clamp(24px, 4.8vw, 70px);
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  line-height: 0.96;
-  text-transform: uppercase;
-  text-align: center;
-}
-
-/* ════════════════════════════════════════════════════════
-   LAYER 1 — IMAGE_A poster
-   Untouched: white background, black typography.
-   Always fully rendered. This is the final revealed state.
-   ════════════════════════════════════════════════════════ */
-#poster {
-  background: #f0ece6;
+#poster-wrapper {
   z-index: 1;
 }
 
-#poster .p-inner { color: #0a0a0a; }
-#poster .p-rule  { background: #0a0a0a; }
+#poster-wrapper img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 
-/* ════════════════════════════════════════════════════════
-   LAYER 10 — Darkness canvas
-   Solid opaque black fill drawn every frame.
-   Spotlight hole is punched via destination-out.
-   No alpha leakage → poster is completely hidden.
-   ════════════════════════════════════════════════════════ */
+/* ── DARKNESS CANVAS ────────────────────────────────────
+   Covers full viewport. Solid black fill + destination-out
+   spotlight punched from mouse position.                  */
 #mask-canvas {
   position: fixed;
   inset: 0;
@@ -136,37 +46,39 @@ html, body {
   pointer-events: none;
 }
 
-/* ════════════════════════════════════════════════════════
-   LAYER 15 — Hint / signal layer
-   Identical layout to poster. Transparent background.
-   White text flashes randomly as subliminal signals.
-
-   In darkness  → white text on black canvas = visible
-   In spotlight → white text on cream poster  = invisible
-   (natural colour physics, no clipping needed)
-   ════════════════════════════════════════════════════════ */
-#hints {
+/* ── HINTS WRAPPER ──────────────────────────────────────
+   Same position/size as poster-wrapper (set by JS).
+   Contains absolutely-positioned .hw spans.
+   z-15: above darkness → white text visible in dark,
+         white text on cream poster = invisible (natural). */
+#hints-wrapper {
   z-index: 15;
-  background: transparent;
   pointer-events: none;
 }
 
-/* All text invisible by default */
-#hints .p-inner { color: transparent; }
-#hints .p-rule  { background: transparent; }
-
 .hw {
+  position: absolute;
   color: #ffffff;
   opacity: 0;
+  white-space: nowrap;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 1;
   /* Hard cut — NO transition */
 }
+
 .hw.lit {
   opacity: 1;
 }
 
-/* ════════════════════════════════════════════════════════
-   CURSOR ORB (z-20)
-   ════════════════════════════════════════════════════════ */
+.hw.body-text {
+  font-size: inherit; /* set by JS per row */
+  letter-spacing: 0.01em;
+}
+
+/* ── ORB CURSOR ─────────────────────────────────────── */
 #orb {
   position: fixed;
   top: 0; left: 0;
@@ -174,28 +86,21 @@ html, body {
   border-radius: 50%;
   pointer-events: none;
   will-change: transform;
-  background: radial-gradient(
-    circle at 35% 32%,
-    #1e1e1e 0%,
-    #0a0a0a 42%,
-    #010101 78%,
-    #000 100%
-  );
+  background: radial-gradient(circle at 35% 32%,
+    #1a1a1a 0%, #080808 42%, #010101 78%, #000 100%);
   box-shadow:
-    0 0 0 1px rgba(255,255,255,0.022),
-    inset 0 1px 3px rgba(255,255,255,0.032);
+    0 0 0 1px rgba(255,255,255,0.02),
+    inset 0 1px 3px rgba(255,255,255,0.03);
 }
 
-/* ════════════════════════════════════════════════════════
-   SCROLL HINT (z-25)
-   ════════════════════════════════════════════════════════ */
+/* ── SCROLL HINT ────────────────────────────────────── */
 #scroll-hint {
   position: fixed;
-  bottom: 22px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 25;
-  color: rgba(255,255,255,0.09);
+  color: rgba(255,255,255,0.08);
   font-family: Georgia, serif;
   font-size: 9px;
   letter-spacing: 0.28em;
@@ -208,116 +113,16 @@ html, body {
 </head>
 <body>
 
-<!-- ════════════════════════════════════════════════════════
-     LAYER 1 — IMAGE_A (always fully rendered beneath darkness)
-     ════════════════════════════════════════════════════════ -->
-<div id="poster">
-  <div class="p-inner">
-    <div class="p-overtitle">COMA NOVA</div>
-    <div class="p-title">SPOTLIGHT</div>
-    <div class="p-sub">Second Edition Exhibition</div>
-    <div class="p-body">
-      <div class="p-col">
-        <span>Digital Dark</span>
-        <span>Patterns</span>
-        <span>Silent</span>
-        <span>Influence</span>
-        <span>Obscured</span>
-        <span>Patterns</span>
-        <span>Intent</span>
-        <span>You</span>
-        <span>Think You</span>
-      </div>
-      <div class="p-col">
-        <span>Behavioral</span>
-        <span>Design Sub&#8209;</span>
-        <span>Conscious</span>
-        <span>Perception</span>
-        <span>Attention</span>
-        <span>Cognition</span>
-        <span>Control</span>
-        <span>Framework</span>
-        <span>To Show</span>
-        <span>Is To Hide</span>
-        <span>Half Seen,</span>
-      </div>
-      <div class="p-col">
-        <span>Interface</span>
-        <span>Control</span>
-        <span>Responses</span>
-        <span>Are&#8212;&#8212;</span>
-        <span>Prebuilt</span>
-        <span>Limited</span>
-        <span>No Option</span>
-        <span>Your Inputs</span>
-        <span>Expected</span>
-      </div>
-    </div>
-    <div class="p-footer">
-      <div class="p-rule"></div>
-      <div class="p-footer-line">Sejong Art Gallery</div>
-      <div class="p-footer-line">Coma Nova &#8212; October 30, 2026</div>
-    </div>
-  </div>
+<!-- LAYER 1: IMAGE_A — actual poster file, untouched -->
+<div id="poster-wrapper">
+  <img src="poster.webp" alt="SPOTLIGHT — Coma Nova">
 </div>
 
-<!-- ════════════════════════════════════════════════════════
-     LAYER 10 — Darkness + spotlight
-     ════════════════════════════════════════════════════════ -->
+<!-- LAYER 10: Darkness canvas with spotlight -->
 <canvas id="mask-canvas"></canvas>
 
-<!-- ════════════════════════════════════════════════════════
-     LAYER 15 — Hint layer (same layout, white text)
-     ════════════════════════════════════════════════════════ -->
-<div id="hints">
-  <div class="p-inner">
-    <div class="p-overtitle"><span class="hw">COMA NOVA</span></div>
-    <div class="p-title"><span class="hw">SPOTLIGHT</span></div>
-    <div class="p-sub"><span class="hw">Second Edition Exhibition</span></div>
-    <div class="p-body">
-      <div class="p-col">
-        <span class="hw">Digital Dark</span>
-        <span class="hw">Patterns</span>
-        <span class="hw">Silent</span>
-        <span class="hw">Influence</span>
-        <span class="hw">Obscured</span>
-        <span class="hw">Patterns</span>
-        <span class="hw">Intent</span>
-        <span class="hw">You</span>
-        <span class="hw">Think You</span>
-      </div>
-      <div class="p-col">
-        <span class="hw">Behavioral</span>
-        <span class="hw">Design Sub&#8209;</span>
-        <span class="hw">Conscious</span>
-        <span class="hw">Perception</span>
-        <span class="hw">Attention</span>
-        <span class="hw">Cognition</span>
-        <span class="hw">Control</span>
-        <span class="hw">Framework</span>
-        <span class="hw">To Show</span>
-        <span class="hw">Is To Hide</span>
-        <span class="hw">Half Seen,</span>
-      </div>
-      <div class="p-col">
-        <span class="hw">Interface</span>
-        <span class="hw">Control</span>
-        <span class="hw">Responses</span>
-        <span class="hw">Are&#8212;&#8212;</span>
-        <span class="hw">Prebuilt</span>
-        <span class="hw">Limited</span>
-        <span class="hw">No Option</span>
-        <span class="hw">Your Inputs</span>
-        <span class="hw">Expected</span>
-      </div>
-    </div>
-    <div class="p-footer">
-      <div class="p-rule"></div>
-      <div class="p-footer-line"><span class="hw">Sejong Art Gallery</span></div>
-      <div class="p-footer-line"><span class="hw">Coma Nova &#8212; October 30, 2026</span></div>
-    </div>
-  </div>
-</div>
+<!-- LAYER 15: Hint signals — white text at IMAGE_A word positions -->
+<div id="hints-wrapper"></div>
 
 <div id="orb"></div>
 <div id="scroll-hint">Move cursor &ensp;&middot;&ensp; Scroll to focus</div>
@@ -326,64 +131,146 @@ html, body {
 (function () {
 'use strict';
 
-const mCvs      = document.getElementById('mask-canvas');
-const orbEl     = document.getElementById('orb');
-const hintEl    = document.getElementById('scroll-hint');
-const mCtx      = mCvs.getContext('2d');
+// ── Word data ────────────────────────────────────────────────────
+// Positions as % of poster image (1420 × 2000 px).
+// t = top%, l = left%, fs = font-size as % of wrapper height.
+const WORDS = [
+  // Header
+  { t:  3.5, l: 18.0, fs: 5.8,  text: 'COMA NOVA'  },
+  { t:  9.5, l:  3.5, fs: 13.5, text: 'SPOTLIGHT'  },
+  { t: 24.8, l: 27.0, fs: 1.5,  text: 'Second Edition Exhibition' },
 
-// ── Spotlight parameters ───────────────────────────────────────────
+  // Col 1
+  { t: 28.5, l:  5.3, fs: 2.5, text: 'Digital Dark' },
+  { t: 31.2, l:  5.3, fs: 2.5, text: 'Patterns'     },
+  { t: 34.0, l:  5.3, fs: 2.5, text: 'Silent'        },
+  { t: 36.7, l:  5.3, fs: 2.5, text: 'Influence'     },
+  { t: 39.4, l:  5.3, fs: 2.5, text: 'Obscured'      },
+  { t: 42.1, l:  5.3, fs: 2.5, text: 'Patterns'      },
+  { t: 44.8, l:  5.3, fs: 2.5, text: 'Intent'        },
+  { t: 47.5, l:  5.3, fs: 2.5, text: 'You'           },
+  { t: 50.2, l:  5.3, fs: 2.5, text: 'Think You'     },
+
+  // Col 2
+  { t: 28.5, l: 33.5, fs: 2.5, text: 'Behavioral'    },
+  { t: 31.2, l: 33.5, fs: 2.5, text: 'Design Sub‑' },
+  { t: 34.0, l: 33.5, fs: 2.5, text: 'Conscious'     },
+  { t: 36.7, l: 33.5, fs: 2.5, text: 'Perception'    },
+  { t: 39.4, l: 33.5, fs: 2.5, text: 'Attention'     },
+  { t: 42.1, l: 33.5, fs: 2.5, text: 'Cognition'     },
+  { t: 44.8, l: 33.5, fs: 2.5, text: 'Control'       },
+  { t: 47.5, l: 33.5, fs: 2.5, text: 'Framework'     },
+  { t: 50.2, l: 33.5, fs: 2.5, text: 'To Show'       },
+  { t: 52.9, l: 33.5, fs: 2.5, text: 'Is To Hide'    },
+  { t: 55.6, l: 33.5, fs: 2.5, text: 'Half Seen,'    },
+
+  // Col 3
+  { t: 28.5, l: 61.6, fs: 2.5, text: 'Interface'     },
+  { t: 31.2, l: 61.6, fs: 2.5, text: 'Control'       },
+  { t: 34.0, l: 61.6, fs: 2.5, text: 'Responses'     },
+  { t: 36.7, l: 61.6, fs: 2.5, text: 'Are——' },
+  { t: 39.4, l: 61.6, fs: 2.5, text: 'Prebuilt'      },
+  { t: 42.1, l: 61.6, fs: 2.5, text: 'Limited'       },
+  { t: 44.8, l: 61.6, fs: 2.5, text: 'No Option'     },
+  { t: 47.5, l: 61.6, fs: 2.5, text: 'Your Inputs'   },
+  { t: 50.2, l: 61.6, fs: 2.5, text: 'Expected'      },
+
+  // Footer
+  { t: 83.5, l: 14.0, fs: 5.5, text: 'Sejong Art Gallery' },
+  { t: 88.5, l:  9.0, fs: 5.5, text: 'Coma Nova — October 30, 2026' },
+];
+
+// ── DOM refs ──────────────────────────────────────────────────────
+const posterWrapper = document.getElementById('poster-wrapper');
+const hintsWrapper  = document.getElementById('hints-wrapper');
+const mCvs          = document.getElementById('mask-canvas');
+const orbEl         = document.getElementById('orb');
+const hintEl        = document.getElementById('scroll-hint');
+const mCtx          = mCvs.getContext('2d');
+
+// ── Build hint elements ───────────────────────────────────────────
+const allHW = WORDS.map(w => {
+  const el = document.createElement('span');
+  el.className = 'hw';
+  el.textContent = w.text;
+  el.style.top  = w.t + '%';
+  el.style.left = w.l + '%';
+  hintsWrapper.appendChild(el);
+  return el;
+});
+
+// ── Spotlight state ───────────────────────────────────────────────
 const EASE_POS  = 0.14;
 const EASE_DEP  = 0.08;
-const SPOT_FAR  = 0.66;   // spotlight radius as fraction of diagonal, scroll=0
-const SPOT_NEAR = 0.10;   // spotlight radius, scroll=1
+const SPOT_FAR  = 0.66;
+const SPOT_NEAR = 0.10;
 const ORB_MIN   = 36;
 const ORB_MAX   = 190;
 
-// ── State ─────────────────────────────────────────────────────────
 let W = 0, H = 0, DIAG = 0;
-let mx, my;               // raw mouse target
-let sx, sy;               // smoothed spotlight centre
-let tdep = 0.50;          // target depth
-let dep  = 0.50;          // smoothed depth
+let mx, my, sx, sy;
+let tdep = 0.50, dep = 0.50;
 
-// ── Resize ────────────────────────────────────────────────────────
-function resize() {
+// ── Wrapper geometry ──────────────────────────────────────────────
+const POSTER_RATIO = 1420 / 2000; // width / height
+
+function layoutWrapper() {
   W = window.innerWidth;
   H = window.innerHeight;
-  DIAG = Math.sqrt(W*W + H*H);
+  DIAG = Math.sqrt(W * W + H * H);
   mCvs.width  = W;
   mCvs.height = H;
-  if (mx === undefined) { mx = W/2; my = H/2; sx = W/2; sy = H/2; }
+
+  // Calculate wrapper to fit within viewport, preserving aspect ratio
+  let wW, wH;
+  if (W / H < POSTER_RATIO) {
+    wW = W;
+    wH = W / POSTER_RATIO;
+  } else {
+    wH = H;
+    wW = H * POSTER_RATIO;
+  }
+  const wL = (W - wW) / 2;
+  const wT = (H - wH) / 2;
+
+  [posterWrapper, hintsWrapper].forEach(el => {
+    el.style.width  = wW + 'px';
+    el.style.height = wH + 'px';
+    el.style.left   = wL + 'px';
+    el.style.top    = wT + 'px';
+  });
+
+  // Scale font sizes relative to wrapper height
+  allHW.forEach((el, i) => {
+    el.style.fontSize = (WORDS[i].fs / 100 * wH) + 'px';
+  });
+
+  if (mx === undefined) { mx = W / 2; my = H / 2; sx = W / 2; sy = H / 2; }
 }
 
-window.addEventListener('resize', resize);
-resize();
+window.addEventListener('resize', layoutWrapper);
+layoutWrapper();
 
 // ── Input ─────────────────────────────────────────────────────────
 let hintGone = false;
 document.addEventListener('mousemove', e => {
-  mx = e.clientX;
-  my = e.clientY;
+  mx = e.clientX; my = e.clientY;
   if (!hintGone) { hintGone = true; hintEl.style.opacity = '0'; }
 });
-
 document.addEventListener('wheel', e => {
   tdep = Math.min(1, Math.max(0, tdep + e.deltaY * 0.0012));
 }, { passive: true });
 
-// ── Draw darkness with spotlight hole ────────────────────────────
+// ── Draw darkness + spotlight ─────────────────────────────────────
 function drawMask() {
   const spotR = DIAG * (SPOT_FAR + (SPOT_NEAR - SPOT_FAR) * dep);
   const orbD  = ORB_MIN + (ORB_MAX - ORB_MIN) * dep;
 
-  // ① Solid opaque black — completely hides poster, zero leakage
   mCtx.globalCompositeOperation = 'source-over';
   mCtx.fillStyle = '#040406';
   mCtx.fillRect(0, 0, W, H);
 
-  // ② Punch transparent spotlight hole (reveals poster layer below)
   mCtx.globalCompositeOperation = 'destination-out';
-
   const g = mCtx.createRadialGradient(sx, sy, 0, sx, sy, spotR);
   g.addColorStop(0,    'rgba(0,0,0,1)');
   g.addColorStop(0.50, 'rgba(0,0,0,0.94)');
@@ -391,31 +278,22 @@ function drawMask() {
   g.addColorStop(1,    'rgba(0,0,0,0)');
   mCtx.fillStyle = g;
   mCtx.fillRect(0, 0, W, H);
-
   mCtx.globalCompositeOperation = 'source-over';
 
-  // Position orb at spotlight centre
   const r = orbD / 2;
-  orbEl.style.width     = orbD + 'px';
-  orbEl.style.height    = orbD + 'px';
+  orbEl.style.width  = orbD + 'px';
+  orbEl.style.height = orbD + 'px';
   orbEl.style.transform = `translate3d(${sx - r}px,${sy - r}px,0)`;
 }
 
-// ── Subliminal flash scheduler ─────────────────────────────────────
-// Hint words (.hw) flash as white text ABOVE the dark canvas.
-// They are positioned identically to the underlying poster words.
-// Visible in dark → guides user. Invisible over spotlight (white-on-cream).
-const allHW   = Array.from(document.querySelectorAll('.hw'));
+// ── Flash scheduler ───────────────────────────────────────────────
 const MAX_LIT = 3;
-let   litCount = 0;
+let litCount = 0;
 
 function rnd(lo, hi) { return lo + Math.random() * (hi - lo); }
 
 function flashStream() {
-  if (litCount >= MAX_LIT) {
-    setTimeout(flashStream, rnd(60, 140));
-    return;
-  }
+  if (litCount >= MAX_LIT) { setTimeout(flashStream, rnd(60, 140)); return; }
   const pool = allHW.filter(w => !w.classList.contains('lit'));
   if (!pool.length) { setTimeout(flashStream, 200); return; }
 
@@ -423,36 +301,28 @@ function flashStream() {
   el.classList.add('lit');
   litCount++;
 
-  // Hold: 80 – 440 ms (subliminal / near-subliminal range)
-  setTimeout(() => { el.classList.remove('lit'); litCount--; }, rnd(80, 440));
-
-  // Gap to next flash in this stream: 300 – 1200 ms
+  setTimeout(() => { el.classList.remove('lit'); litCount--; }, rnd(80, 420));
   setTimeout(flashStream, rnd(300, 1200));
 }
 
-// ── Animation loop ─────────────────────────────────────────────────
+// ── Animation loop ────────────────────────────────────────────────
 let last = 0;
 function loop(ts) {
   const dt = Math.min((ts - last) / 16.667, 4);
   last = ts;
-
   const ep = 1 - Math.pow(1 - EASE_POS, dt);
   const ed = 1 - Math.pow(1 - EASE_DEP, dt);
-
   sx  += (mx  - sx)  * ep;
   sy  += (my  - sy)  * ep;
   dep += (tdep - dep) * ed;
-
   drawMask();
   requestAnimationFrame(loop);
 }
 
-// ── Boot ───────────────────────────────────────────────────────────
-// Three independent flash streams, staggered
+// ── Boot ──────────────────────────────────────────────────────────
 flashStream();
 setTimeout(flashStream, rnd(200, 500));
 setTimeout(flashStream, rnd(600, 1000));
-
 requestAnimationFrame(loop);
 
 }());
