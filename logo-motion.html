@@ -282,9 +282,12 @@ function setCircleOpacity(v, maxBlur) {
 // stretch fires as an outward beat from the O — pieces closest to it
 // go first, farther ones follow on a short delay — so the reveal reads
 // as a driving, rhythmic pulse instead of a soft, all-at-once blob.
+// The stretch itself eases slow-to-fast — a held, anticipatory start
+// that then accelerates hard into a springy overshoot at the end.
 const O_CX = 810, O_CY = 360;
 const WAVE_SPAN = 260;
 const maxDist = Math.max(...PIECES.map(p => Math.hypot(p.cx - O_CX, p.cy - O_CY)));
+const EASE_STRETCH = 'cubic-bezier(0.65, 0, 0.35, 1.45)'; // slow start, fast whip, overshoot
 
 function resolve() {
   locked = true;
@@ -299,7 +302,7 @@ function resolve() {
     setTimeout(() => {
       el.dataset.lit = '1';
       el.style.transition =
-        `opacity 180ms ease-out, width 420ms ${EASE_SPRING}, box-shadow 260ms ease-out`;
+        `opacity 260ms ease-out, width 680ms ${EASE_STRETCH}, box-shadow 500ms ${EASE_STRETCH}`;
       el.style.width = el.dataset.fullWidth + 'px';
       el.style.opacity = 1;
       setDotGlow(el, 1, 12);
