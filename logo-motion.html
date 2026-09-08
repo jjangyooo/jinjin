@@ -577,6 +577,35 @@ function resolve() {
       }, FAST_DUR);
     }, delay);
   });
+
+  // Once the top/bottom bars have fully landed, wait half a second,
+  // then settle into a calm idle state: the word's own glow dims down
+  // to almost nothing while the O keeps a slow, steady pulse forever
+  // — the mark reads as one ongoing light source once everything else
+  // has stopped moving.
+  const TOPBAR_TRANSITION_DUR = 780; // matches #topbar/#bottombar's own CSS transition
+  const barsSettledAt = CHROME_DELAY + TOPBAR_TRANSITION_DUR;
+  setTimeout(() => {
+    dimGlyphs();
+    pulseO(false);
+  }, barsSettledAt + 500);
+}
+
+function dimGlyphs() {
+  glyphs.forEach(el => {
+    el.style.transition = 'box-shadow 1400ms ease-in-out';
+    setDotGlow(el, 0.05, 12);
+  });
+}
+
+// Infinite strong/weak breathing pulse on the O alone, once the rest
+// of the mark has settled — a steady, rhythmic beat rather than a
+// one-off flourish.
+function pulseO(strong) {
+  const dur = 1300;
+  setTransition(dur, 'cubic-bezier(0.45, 0, 0.55, 1)');
+  setCircleOpacity(strong ? 1 : 0.5, strong ? 48 : 14);
+  setTimeout(() => pulseO(!strong), dur);
 }
 
 // ── Sequence: light up, blink twice (fast, then slower), cut out ─────
