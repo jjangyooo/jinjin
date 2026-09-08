@@ -30,24 +30,23 @@
     flex-shrink: 0;
   }
 
-  /* ── Soft light bloom sitting behind the logo circle ────────────
-     A large blurred radial wash that brightens the black around the
-     mark, so the circle reads as an actual light source rather than
-     a flat lit shape. */
+  /* ── Soft light bloom behind the logo circle ─────────────────────
+     A large, heavily blurred, pure-white radial wash — no color tint —
+     so the mark reads as a real light source instead of a flat disc. */
   #logo-halo {
     position: absolute;
-    width: 640px;
-    height: 640px;
+    width: 560px;
+    height: 560px;
     left: 810px;
     top: 360px;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     background: radial-gradient(circle,
-      rgba(255,247,222,0.55) 0%,
-      rgba(255,240,205,0.24) 32%,
-      rgba(255,232,190,0.08) 55%,
-      rgba(255,232,190,0) 75%);
-    filter: blur(4px);
+      rgba(255,255,255,0.38) 0%,
+      rgba(255,255,255,0.16) 30%,
+      rgba(255,255,255,0.05) 55%,
+      rgba(255,255,255,0) 78%);
+    filter: blur(12px);
     opacity: 0;
     pointer-events: none;
     will-change: opacity;
@@ -62,7 +61,7 @@
     top: 360px;
     transform: translate(-50%, -50%);
     border-radius: 50%;
-    background: radial-gradient(circle at 34% 30%, #ffffff 0%, #fffaf0 55%, #ffedc8 100%);
+    background: radial-gradient(circle, #ffffff 60%, #f1f1f1 100%);
     opacity: 0;
     will-change: opacity, box-shadow;
   }
@@ -74,7 +73,7 @@
     height: 24px;
     transform: translate(-50%, -50%);
     border-radius: 50%;
-    background: radial-gradient(circle at 34% 30%, #ffffff 0%, #fdf4e2 100%);
+    background: radial-gradient(circle, #ffffff 55%, #f1f1f1 100%);
     opacity: 0;
     will-change: opacity, box-shadow;
   }
@@ -117,24 +116,26 @@ const dots = DOT_POS.map(p => {
 
 function rnd(lo, hi) { return lo + Math.random() * (hi - lo); }
 
-// Layered warm-white bloom — several stacked shadows read as a much
-// stronger, more "real" light source than a single soft edge.
-function setGlow(el, on, blur) {
-  el.style.boxShadow = on
-    ? `0 0 ${blur}px rgba(255,246,222,0.95),
-       0 0 ${blur * 2.1}px rgba(255,235,195,0.55),
-       0 0 ${blur * 4}px rgba(255,220,165,0.28)`
+// Pure white bloom, two soft layers — blur scales with opacity so the
+// glow grows and fades in step with the light itself (no snapping).
+function setDotGlow(el, v, maxBlur) {
+  el.style.boxShadow = v > 0
+    ? `0 0 ${maxBlur * v}px rgba(255,255,255,${0.8 * v}),
+       0 0 ${maxBlur * 2.3 * v}px rgba(255,255,255,${0.32 * v})`
     : 'none';
 }
 
 // ── Dot twinkle scheduler ────────────────────────────────────────────
-// Independent random on/off flicker, quick and busy once started.
-const MAX_LIT = 8;
+// Independent random on/off flicker. Idle (near-zero MAX_LIT) until
+// woken by startDots(); fast and busy once running.
+const MAX_LIT_IDLE = 0;
+const MAX_LIT_FAST = 9;
+let maxLit = MAX_LIT_IDLE;
 let litCount = 0;
 let dotsStarted = false;
 
 function twinkleLoop() {
-  if (litCount >= MAX_LIT) { setTimeout(twinkleLoop, rnd(30, 90)); return; }
+  if (litCount >= maxLit) { setTimeout(twinkleLoop, rnd(30, 90)); return; }
 
   const pool = dots.filter(d => !d.dataset.lit);
   if (!pool.length) { setTimeout(twinkleLoop, 120); return; }
@@ -144,116 +145,88 @@ function twinkleLoop() {
   litCount++;
 
   const peak = rnd(0.6, 1);
-  el.style.transition = `opacity ${rnd(30, 90)}ms ease-out`;
+  el.style.transition = `opacity ${rnd(30, 90)}ms ease-out, box-shadow ${rnd(30, 90)}ms ease-out`;
   el.style.opacity = peak;
-  setGlow(el, true, rnd(6, 14));
+  setDotGlow(el, peak, 12);
 
   const holdTime = rnd(70, 220);
   setTimeout(() => {
-    el.style.transition = `opacity ${rnd(90, 220)}ms ease-in`;
+    el.style.transition = `opacity ${rnd(90, 220)}ms ease-in, box-shadow ${rnd(90, 220)}ms ease-in`;
     el.style.opacity = 0;
-    setGlow(el, false, 0);
+    setDotGlow(el, 0, 12);
     setTimeout(() => { delete el.dataset.lit; litCount--; }, 240);
   }, holdTime);
 
   setTimeout(twinkleLoop, rnd(30, 110));
 }
 
-// Seed a fast little burst so several dots pick up almost at once.
+// Wake the dot field: switch to the fast/busy regime and seed a quick
+// little burst so several pick up almost at once.
 function startDots() {
   if (dotsStarted) return;
   dotsStarted = true;
+  maxLit = MAX_LIT_FAST;
   twinkleLoop();
   setTimeout(twinkleLoop, rnd(40, 110));
   setTimeout(twinkleLoop, rnd(110, 200));
   setTimeout(twinkleLoop, rnd(200, 320));
 }
+twinkleLoop(); // scheduler runs immediately but stays dormant (maxLit = 0) until startDots()
 
-// ── Logo circle: spotlight ignition cycle ───────────────────────────
-// Sequence on load is fixed: the O snaps on alone first — nothing
-// else in the frame — holds solid, and only as it starts to dim does
-// the dot field wake up and begin its faster, random twinkle. After
-// that first beat the circle keeps cycling on/off/breathing forever
-// while the dots twinkle continuously and independently.
+// ── Logo circle: a single, slow, deliberate light-up ─────────────────
+// Fades in — no strobing — holds, then fades out just as slowly. Right
+// before it's fully dark the dot field wakes and starts its fast random
+// twinkle. The O never lights again after this one cycle.
+const EASE_IN  = 'cubic-bezier(0.22, 0.61, 0.36, 1)';   // slow-settling rise
+const EASE_OUT = 'cubic-bezier(0.55, 0.06, 0.68, 0.19)'; // heavy, slowing fall
+
 function setTransition(dur, easing) {
-  const t = `opacity ${dur}ms ${easing || 'linear'}`;
+  const t = `opacity ${dur}ms ${easing}, box-shadow ${dur}ms ${easing}`;
   circle.style.transition = t;
-  halo.style.transition   = t;
+  halo.style.transition   = `opacity ${dur}ms ${easing}`;
 }
 
-function setCircleOpacity(v, glowBlur) {
+function setCircleOpacity(v, maxBlur) {
   circle.style.opacity = v;
-  halo.style.opacity   = v * 0.92;
-  setGlow(circle, v > 0, glowBlur || 0);
+  halo.style.opacity   = v * 0.9;
+  circle.style.boxShadow = v > 0
+    ? `0 0 ${maxBlur * v}px rgba(255,255,255,${0.85 * v}),
+       0 0 ${maxBlur * 2.4 * v}px rgba(255,255,255,${0.35 * v})`
+    : 'none';
 }
 
-function flickerBurst(steps, done) {
-  let i = 0;
-  function step() {
-    if (i >= steps.length) { done && done(); return; }
-    const [op, dur, blur] = steps[i++];
-    setTransition(dur, 'linear');
-    setCircleOpacity(op, blur);
-    setTimeout(step, dur);
-  }
-  step();
-}
-
-let firstRun = true;
-
-function circleCycle() {
-  // 1) dark pause
-  setTransition(0);
+function ignite() {
+  // dark start
+  setTransition(0, 'linear');
   setCircleOpacity(0, 0);
 
   setTimeout(() => {
-    // 2) ignite: irregular rapid flicker like a bulb starting up,
-    //    landing decisively lit — the "딱" snap-on moment.
-    const igniteSteps = [
-      [0.35, 35, 10], [0,    45, 0],
-      [0.6,  30, 18], [0.1,  50, 4],
-      [0.8,  40, 24], [0.2,  35, 8],
-      [1,    60, 34], [0.55, 45, 18],
-      [1,    75, 38],
-    ];
-    flickerBurst(igniteSteps, () => {
-      // 3) hold solid — alone in frame on the very first run.
-      setTransition(600, 'ease-out');
-      setCircleOpacity(1, 38);
+    // slow, weighted rise to full brightness
+    const fadeInDur = 1700;
+    setTransition(fadeInDur, EASE_IN);
+    setCircleOpacity(1, 46);
 
-      const fullHold = firstRun ? rnd(750, 950) : rnd(450, 700);
+    setTimeout(() => {
+      // hold, steady
+      const holdTime = rnd(2200, 2800);
 
       setTimeout(() => {
-        // 4) begins to dim — this is the cue that wakes the dot field.
-        setTransition(rnd(550, 750), 'ease-in-out');
-        setCircleOpacity(0.74, 24);
+        // slow, weighted fall to dark
+        const fadeOutDur = 2200;
+        setTransition(fadeOutDur, EASE_OUT);
+        setCircleOpacity(0, 0);
 
-        if (firstRun) {
-          firstRun = false;
-          startDots();
-        }
+        // wake the dots just before the O is fully dark
+        setTimeout(startDots, fadeOutDur - 550);
 
-        setTimeout(() => {
-          setTransition(rnd(600, 850), 'ease-in-out');
-          setCircleOpacity(1, 38);
-        }, 680);
-      }, fullHold);
-
-      const onTime = rnd(2000, 3200);
-      setTimeout(() => {
-        // 5) flicker-out, then loop back to the dark pause.
-        const outSteps = [
-          [0.4, 35, 12], [0.9, 25, 30], [0.15, 45, 6],
-          [0.7, 30, 22], [0,   80, 0],
-        ];
-        flickerBurst(outSteps, () => setTimeout(circleCycle, rnd(500, 1100)));
-      }, onTime);
-    });
-  }, firstRun ? rnd(250, 450) : rnd(900, 1900));
+        // after this the O stays dark for good — no further cycles
+      }, holdTime);
+    }, fadeInDur);
+  }, rnd(350, 550));
 }
 
 // ── Boot ──────────────────────────────────────────────────────────
-circleCycle();
+ignite();
 
 }());
 </script>
