@@ -524,17 +524,23 @@ function setCircleOpacity(v, maxBlur) {
 // stretch fires as an outward beat from the O — pieces closest to it
 // go first, farther ones follow on a short delay — so the reveal reads
 // as a driving, rhythmic pulse instead of a soft, all-at-once blob.
-// The stretch itself eases slow-to-fast — a held, anticipatory start
-// that then accelerates hard into a springy overshoot at the end.
+// Each piece's own stretch is deliberately two-stage rather than one
+// eased tween: a fast burst covers most of the width almost at once,
+// then it drops into a long, elastic, slow-motion creep for the rest
+// — like a fade-in that drags itself out — instead of building speed
+// toward the end.
 const O_CX = 810, O_CY = 360;
 const WAVE_SPAN = 260;
-const STRETCH_DUR = 680;
+const FAST_PORTION = 0.86;   // how much of the width the fast burst covers
+const FAST_DUR = 150;        // that burst's duration
+const SLOW_DUR = 700;        // the long, lingering settle for the remainder
+const EASE_FAST = 'cubic-bezier(0.11, 0.9, 0.2, 1)';   // quick, near-instant launch
+const EASE_SLOW = 'cubic-bezier(0.22, 1.2, 0.36, 1)';  // slow, slightly springy tail
 const maxDist = Math.max(...PIECES.map(p => Math.hypot(p.cx - O_CX, p.cy - O_CY)));
-const EASE_STRETCH = 'cubic-bezier(0.65, 0, 0.35, 1.45)'; // slow start, fast whip, overshoot
 // Site chrome waits until the stretch is roughly half done, not the
-// instant it starts — half of the wave's full span (last piece's
-// start + its own transition time).
-const CHROME_DELAY = (WAVE_SPAN + STRETCH_DUR) / 2;
+// instant it starts — half of the wave's full span plus the full
+// two-stage stretch time.
+const CHROME_DELAY = (WAVE_SPAN + FAST_DUR + SLOW_DUR) / 2;
 
 function resolve() {
   locked = true;
@@ -555,13 +561,20 @@ function resolve() {
     const p = PIECES[i];
     const dist = Math.hypot(p.cx - O_CX, p.cy - O_CY);
     const delay = (dist / maxDist) * WAVE_SPAN + rnd(0, 25);
+    const fullWidth = parseFloat(el.dataset.fullWidth);
+    const burstWidth = DOT_D + (fullWidth - DOT_D) * FAST_PORTION;
     setTimeout(() => {
       el.dataset.lit = '1';
       el.style.transition =
-        `opacity 260ms ease-out, width ${STRETCH_DUR}ms ${EASE_STRETCH}, box-shadow 500ms ${EASE_STRETCH}`;
-      el.style.width = el.dataset.fullWidth + 'px';
+        `opacity 180ms ease-out, width ${FAST_DUR}ms ${EASE_FAST}, box-shadow ${FAST_DUR}ms ${EASE_FAST}`;
+      el.style.width = burstWidth + 'px';
       el.style.opacity = 1;
       setDotGlow(el, 1, 12);
+
+      setTimeout(() => {
+        el.style.transition = `width ${SLOW_DUR}ms ${EASE_SLOW}, box-shadow ${SLOW_DUR}ms ${EASE_SLOW}`;
+        el.style.width = fullWidth + 'px';
+      }, FAST_DUR);
     }, delay);
   });
 }
