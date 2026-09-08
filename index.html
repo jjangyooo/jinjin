@@ -108,6 +108,84 @@ html, body {
   white-space: nowrap;
   transition: opacity 1.6s ease;
 }
+
+/* ── HELPFUL MENTOR ──────────────────────────────────────── */
+#mentor-wrap {
+  position: fixed;
+  bottom: 48px;
+  right: 24px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+}
+
+#mentor-bubble {
+  max-width: 220px;
+  background: rgba(10, 10, 14, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: Georgia, serif;
+  font-size: 10.5px;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+#mentor-bubble.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#mentor-bubble .mentor-label {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+  margin-bottom: 6px;
+}
+
+#mentor-toggle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(10, 10, 14, 0.80);
+  color: rgba(255, 255, 255, 0.38);
+  font-family: Georgia, serif;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+  transition: border-color 0.3s, color 0.3s, background 0.3s;
+  user-select: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  flex-shrink: 0;
+}
+
+#mentor-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.70);
+  background: rgba(18, 18, 24, 0.92);
+}
+
+#mentor-toggle.active {
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.55);
+}
 </style>
 </head>
 <body>
@@ -125,6 +203,14 @@ html, body {
 
 <div id="orb"></div>
 <div id="scroll-hint">Move cursor &ensp;&middot;&ensp; Scroll to focus</div>
+
+<div id="mentor-wrap">
+  <div id="mentor-bubble">
+    <span class="mentor-label">Mentor</span>
+    <span id="mentor-text"></span>
+  </div>
+  <button id="mentor-toggle" title="Help (H)">?</button>
+</div>
 
 <script>
 (function () {
@@ -321,6 +407,82 @@ function loop(ts) {
   drawMask();
   requestAnimationFrame(loop);
 }
+
+// ── Helpful Mentor ────────────────────────────────────────────────
+const mentorBubble  = document.getElementById('mentor-bubble');
+const mentorText    = document.getElementById('mentor-text');
+const mentorToggle  = document.getElementById('mentor-toggle');
+
+const MENTOR_HINTS = [
+  'Move your cursor across the poster to cast light into the dark.',
+  'Scroll down to narrow the spotlight — scroll up to widen it.',
+  'Look carefully. Words flicker in and out of the darkness.',
+  'The closer the focus, the less you see. The wider it opens, the more is revealed.',
+  'Some things are only visible when you stop searching for them.',
+];
+
+let mentorVisible  = false;
+let mentorPinned   = false;
+let mentorHintIdx  = 0;
+let idleTimer      = null;
+let idleFired      = false;
+
+function showMentor(text, pinned) {
+  mentorText.textContent = text || MENTOR_HINTS[mentorHintIdx];
+  mentorBubble.classList.add('visible');
+  mentorVisible = true;
+  if (pinned !== undefined) mentorPinned = pinned;
+  if (pinned) mentorToggle.classList.add('active');
+}
+
+function hideMentor() {
+  mentorBubble.classList.remove('visible');
+  mentorVisible = false;
+  mentorPinned  = false;
+  mentorToggle.classList.remove('active');
+}
+
+function cycleHint() {
+  mentorHintIdx = (mentorHintIdx + 1) % MENTOR_HINTS.length;
+}
+
+function resetIdleTimer() {
+  clearTimeout(idleTimer);
+  if (!idleFired && !mentorPinned) {
+    idleTimer = setTimeout(() => {
+      idleFired = true;
+      showMentor(MENTOR_HINTS[0], false);
+      setTimeout(() => { if (!mentorPinned) hideMentor(); }, 5000);
+    }, 6000);
+  }
+}
+
+mentorToggle.addEventListener('click', () => {
+  if (mentorPinned) {
+    hideMentor();
+  } else {
+    cycleHint();
+    showMentor(MENTOR_HINTS[mentorHintIdx], true);
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if ((e.key === 'h' || e.key === 'H' || e.key === '?') &&
+      !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (mentorPinned) {
+      hideMentor();
+    } else {
+      cycleHint();
+      showMentor(MENTOR_HINTS[mentorHintIdx], true);
+    }
+  }
+});
+
+// Restart idle detection on any interaction
+document.addEventListener('mousemove',  resetIdleTimer);
+document.addEventListener('wheel',      resetIdleTimer, { passive: true });
+document.addEventListener('touchstart', resetIdleTimer, { passive: true });
+resetIdleTimer();
 
 // ── Boot ──────────────────────────────────────────────────────────
 flashStream();
