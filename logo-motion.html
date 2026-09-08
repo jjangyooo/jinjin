@@ -87,15 +87,14 @@
      Both sit outside the twinkle field entirely — they don't spark or
      twinkle, they just wait at opacity 0, offset above/below their
      resting spot, until the reveal fires them in together with the
-     logo's stretch-open. */
+     logo's stretch-open. The top bar's children are positioned with
+     the exact pixel coordinates traced from the real top-bar file
+     (top.ai, a 1440×80 asset) — same "no eyeballing" rule as the
+     wordmark, so this can't drift out of place either. */
   #topbar, #bottombar {
     position: absolute;
     left: 0;
     right: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 52px;
     opacity: 0;
     transition: opacity 780ms cubic-bezier(0.22, 0.61, 0.36, 1),
                 transform 780ms cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -104,14 +103,18 @@
 
   #topbar {
     top: 0;
-    height: 92px;
-    transform: translateY(-46px);
+    height: 80px;
+    transform: translateY(-40px);
   }
 
   #bottombar {
     bottom: 0;
     height: 68px;
-    transform: translateY(46px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 52px;
+    transform: translateY(40px);
   }
 
   #topbar.reveal, #bottombar.reveal {
@@ -119,54 +122,50 @@
     transform: translateY(0);
   }
 
-  #topbar .brand {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
-    font-weight: 700;
-    font-size: 20px;
-    letter-spacing: 0.1em;
-    color: #ffffff;
+  /* Mini wordmark + nav + language switch, each a plain absolutely
+     positioned piece at its traced (x, y) — no flex layout to drift. */
+  #topbar .mini-piece {
+    position: absolute;
+    background: #ffffff;
+    border-radius: 9999px;
   }
 
-  #topbar .brand .o-dot {
-    width: 13px;
-    height: 13px;
-    border-radius: 50%;
+  #topbar .mini-o {
+    position: absolute;
     background: radial-gradient(circle, #ffffff 60%, #f1f1f1 100%);
-    box-shadow: 0 0 9px rgba(255,255,255,0.75);
+    border-radius: 50%;
   }
 
-  #topbar nav {
-    display: flex;
-    gap: 38px;
+  #topbar > a, #topbar .lang, #topbar .underline {
+    position: absolute;
   }
 
-  #topbar nav a {
+  #topbar > a {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 16px;
+    font-size: 19px;
+    line-height: 1;
     color: #b9b9b9;
     text-decoration: none;
+    white-space: nowrap;
   }
 
-  #topbar nav a.active {
-    color: #ffffff;
-    text-decoration: underline;
-    text-underline-offset: 7px;
+  #topbar > a.active { color: #ffffff; }
+
+  #topbar .underline {
+    height: 2px;
+    background: #ffffff;
   }
 
   #topbar .lang {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 15px;
+    font-size: 19px;
+    line-height: 1;
     font-weight: 600;
     color: #ffffff;
   }
-
-  #topbar .lang svg { width: 12px; height: 12px; }
 
   #bottombar {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -208,19 +207,7 @@
   <div id="logo-halo"></div>
   <div id="logo-circle"></div>
 
-  <header id="topbar">
-    <div class="brand">SP<span class="o-dot"></span>T&nbsp;LIGHT</div>
-    <nav>
-      <a href="#" class="active">About</a>
-      <a href="#">Zone A</a>
-      <a href="#">Zone B</a>
-      <a href="#">Zone C</a>
-      <a href="#">Book</a>
-    </nav>
-    <div class="lang">KR
-      <svg viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
-  </header>
+  <header id="topbar"></header>
 
   <div id="subtitle">2026 COMANOVA Second Edition Exhibition</div>
 
@@ -243,6 +230,113 @@ const halo     = document.getElementById('logo-halo');
 const topbar   = document.getElementById('topbar');
 const bottombar = document.getElementById('bottombar');
 const subtitle = document.getElementById('subtitle');
+
+// ── Top bar: built from top.ai's exact geometry ─────────────────────
+// The mini wordmark's pills/circle and the nav/lang bounding boxes
+// below are the traced (x0, y0, x1, y1) coordinates from the real
+// 1440×80 top-bar file — placed 1:1, no flex layout to drift out of
+// position.
+const MINI_LOGO_BARS = [
+  [53.26,28.96,64.04,31.57],[50.00,32.23,54.24,34.84],[63.06,32.23,67.30,34.84],
+  [50.00,35.49,54.24,38.10],[53.26,38.75,64.04,41.37],[63.06,42.02,67.30,44.63],
+  [50.00,45.28,54.24,47.90],[63.06,45.28,67.30,47.90],[53.26,48.55,64.04,51.16],
+  [69.46,28.96,83.50,31.57],[69.46,32.23,73.71,34.84],[82.52,32.23,86.77,34.84],
+  [69.46,35.49,73.71,38.10],[82.52,35.49,86.77,38.10],[69.46,38.75,83.50,41.37],
+  [69.46,42.02,73.71,44.63],[69.46,45.28,73.71,47.90],[69.46,48.55,73.71,51.16],
+  [111.25,28.90,128.55,31.51],[117.77,32.17,122.02,34.78],[117.77,35.43,122.02,38.04],
+  [117.77,38.69,122.02,41.31],[117.77,41.96,122.02,44.57],[117.77,45.22,122.02,47.84],
+  [117.77,48.49,122.02,51.10],
+  [139.35,28.90,143.59,31.51],[139.35,32.17,143.59,34.78],[139.35,35.43,143.59,38.04],
+  [139.35,38.69,143.59,41.31],[139.35,41.96,143.59,44.57],[139.35,45.22,143.59,47.84],
+  [139.35,48.49,156.65,51.10],
+  [158.81,28.90,169.58,31.51],[162.07,32.17,166.32,34.78],[162.07,35.43,166.32,38.04],
+  [162.07,38.69,166.32,41.31],[162.07,41.96,166.32,44.57],[162.07,45.22,166.32,47.84],
+  [158.81,48.49,169.58,51.10],
+  [175.01,28.90,185.78,31.51],[171.74,32.17,175.99,34.78],[184.80,32.17,189.04,34.78],
+  [171.74,35.43,175.99,38.04],[171.74,38.69,175.99,41.31],[181.54,38.69,189.04,41.31],
+  [171.74,41.96,175.99,44.57],[184.80,41.96,189.04,44.57],[171.74,45.22,175.99,47.84],
+  [184.80,45.22,189.04,47.84],[175.01,48.49,189.04,51.10],
+  [191.21,28.90,195.45,31.51],[204.26,28.90,208.51,31.51],[191.21,32.17,195.45,34.78],
+  [204.26,32.17,208.51,34.78],[191.21,35.43,195.45,38.04],[204.26,35.43,208.51,38.04],
+  [191.21,38.69,208.51,41.31],[191.21,41.96,195.45,44.57],[204.26,41.96,208.51,44.57],
+  [191.21,45.22,195.45,47.84],[204.26,45.22,208.51,47.84],[191.21,48.49,195.45,51.10],
+  [204.26,48.49,208.51,51.10],
+  [210.67,28.90,227.97,31.51],[217.20,32.17,221.44,34.78],[217.20,35.43,221.44,38.04],
+  [217.20,38.69,221.44,41.31],[217.20,41.96,221.44,44.57],[217.20,45.22,221.44,47.84],
+  [217.20,48.49,221.44,51.10],
+];
+const MINI_O = [88.93,28.84,111.24,51.16];
+
+const NAV_ITEMS = [
+  { text: 'About',  active: true,  box: [489.87, 32.03, 551.25, 49.26], underline: [486.14, 52.68, 551.96, 54.70] },
+  { text: 'Zone A', active: false, box: [579.34, 32.03, 652.78, 49.26] },
+  { text: 'Zone B', active: false, box: [681.34, 32.03, 753.12, 49.26] },
+  { text: 'Zone C', active: false, box: [783.34, 31.80, 856.97, 49.26] },
+  { text: 'Book',   active: false, box: [887.71, 32.03, 940.79, 49.26] },
+];
+const LANG_BOX = [1341.89, 32.03, 1369.95, 49.00];
+const CHEVRON_PTS = [[1380,37],[1386,43],[1392,37]];
+
+function placeBox(el, x0, y0, x1, y1) {
+  el.style.left   = x0 + 'px';
+  el.style.top    = y0 + 'px';
+  el.style.width  = (x1 - x0) + 'px';
+  el.style.height = (y1 - y0) + 'px';
+}
+
+MINI_LOGO_BARS.forEach(([x0, y0, x1, y1]) => {
+  const el = document.createElement('div');
+  el.className = 'mini-piece';
+  placeBox(el, x0, y0, x1, y1);
+  topbar.appendChild(el);
+});
+{
+  const el = document.createElement('div');
+  el.className = 'mini-o';
+  placeBox(el, ...MINI_O);
+  topbar.appendChild(el);
+}
+
+NAV_ITEMS.forEach(item => {
+  const a = document.createElement('a');
+  a.href = '#';
+  a.textContent = item.text;
+  if (item.active) a.classList.add('active');
+  const [x0, y0, x1, y1] = item.box;
+  a.style.left = x0 + 'px';
+  a.style.top  = (y0 - 4) + 'px'; // nudge for the font's own internal leading
+  topbar.appendChild(a);
+  if (item.underline) {
+    const u = document.createElement('div');
+    u.className = 'underline';
+    placeBox(u, ...item.underline);
+    topbar.appendChild(u);
+  }
+});
+
+{
+  const lang = document.createElement('div');
+  lang.className = 'lang';
+  lang.style.left = LANG_BOX[0] + 'px';
+  lang.style.top  = (LANG_BOX[1] - 4) + 'px';
+  lang.textContent = 'KR';
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const [cx0, cy0] = CHEVRON_PTS[0];
+  const [cx2, cy2] = CHEVRON_PTS[2];
+  svg.setAttribute('width', cx2 - cx0);
+  svg.setAttribute('height', 8);
+  svg.setAttribute('viewBox', `0 0 ${cx2 - cx0} 8`);
+  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  poly.setAttribute('points', CHEVRON_PTS.map(([x, y]) => `${x - cx0},${y - CHEVRON_PTS[0][1] + 1}`).join(' '));
+  poly.setAttribute('stroke', '#ffffff');
+  poly.setAttribute('stroke-width', '2');
+  poly.setAttribute('fill', 'none');
+  poly.setAttribute('stroke-linecap', 'round');
+  poly.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(poly);
+  lang.appendChild(svg);
+  topbar.appendChild(lang);
+}
 
 // ── Glyph pieces ──────────────────────────────────────────────────
 // Exact stroke geometry traced from the real logo file (logo.ai): every
@@ -431,8 +525,13 @@ function setCircleOpacity(v, maxBlur) {
 // that then accelerates hard into a springy overshoot at the end.
 const O_CX = 810, O_CY = 360;
 const WAVE_SPAN = 260;
+const STRETCH_DUR = 680;
 const maxDist = Math.max(...PIECES.map(p => Math.hypot(p.cx - O_CX, p.cy - O_CY)));
 const EASE_STRETCH = 'cubic-bezier(0.65, 0, 0.35, 1.45)'; // slow start, fast whip, overshoot
+// Site chrome waits until the stretch is roughly half done, not the
+// instant it starts — half of the wave's full span (last piece's
+// start + its own transition time).
+const CHROME_DELAY = (WAVE_SPAN + STRETCH_DUR) / 2;
 
 function resolve() {
   locked = true;
@@ -440,11 +539,14 @@ function resolve() {
   setTransition(320, EASE_SPRING);
   setCircleOpacity(1, 46);
 
-  // Site chrome comes in at the exact same moment as the stretch —
-  // top bar slides down + fades in, bottom bar slides up + fades in.
-  topbar.classList.add('reveal');
-  bottombar.classList.add('reveal');
-  subtitle.classList.add('reveal');
+  // Top bar slides down + fades in, bottom bar slides up + fades in —
+  // timed to land once the stretch is about half finished, not at
+  // the very moment it starts.
+  setTimeout(() => {
+    topbar.classList.add('reveal');
+    bottombar.classList.add('reveal');
+    subtitle.classList.add('reveal');
+  }, CHROME_DELAY);
 
   glyphs.forEach((el, i) => {
     const p = PIECES[i];
@@ -453,7 +555,7 @@ function resolve() {
     setTimeout(() => {
       el.dataset.lit = '1';
       el.style.transition =
-        `opacity 260ms ease-out, width 680ms ${EASE_STRETCH}, box-shadow 500ms ${EASE_STRETCH}`;
+        `opacity 260ms ease-out, width ${STRETCH_DUR}ms ${EASE_STRETCH}, box-shadow 500ms ${EASE_STRETCH}`;
       el.style.width = el.dataset.fullWidth + 'px';
       el.style.opacity = 1;
       setDotGlow(el, 1, 12);
@@ -461,31 +563,33 @@ function resolve() {
   });
 }
 
-// ── Sequence: a single, slow, deliberate light-up ────────────────────
-// The O fades in — no strobing — holds, then fades out just as slowly.
-// Just before it's fully dark, the field wakes into a fast random
-// twinkle; after that plays for a while, everything resolves together,
-// snappily, into "SPOT LIGHT" and holds there.
+// ── Sequence: a single, deliberate light-up ───────────────────────────
+// The O fades in — no strobing — holds briefly, then fades out. Kept
+// tight and a little abrupt on purpose: a long, quiet hold reads as
+// static rather than dramatic, so the rise/hold/fall here are all
+// short relative to what follows. Just before it's fully dark, the
+// field wakes into a fast random twinkle; after that plays for a
+// while, everything resolves together, snappily, into "SPOT LIGHT".
 function ignite() {
   setTransition(0, 'linear');
   setCircleOpacity(0, 0);
 
   setTimeout(() => {
-    const fadeInDur = 1700;
+    const fadeInDur = 900;
     setTransition(fadeInDur, EASE_IN);
     setCircleOpacity(1, 46);
 
     setTimeout(() => {
-      const holdTime = rnd(2200, 2800);
+      const holdTime = rnd(700, 1000);
 
       setTimeout(() => {
-        const fadeOutDur = 2200;
+        const fadeOutDur = 1200;
         setTransition(fadeOutDur, EASE_OUT);
         setCircleOpacity(0, 0);
 
-        const wakeDots = fadeOutDur - 550;
+        const wakeDots = fadeOutDur - 350;
         setTimeout(startDots, wakeDots);
-        setTimeout(resolve, wakeDots + 2400);
+        setTimeout(resolve, wakeDots + 1800);
       }, holdTime);
     }, fadeInDur);
   }, rnd(350, 550));
