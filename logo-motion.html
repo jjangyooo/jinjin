@@ -102,34 +102,47 @@ const circle = document.getElementById('logo-circle');
 const halo   = document.getElementById('logo-halo');
 
 // ── Dot-matrix font ───────────────────────────────────────────────
-// Each letter is a small grid (col, row). A 'bar' spans columns c1–c2
-// on one row and renders as a pill; a 'dot' is a single stroke joint.
+// Each letter is a small grid (col, row) on a 7-row frame: bars sit
+// at rows 0/3/6 (top, middle, baseline-adjacent), with paired stroke
+// dots at rows 1-2 and 4-5 connecting them — traced from the actual
+// "SPOT LIGHT" mark, not a generic block font. A 'bar' spans columns
+// c1–c2 on one row and renders as a pill; a 'dot' is a single joint.
 // The "O" of SPOT is the big circle itself, so it isn't in this font.
-const COL_W = 62, ROW_H = 52, DOT_D = 26, LETTER_GAP = 40;
+const COL_W = 56, ROW_H = 35, DOT_D = 26, LETTER_GAP = 40;
 
 const FONT = {
   S: { cols: 4, segs: [
-    ['bar', 0, 3, 0], ['dot', 0, 1], ['bar', 0, 3, 2], ['dot', 3, 3], ['bar', 0, 3, 4],
+    ['bar', 1, 3, 0], ['dot', 0, 1], ['dot', 0, 2],
+    ['bar', 0, 2, 3],
+    ['dot', 3, 4], ['dot', 3, 5], ['bar', 1, 3, 6],
   ]},
   P: { cols: 3, segs: [
-    ['bar', 0, 2, 0], ['dot', 0, 1], ['dot', 2, 1], ['bar', 0, 2, 2], ['dot', 0, 3], ['dot', 0, 4],
+    ['bar', 0, 2, 0], ['dot', 0, 1], ['dot', 2, 1], ['dot', 0, 2], ['dot', 2, 2],
+    ['bar', 0, 2, 3],
+    ['dot', 0, 4], ['dot', 0, 5], ['dot', 0, 6],
   ]},
   T: { cols: 3, segs: [
-    ['bar', 0, 2, 0], ['dot', 1, 1], ['dot', 1, 2], ['dot', 1, 3], ['dot', 1, 4],
+    ['bar', 0, 2, 0],
+    ['dot', 1, 1], ['dot', 1, 2], ['dot', 1, 3], ['dot', 1, 4], ['dot', 1, 5], ['dot', 1, 6],
   ]},
   L: { cols: 3, segs: [
-    ['dot', 0, 0], ['dot', 0, 1], ['dot', 0, 2], ['dot', 0, 3], ['bar', 0, 2, 4],
+    ['dot', 0, 0], ['dot', 0, 1], ['dot', 0, 2], ['dot', 0, 3], ['dot', 0, 4], ['dot', 0, 5],
+    ['bar', 0, 2, 6],
   ]},
   I: { cols: 1, segs: [
-    ['dot', 0, 0], ['dot', 0, 1], ['dot', 0, 2], ['dot', 0, 3], ['dot', 0, 4],
+    ['dot', 0, 0], ['dot', 0, 1], ['dot', 0, 2], ['dot', 0, 3],
+    ['dot', 0, 4], ['dot', 0, 5], ['dot', 0, 6],
   ]},
   G: { cols: 4, segs: [
-    ['bar', 0, 3, 0], ['dot', 0, 1], ['dot', 0, 2], ['bar', 2, 3, 2],
-    ['dot', 0, 3], ['dot', 3, 3], ['bar', 0, 3, 4],
+    ['bar', 0, 3, 0], ['dot', 0, 1], ['dot', 0, 2],
+    ['dot', 0, 3], ['bar', 2, 3, 3],
+    ['dot', 0, 4], ['dot', 3, 4], ['dot', 0, 5], ['dot', 3, 5],
+    ['bar', 0, 3, 6],
   ]},
   H: { cols: 3, segs: [
-    ['dot', 0, 0], ['dot', 2, 0], ['dot', 0, 1], ['dot', 2, 1],
-    ['bar', 0, 2, 2], ['dot', 0, 3], ['dot', 2, 3], ['dot', 0, 4], ['dot', 2, 4],
+    ['dot', 0, 0], ['dot', 2, 0], ['dot', 0, 1], ['dot', 2, 1], ['dot', 0, 2], ['dot', 2, 2],
+    ['bar', 0, 2, 3],
+    ['dot', 0, 4], ['dot', 2, 4], ['dot', 0, 5], ['dot', 2, 5], ['dot', 0, 6], ['dot', 2, 6],
   ]},
 };
 
@@ -162,7 +175,10 @@ function layoutWord(word, x0, baseY) {
 
 // "SPOT" — S and P to the left of the O, T to its right, gapped off
 // the O's own fixed geometry so the word stays visually locked to it.
-const O_CX = 810, O_R = 103, TOP_BASE_Y = 267;
+// TOP_BASE_Y is set so row 3 (the crossbar row) lands on the O's own
+// vertical center, keeping the whole lock-up optically aligned.
+const O_CX = 810, O_CY = 360, O_R = 103;
+const TOP_BASE_Y = O_CY - 3 * ROW_H;
 const spLayout = layoutWord('SP', 0, TOP_BASE_Y);
 const spWidth  = spLayout.endX;
 const spStartX = (O_CX - O_R - LETTER_GAP) - spWidth;
@@ -170,7 +186,7 @@ const { pieces: spPieces } = layoutWord('SP', spStartX, TOP_BASE_Y);
 const { pieces: tPieces }  = layoutWord('T', O_CX + O_R + LETTER_GAP, TOP_BASE_Y);
 
 // "LIGHT" — centered under the SPOT lock-up's overall span.
-const BOTTOM_BASE_Y = 497;
+const BOTTOM_BASE_Y = TOP_BASE_Y + 7 * ROW_H;
 const rawLight = layoutWord('LIGHT', 0, BOTTOM_BASE_Y);
 const lightStartX = spStartX + ((O_CX + O_R + LETTER_GAP + letterWidth('T')) - spStartX - rawLight.endX) / 2;
 const { pieces: lightPieces } = layoutWord('LIGHT', lightStartX, BOTTOM_BASE_Y);
