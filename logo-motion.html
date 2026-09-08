@@ -94,8 +94,13 @@ const stage  = document.getElementById('stage');
 const circle = document.getElementById('logo-circle');
 const halo   = document.getElementById('logo-halo');
 
-// ── Dot layout (approximated from the reference stills) ─────────────
+// ── Dot layout ────────────────────────────────────────────────────
+// The full mark: the original loose scatter around the O, plus the
+// denser vertical columns that complete the lock-up shown in the
+// final reference still. All of it twinkles randomly at first; the
+// resolve() pass below is what snaps it into this exact formation.
 const DOT_POS = [
+  // loose scatter (upper field)
   { x: 594,  y: 271 }, { x: 365,  y: 302 }, { x: 667,  y: 332 },
   { x: 994,  y: 362 }, { x: 547,  y: 392 }, { x: 426,  y: 453 },
   { x: 328,  y: 502 }, { x: 809,  y: 502 }, { x: 931,  y: 533 },
@@ -103,6 +108,15 @@ const DOT_POS = [
   { x: 629,  y: 593 }, { x: 328,  y: 623 }, { x: 809,  y: 623 },
   { x: 539,  y: 654 }, { x: 389,  y: 684 }, { x: 707,  y: 684 },
   { x: 809,  y: 684 }, { x: 994,  y: 271 }, { x: 994,  y: 453 },
+  // vertical bar beside the O
+  { x: 994,  y: 299 }, { x: 994,  y: 330 }, { x: 994,  y: 391 }, { x: 994,  y: 424 },
+  // dense lower columns that complete the lock-up
+  { x: 328,  y: 533 }, { x: 328,  y: 564 }, { x: 328,  y: 595 }, { x: 328,  y: 657 },
+  { x: 539,  y: 502 }, { x: 539,  y: 533 }, { x: 539,  y: 595 }, { x: 539,  y: 626 },
+  { x: 629,  y: 654 }, { x: 688,  y: 502 },
+  { x: 809,  y: 533 }, { x: 809,  y: 563 }, { x: 809,  y: 595 }, { x: 809,  y: 654 },
+  { x: 1051, y: 533 }, { x: 1051, y: 595 }, { x: 1051, y: 626 },
+  { x: 1051, y: 657 }, { x: 1051, y: 684 },
 ];
 
 const dots = DOT_POS.map(p => {
@@ -126,15 +140,18 @@ function setDotGlow(el, v, maxBlur) {
 }
 
 // ── Dot twinkle scheduler ────────────────────────────────────────────
-// Independent random on/off flicker. Idle (near-zero MAX_LIT) until
-// woken by startDots(); fast and busy once running.
+// Independent random on/off flicker. Idle (maxLit = 0) until woken by
+// startDots(); fast and busy once running; frozen once resolve() locks
+// the field into the final formation.
 const MAX_LIT_IDLE = 0;
-const MAX_LIT_FAST = 9;
+const MAX_LIT_FAST = 11;
 let maxLit = MAX_LIT_IDLE;
 let litCount = 0;
 let dotsStarted = false;
+let locked = false;
 
 function twinkleLoop() {
+  if (locked) return;
   if (litCount >= maxLit) { setTimeout(twinkleLoop, rnd(30, 90)); return; }
 
   const pool = dots.filter(d => !d.dataset.lit);
@@ -151,6 +168,7 @@ function twinkleLoop() {
 
   const holdTime = rnd(70, 220);
   setTimeout(() => {
+    if (locked) return; // formation already locked in — leave it lit
     el.style.transition = `opacity ${rnd(90, 220)}ms ease-in, box-shadow ${rnd(90, 220)}ms ease-in`;
     el.style.opacity = 0;
     setDotGlow(el, 0, 12);
@@ -173,12 +191,10 @@ function startDots() {
 }
 twinkleLoop(); // scheduler runs immediately but stays dormant (maxLit = 0) until startDots()
 
-// ── Logo circle: a single, slow, deliberate light-up ─────────────────
-// Fades in — no strobing — holds, then fades out just as slowly. Right
-// before it's fully dark the dot field wakes and starts its fast random
-// twinkle. The O never lights again after this one cycle.
-const EASE_IN  = 'cubic-bezier(0.22, 0.61, 0.36, 1)';   // slow-settling rise
+// ── Logo circle helpers ──────────────────────────────────────────────
+const EASE_IN  = 'cubic-bezier(0.22, 0.61, 0.36, 1)';    // slow-settling rise
 const EASE_OUT = 'cubic-bezier(0.55, 0.06, 0.68, 0.19)'; // heavy, slowing fall
+const EASE_SETTLE = 'cubic-bezier(0.16, 1, 0.3, 1)';     // soft, natural landing
 
 function setTransition(dur, easing) {
   const t = `opacity ${dur}ms ${easing}, box-shadow ${dur}ms ${easing}`;
@@ -195,31 +211,54 @@ function setCircleOpacity(v, maxBlur) {
     : 'none';
 }
 
+// ── Resolve: the reveal ──────────────────────────────────────────────
+// After the random twinkle has played for a while, everything settles
+// together into the fixed formation shown in the reference still — the
+// O relights alongside the dots. Each dot lands with a small random
+// delay so the reveal reads as one natural motion, not a mechanical
+// snap, then the whole mark holds.
+function resolve() {
+  locked = true;
+
+  setTransition(900, EASE_SETTLE);
+  setCircleOpacity(1, 46);
+
+  dots.forEach(el => {
+    const delay = rnd(0, 240);
+    setTimeout(() => {
+      el.dataset.lit = '1';
+      el.style.transition = `opacity 720ms ${EASE_SETTLE}, box-shadow 720ms ${EASE_SETTLE}`;
+      el.style.opacity = 1;
+      setDotGlow(el, 1, 12);
+    }, delay);
+  });
+}
+
+// ── Sequence: a single, slow, deliberate light-up ────────────────────
+// The O fades in — no strobing — holds, then fades out just as slowly.
+// Just before it's fully dark, the dot field wakes into a fast random
+// twinkle; after that plays for a while, everything resolves together
+// into the final formation and holds there.
 function ignite() {
-  // dark start
   setTransition(0, 'linear');
   setCircleOpacity(0, 0);
 
   setTimeout(() => {
-    // slow, weighted rise to full brightness
     const fadeInDur = 1700;
     setTransition(fadeInDur, EASE_IN);
     setCircleOpacity(1, 46);
 
     setTimeout(() => {
-      // hold, steady
       const holdTime = rnd(2200, 2800);
 
       setTimeout(() => {
-        // slow, weighted fall to dark
         const fadeOutDur = 2200;
         setTransition(fadeOutDur, EASE_OUT);
         setCircleOpacity(0, 0);
 
-        // wake the dots just before the O is fully dark
-        setTimeout(startDots, fadeOutDur - 550);
-
-        // after this the O stays dark for good — no further cycles
+        const wakeDots = fadeOutDur - 550;
+        setTimeout(startDots, wakeDots);
+        setTimeout(resolve, wakeDots + 3600);
       }, holdTime);
     }, fadeInDur);
   }, rnd(350, 550));
