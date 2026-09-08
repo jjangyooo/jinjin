@@ -454,9 +454,12 @@ let litCount = 0;
 let dotsStarted = false;
 let locked = false;
 
+// Deliberately wide random ranges — some sparks snap on/off almost
+// instantly, others linger noticeably longer, so the field reads as
+// having real tempo contrast rather than one uniform flicker speed.
 function twinkleLoop() {
   if (locked) return;
-  if (litCount >= maxLit) { setTimeout(twinkleLoop, rnd(30, 90)); return; }
+  if (litCount >= maxLit) { setTimeout(twinkleLoop, rnd(20, 90)); return; }
 
   const pool = glyphs.filter(d => !d.dataset.lit);
   if (!pool.length) { setTimeout(twinkleLoop, 120); return; }
@@ -465,21 +468,21 @@ function twinkleLoop() {
   el.dataset.lit = '1';
   litCount++;
 
-  const peak = rnd(0.6, 1);
-  el.style.transition = `opacity ${rnd(30, 90)}ms ease-out, box-shadow ${rnd(30, 90)}ms ease-out`;
+  const peak = rnd(0.55, 1);
+  el.style.transition = `opacity ${rnd(18, 160)}ms ease-out, box-shadow ${rnd(18, 160)}ms ease-out`;
   el.style.opacity = peak;
   setDotGlow(el, peak, 12);
 
-  const holdTime = rnd(70, 220);
+  const holdTime = rnd(50, 340);
   setTimeout(() => {
     if (locked) return; // formation already locked in — leave it lit
-    el.style.transition = `opacity ${rnd(90, 220)}ms ease-in, box-shadow ${rnd(90, 220)}ms ease-in`;
+    el.style.transition = `opacity ${rnd(60, 340)}ms ease-in, box-shadow ${rnd(60, 340)}ms ease-in`;
     el.style.opacity = 0;
     setDotGlow(el, 0, 12);
-    setTimeout(() => { delete el.dataset.lit; litCount--; }, 240);
+    setTimeout(() => { delete el.dataset.lit; litCount--; }, 340);
   }, holdTime);
 
-  setTimeout(twinkleLoop, rnd(30, 110));
+  setTimeout(twinkleLoop, rnd(15, 170));
 }
 
 // Wake the field: switch to the fast/busy regime and seed a quick
@@ -489,9 +492,9 @@ function startDots() {
   dotsStarted = true;
   maxLit = MAX_LIT_FAST;
   twinkleLoop();
-  setTimeout(twinkleLoop, rnd(40, 110));
-  setTimeout(twinkleLoop, rnd(110, 200));
-  setTimeout(twinkleLoop, rnd(200, 320));
+  setTimeout(twinkleLoop, rnd(30, 100));
+  setTimeout(twinkleLoop, rnd(90, 190));
+  setTimeout(twinkleLoop, rnd(180, 300));
 }
 twinkleLoop(); // scheduler runs immediately but stays dormant (maxLit = 0) until startDots()
 
@@ -563,34 +566,49 @@ function resolve() {
   });
 }
 
-// ── Sequence: a single, deliberate light-up ───────────────────────────
-// The O fades in — no strobing — holds briefly, then fades out. Kept
-// tight and a little abrupt on purpose: a long, quiet hold reads as
-// static rather than dramatic, so the rise/hold/fall here are all
-// short relative to what follows. Just before it's fully dark, the
-// field wakes into a fast random twinkle; after that plays for a
-// while, everything resolves together, snappily, into "SPOT LIGHT".
+// ── Sequence: light up, blink twice (fast, then slower), cut out ─────
+// The O snaps on, holds a beat, then blinks — a quick one first, then
+// a visibly slower second one — before dropping out fast. The field
+// wakes into its fast random twinkle exactly halfway through that
+// final fade-out (not tucked right at the end), so the small lights'
+// tempo-contrast twinkle is already going while the O is still
+// visibly dimming, not just as an afterthought once it's gone.
+function dip(offDur, onDur, next) {
+  setTransition(offDur, EASE_OUT);
+  setCircleOpacity(0.06, 5);
+  setTimeout(() => {
+    setTransition(onDur, EASE_IN);
+    setCircleOpacity(1, 46);
+    setTimeout(next, onDur);
+  }, offDur);
+}
+
 function ignite() {
   setTransition(0, 'linear');
   setCircleOpacity(0, 0);
 
   setTimeout(() => {
-    const fadeInDur = 900;
+    const fadeInDur = 500;
     setTransition(fadeInDur, EASE_IN);
     setCircleOpacity(1, 46);
 
     setTimeout(() => {
-      const holdTime = rnd(700, 1000);
+      // Blink 1: fast.
+      dip(120, 140, () => {
+        // Blink 2: noticeably slower.
+        dip(300, 320, () => {
+          setTimeout(() => {
+            // Cut out — faster than the old single slow fade.
+            const fadeOutDur = 800;
+            setTransition(fadeOutDur, EASE_OUT);
+            setCircleOpacity(0, 0);
 
-      setTimeout(() => {
-        const fadeOutDur = 1200;
-        setTransition(fadeOutDur, EASE_OUT);
-        setCircleOpacity(0, 0);
-
-        const wakeDots = fadeOutDur - 350;
-        setTimeout(startDots, wakeDots);
-        setTimeout(resolve, wakeDots + 1800);
-      }, holdTime);
+            const wakeDots = fadeOutDur * 0.5;
+            setTimeout(startDots, wakeDots);
+            setTimeout(resolve, wakeDots + 1800);
+          }, 70);
+        });
+      });
     }, fadeInDur);
   }, rnd(350, 550));
 }
