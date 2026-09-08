@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logo Motion — Entrance</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Fixed 1440×810 stage ─────────────────────────────────────── */
+  #stage {
+    position: relative;
+    width: 1440px;
+    height: 810px;
+    background: #000;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  /* ── Big logo circle (the "O") ───────────────────────────────── */
+  #logo-circle {
+    position: absolute;
+    width: 206px;
+    height: 206px;
+    left: 810px;
+    top: 360px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #fff;
+    opacity: 0;
+    will-change: opacity, filter;
+  }
+
+  /* ── Scatter dots ─────────────────────────────────────────────── */
+  .dot {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #fff;
+    opacity: 0;
+    will-change: opacity;
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="logo-circle"></div>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+const stage  = document.getElementById('stage');
+const circle = document.getElementById('logo-circle');
+
+// ── Dot layout (approximated from the reference stills) ─────────────
+const DOT_POS = [
+  { x: 594,  y: 271 }, { x: 365,  y: 302 }, { x: 667,  y: 332 },
+  { x: 994,  y: 362 }, { x: 547,  y: 392 }, { x: 426,  y: 453 },
+  { x: 328,  y: 502 }, { x: 809,  y: 502 }, { x: 931,  y: 533 },
+  { x: 1051, y: 502 }, { x: 1051, y: 563 }, { x: 539,  y: 563 },
+  { x: 629,  y: 593 }, { x: 328,  y: 623 }, { x: 809,  y: 623 },
+  { x: 539,  y: 654 }, { x: 389,  y: 684 }, { x: 707,  y: 684 },
+  { x: 809,  y: 684 }, { x: 994,  y: 271 }, { x: 994,  y: 453 },
+];
+
+const dots = DOT_POS.map(p => {
+  const el = document.createElement('div');
+  el.className = 'dot';
+  el.style.left = p.x + 'px';
+  el.style.top  = p.y + 'px';
+  stage.appendChild(el);
+  return el;
+});
+
+function rnd(lo, hi) { return lo + Math.random() * (hi - lo); }
+function setGlow(el, on, blur) {
+  el.style.boxShadow = on ? `0 0 ${blur}px rgba(255,255,255,0.85)` : 'none';
+}
+
+// ── Dot twinkle scheduler ────────────────────────────────────────────
+// Independent random on/off flicker, a handful lit at any moment.
+const MAX_LIT = 6;
+let litCount = 0;
+
+function twinkleLoop() {
+  if (litCount >= MAX_LIT) { setTimeout(twinkleLoop, rnd(60, 160)); return; }
+
+  const pool = dots.filter(d => !d.dataset.lit);
+  if (!pool.length) { setTimeout(twinkleLoop, 200); return; }
+
+  const el = pool[Math.floor(Math.random() * pool.length)];
+  el.dataset.lit = '1';
+  litCount++;
+
+  const peak = rnd(0.55, 1);
+  el.style.transition = `opacity ${rnd(60, 160)}ms ease-out`;
+  el.style.opacity = peak;
+  setGlow(el, true, rnd(4, 10));
+
+  const holdTime = rnd(120, 520);
+  setTimeout(() => {
+    el.style.transition = `opacity ${rnd(200, 500)}ms ease-in`;
+    el.style.opacity = 0;
+    setGlow(el, false, 0);
+    setTimeout(() => { delete el.dataset.lit; litCount--; }, 500);
+  }, holdTime);
+
+  setTimeout(twinkleLoop, rnd(80, 260));
+}
+
+// ── Logo circle: spotlight ignition cycle ───────────────────────────
+// off (dark pause) -> flicker-ignite -> steady on (breathing glow)
+// -> flicker-out -> back to dark, repeating forever.
+function setCircleOpacity(v, glowBlur) {
+  circle.style.opacity = v;
+  setGlow(circle, v > 0, glowBlur || 0);
+}
+
+function flickerBurst(steps, done) {
+  let i = 0;
+  function step() {
+    if (i >= steps.length) { done && done(); return; }
+    const [op, dur, blur] = steps[i++];
+    circle.style.transition = `opacity ${dur}ms linear`;
+    setCircleOpacity(op, blur);
+    setTimeout(step, dur);
+  }
+  step();
+}
+
+function circleCycle() {
+  // 1) dark pause
+  circle.style.transition = 'opacity 0ms';
+  setCircleOpacity(0, 0);
+
+  setTimeout(() => {
+    // 2) ignite: irregular rapid flicker like a bulb starting up
+    const igniteSteps = [
+      [0.35, 40, 6],  [0,    50, 0],
+      [0.6,  35, 10], [0.1,  60, 2],
+      [0.8,  45, 14], [0.2,  40, 4],
+      [1,    70, 22], [0.5,  50, 10],
+      [1,    90, 26],
+    ];
+    flickerBurst(igniteSteps, () => {
+      // 3) steady on, with a slow breathing pulse
+      circle.style.transition = 'opacity 1400ms ease-in-out, filter 1400ms ease-in-out';
+      setCircleOpacity(1, 26);
+      const onTime = rnd(1800, 3200);
+
+      setTimeout(() => {
+        // gentle breathing dip mid-hold
+        circle.style.transition = 'opacity 700ms ease-in-out';
+        setCircleOpacity(0.82, 18);
+        setTimeout(() => {
+          circle.style.transition = 'opacity 700ms ease-in-out';
+          setCircleOpacity(1, 26);
+        }, 700);
+      }, onTime * 0.4);
+
+      setTimeout(() => {
+        // 4) flicker-out
+        const outSteps = [
+          [0.4, 40, 8], [0.9, 30, 20], [0.15, 55, 3],
+          [0.7, 35, 16], [0,   90, 0],
+        ];
+        flickerBurst(outSteps, circleCycle);
+      }, onTime);
+    });
+  }, rnd(900, 1900));
+}
+
+// ── Boot ──────────────────────────────────────────────────────────
+twinkleLoop();
+setTimeout(twinkleLoop, rnd(150, 400));
+setTimeout(twinkleLoop, rnd(400, 700));
+circleCycle();
+
+}());
+</script>
+</body>
+</html>
