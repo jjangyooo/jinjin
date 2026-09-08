@@ -602,9 +602,9 @@ function dimGlyphs() {
 // has settled — weak to full-strong and back, never dropping out or
 // losing its glow entirely. Kept snappy rather than a slow breath.
 function pulseO(strong) {
-  const dur = 820;
+  const dur = 1500;
   setTransition(dur, 'cubic-bezier(0.45, 0, 0.55, 1)');
-  setCircleOpacity(strong ? 1 : 0.45, strong ? 48 : 12);
+  setCircleOpacity(strong ? 1 : 0.55, strong ? 48 : 22);
   setTimeout(() => pulseO(!strong), dur);
 }
 
