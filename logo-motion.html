@@ -259,7 +259,7 @@ twinkleLoop(); // scheduler runs immediately but stays dormant (maxLit = 0) unti
 // ── Logo circle helpers ──────────────────────────────────────────────
 const EASE_IN     = 'cubic-bezier(0.22, 0.61, 0.36, 1)';    // slow-settling rise
 const EASE_OUT    = 'cubic-bezier(0.55, 0.06, 0.68, 0.19)'; // heavy, slowing fall
-const EASE_SPRING = 'cubic-bezier(0.34, 1.56, 0.64, 1)';    // snappy, springy landing
+const EASE_SPRING = 'cubic-bezier(0.31, 1.9, 0.6, 1)';      // punchy, overshooting spring
 
 function setTransition(dur, easing) {
   const t = `opacity ${dur}ms ${easing}, box-shadow ${dur}ms ${easing}`;
@@ -278,22 +278,28 @@ function setCircleOpacity(v, maxBlur) {
 
 // ── Resolve: the reveal ──────────────────────────────────────────────
 // After the random twinkle has played for a while, every spark snaps
-// into "SPOT LIGHT" — dots settle into place, and each bar stretches
-// sideways from its collapsed spark into the full stroke. A short
-// random stagger plus a springy, slightly overshooting ease keeps the
-// whole thing feeling snappy and alive rather than mechanical or slow.
+// into "SPOT LIGHT". Instead of a near-simultaneous random pop, the
+// stretch fires as an outward beat from the O — pieces closest to it
+// go first, farther ones follow on a short delay — so the reveal reads
+// as a driving, rhythmic pulse instead of a soft, all-at-once blob.
+const O_CX = 810, O_CY = 360;
+const WAVE_SPAN = 260;
+const maxDist = Math.max(...PIECES.map(p => Math.hypot(p.cx - O_CX, p.cy - O_CY)));
+
 function resolve() {
   locked = true;
 
-  setTransition(420, EASE_SPRING);
+  setTransition(320, EASE_SPRING);
   setCircleOpacity(1, 46);
 
-  glyphs.forEach(el => {
-    const delay = rnd(0, 150);
+  glyphs.forEach((el, i) => {
+    const p = PIECES[i];
+    const dist = Math.hypot(p.cx - O_CX, p.cy - O_CY);
+    const delay = (dist / maxDist) * WAVE_SPAN + rnd(0, 25);
     setTimeout(() => {
       el.dataset.lit = '1';
       el.style.transition =
-        `opacity 260ms ease-out, width 460ms ${EASE_SPRING}, box-shadow 320ms ease-out`;
+        `opacity 180ms ease-out, width 420ms ${EASE_SPRING}, box-shadow 260ms ease-out`;
       el.style.width = el.dataset.fullWidth + 'px';
       el.style.opacity = 1;
       setDotGlow(el, 1, 12);
