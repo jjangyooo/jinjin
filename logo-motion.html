@@ -599,14 +599,12 @@ function dimGlyphs() {
 }
 
 // Infinite breathing pulse on the O alone, once the rest of the mark
-// has settled. The O's opacity is driven by the same value as its
-// glow (setCircleOpacity already ties both to v), so at the bottom of
-// each cycle it isn't just dim — it fades out completely along with
-// its glow, then fades back in together with it as the glow returns.
+// has settled — weak to full-strong and back, never dropping out or
+// losing its glow entirely. Kept snappy rather than a slow breath.
 function pulseO(strong) {
-  const dur = 1300;
+  const dur = 820;
   setTransition(dur, 'cubic-bezier(0.45, 0, 0.55, 1)');
-  setCircleOpacity(strong ? 1 : 0, strong ? 48 : 0);
+  setCircleOpacity(strong ? 1 : 0.45, strong ? 48 : 12);
   setTimeout(() => pulseO(!strong), dur);
 }
 
