@@ -594,17 +594,19 @@ function resolve() {
 function dimGlyphs() {
   glyphs.forEach(el => {
     el.style.transition = 'box-shadow 1400ms ease-in-out';
-    setDotGlow(el, 0.15, 12);
+    setDotGlow(el, 0.3, 12);
   });
 }
 
-// Infinite strong/weak breathing pulse on the O alone, once the rest
-// of the mark has settled — a steady, rhythmic beat rather than a
-// one-off flourish.
+// Infinite breathing pulse on the O alone, once the rest of the mark
+// has settled. The O's opacity is driven by the same value as its
+// glow (setCircleOpacity already ties both to v), so at the bottom of
+// each cycle it isn't just dim — it fades out completely along with
+// its glow, then fades back in together with it as the glow returns.
 function pulseO(strong) {
   const dur = 1300;
   setTransition(dur, 'cubic-bezier(0.45, 0, 0.55, 1)');
-  setCircleOpacity(strong ? 1 : 0.5, strong ? 48 : 14);
+  setCircleOpacity(strong ? 1 : 0, strong ? 48 : 0);
   setTimeout(() => pulseO(!strong), dur);
 }
 
